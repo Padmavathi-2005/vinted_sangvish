@@ -1,0 +1,154 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useState, useContext, useEffect } from 'react';
+import axios from '../utils/axios';
+import { useNavigate, Link } from 'react-router-dom';
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGoogle, FaApple, FaFacebookSquare, FaTwitter } from 'react-icons/fa';
+import AuthContext from '../context/AuthContext';
+import '../styles/Auth.css';
+
+const Register = () => {
+    const { login } = useContext(AuthContext);
+    const [formData, setFormData] = useState({ username: '', email: '', password: '' });
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState('');
+    const [socialSettings, setSocialSettings] = useState(null);
+    const navigate = useNavigate();
+    const { username, email, password } = formData;
+
+    useEffect(() => {
+        const fetchSocialSettings = async () => {
+            try {
+                const response = await axios.get('/api/settings/social_login_settings');
+                if (response.data) {
+                    setSocialSettings(response.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch social settings", err);
+            }
+        };
+        fetchSocialSettings();
+    }, []);
+
+    const onChange = (e) => {
+        setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const onSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await axios.post('/api/users', { username, email, password });
+            if (response.data) {
+                login(response.data);
+                navigate('/');
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Registration failed');
+        }
+    };
+
+    return (
+        <div className="auth-page">
+            <div className="auth-card">
+                <h2 className="text-center">Create Account</h2>
+                <p className="subtitle text-center">Join our marketplace community today</p>
+
+                {(socialSettings?.google_enabled || socialSettings?.facebook_enabled || socialSettings?.twitter_enabled || socialSettings?.apple_enabled) && (
+                    <>
+                        <div className="social-buttons">
+                            {socialSettings?.google_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/google`}><FaGoogle /> Google</button>
+                            )}
+                            {socialSettings?.facebook_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/facebook`}><FaFacebookSquare style={{ color: '#1877F2' }} /> Facebook</button>
+                            )}
+                            {socialSettings?.twitter_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/twitter`}><FaTwitter style={{ color: '#1DA1F2' }} /> Twitter</button>
+                            )}
+                            {socialSettings?.apple_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/apple`}><FaApple className="text-dark" /> Apple</button>
+                            )}
+                        </div>
+                        <div className="divider"><span>Or sign up with email</span></div>
+                    </>
+                )}
+
+                <form onSubmit={onSubmit}>
+                    {error && <div className="auth-error">{error}</div>}
+
+                    {/* Username */}
+                    <div className="auth-field">
+                        <label className="auth-label">Username</label>
+                        <div className="auth-input-wrapper">
+                            <span className="auth-icon"><FaUser /></span>
+                            <input
+                                type="text"
+                                className="auth-input"
+                                name="username"
+                                value={username}
+                                placeholder="style_lover"
+                                onChange={onChange}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Email */}
+                    <div className="auth-field">
+                        <label className="auth-label">Email Address</label>
+                        <div className="auth-input-wrapper">
+                            <span className="auth-icon"><FaEnvelope /></span>
+                            <input
+                                type="email"
+                                className="auth-input"
+                                name="email"
+                                value={email}
+                                placeholder="user@email.com"
+                                onChange={onChange}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="auth-field">
+                        <label className="auth-label">Password</label>
+                        <div className="auth-input-wrapper">
+                            <span className="auth-icon"><FaLock /></span>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                className="auth-input"
+                                name="password"
+                                value={password}
+                                placeholder="Min. 8 characters"
+                                onChange={onChange}
+                                required
+                            />
+                            <span
+                                className="auth-icon auth-icon-right"
+                                onClick={() => setShowPassword(!showPassword)}
+                            >
+                                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Terms */}
+                    <div className="auth-terms">
+                        By creating an account, you agree to our{' '}
+                        <Link to="/terms">Terms of Service</Link> and{' '}
+                        <Link to="/privacy">Privacy Policy</Link>.
+                    </div>
+
+                    <button type="submit" className="btn-submit">Create Account</button>
+                </form>
+
+                <div className="auth-footer">
+                    <span>Already have an account? </span>
+                    <Link to="/login">Log in</Link>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Register;

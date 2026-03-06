@@ -1,0 +1,728 @@
+import React, { useState, useEffect } from 'react';
+import { FaCloudUploadAlt, FaSave, FaUndo, FaImage, FaChevronDown, FaCcStripe, FaPaypal, FaChevronRight, FaPlus, FaTrash, FaGoogle, FaFacebookSquare, FaTwitter, FaApple } from 'react-icons/fa';
+import { Form, Button, Row, Col, Card, InputGroup, Container, Accordion, Nav } from 'react-bootstrap';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext';
+import axios from '../utils/axios';
+import AdminSearchSelect from '../components/AdminSearchSelect';
+import Toggle from '../components/Toggle';
+import { showToast } from '../utils/swal';
+import { PaymentMethodsList } from './PaymentMethods';
+import '../styles/DynamicSettings.css';
+import '../styles/Settings.css';
+
+const DynamicSettings = () => {
+    const { type } = useParams();
+    const { getSettingsByType, updateSettingsByType } = useSettings();
+
+    const [formData, setFormData] = useState({});
+    const [previews, setPreviews] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [activeGlobalLang, setActiveGlobalLang] = useState('en');
+    const [settingTypes, setSettingTypes] = useState([]);
+    const [expandedGateways, setExpandedGateways] = useState(['stripe', 'paypal']);
+    const [activeTab, setActiveTab] = useState('settings'); // 'settings' or 'methods'
+    const navigate = useNavigate();
+
+    const [languages, setLanguages] = useState([]);
+    const [currencies, setCurrencies] = useState([]);
+    const [pages, setPages] = useState([]);
+
+    useEffect(() => {
+        fetchData();
+    }, [type]);
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const [settingsData, langRes, currRes, pageRes, typesRes] = await Promise.all([
+                getSettingsByType(type),
+                axios.get('/api/admin/languages'),
+                axios.get('/api/admin/currencies'),
+                axios.get('/api/pages'),
+                axios.get('/api/settings/types')
+            ]);
+
+            if (settingsData) {
+                setFormData(settingsData);
+                // Initialize previews
+                const previewFields = ['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image', 'stripe_logo', 'paypal_logo'];
+                previewFields.forEach(field => {
+                    if (settingsData[field]) {
+                        setPreviews(prev => ({ ...prev, [field]: `${axios.defaults.baseURL}/${settingsData[field]}` }));
+                    }
+                });
+            }
+            setLanguages(langRes.data);
+            setCurrencies(currRes.data);
+            setPages(pageRes.data);
+            setSettingTypes(typesRes.data);
+        } catch (error) {
+            console.error("Error fetching settings data", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+
+        if (type === 'number') {
+            const num = parseFloat(value);
+            if (num <= 0) return; // Ignore zero or negative
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        const name = e.target.name;
+        if (file) {
+            setFormData(prev => ({ ...prev, [name]: file }));
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviews(prev => ({ ...prev, [name]: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+
+        const data = new FormData();
+        const skipFields = ['_id', '__v', 'created_at', 'updated_at', 'type', 'general_settings', 'admin_settings'];
+
+        const allowedFields = getFieldsForType(type);
+
+        Object.keys(formData).forEach(key => {
+            if (allowedFields.includes(key) && !skipFields.includes(key) && formData[key] !== null && formData[key] !== undefined) {
+                const value = formData[key];
+
+                if (value instanceof File) {
+                    data.append(key, value);
+                } else if (typeof value === 'object' && value !== null) {
+                    if (value._id) {
+                        data.append(key, value._id);
+                    } else {
+                        data.append(key, JSON.stringify(value));
+                    }
+                } else {
+                    // Filter out empty strings for ObjectId fields to prevent 500 error
+                    if (key.includes('_id') && value === '') return;
+                    data.append(key, value);
+                }
+            }
+        });
+
+        const result = await updateSettingsByType(type, data);
+        if (result.success) {
+            showToast('success', 'Settings updated successfully!');
+        } else {
+            showToast('error', 'Error updating settings');
+        }
+        setSaving(false);
+    };
+
+    if (loading) return <div className="p-4 text-center">Loading settings...</div>;
+
+    const handleLocalizedChange = (gatewayId, lang, field, value) => {
+        setFormData(prev => {
+            const translations = { ...(prev[`${gatewayId}_translations`] || {}) };
+            if (!translations[lang]) translations[lang] = {};
+            translations[lang][field] = value;
+            return { ...prev, [`${gatewayId}_translations`]: translations };
+        });
+    };
+
+    const handleGenericLocalizedChange = (key, lang, value) => {
+        setFormData(prev => {
+            const fieldVal = { ...(typeof prev[key] === 'object' ? prev[key] : { [lang]: prev[key] || '' }) };
+            fieldVal[lang] = value;
+            return { ...prev, [key]: fieldVal };
+        });
+    };
+
+    const toggleGateway = (id) => {
+        setExpandedGateways(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const renderPaymentGateways = () => {
+        const gateways = [
+            { id: 'stripe', prefix: 'stripe_', name: 'Stripe Checkout', icon: <FaCcStripe className="text-primary" /> },
+            { id: 'paypal', prefix: 'paypal_', name: 'PayPal Standard', icon: <FaPaypal className="text-primary" /> }
+        ];
+
+        return (
+            <div className="payment-gateways-section">
+                <div className="ds-section-title mb-1">
+                    PAYMENT GATEWAYS
+                </div>
+                <p className="ds-section-subtitle mb-4">You can enable and disable your payment gateways from here</p>
+
+                {gateways.map(gw => {
+                    const isEnabled = formData[`${gw.prefix}enabled`];
+                    const isTestMode = formData[`${gw.prefix}test_mode`];
+                    const translations = formData[`${gw.id}_translations`] || {};
+                    const preview = previews[`${gw.id}_logo`];
+                    const isExpanded = expandedGateways.includes(gw.id);
+
+                    return (
+                        <div key={gw.id} className="ds-gateway-card mb-4 border rounded shadow-sm overflow-hidden">
+                            <div
+                                className="ds-gateway-header d-flex align-items-center justify-content-between p-3 bg-light cursor-pointer"
+                                onClick={() => toggleGateway(gw.id)}
+                            >
+                                <div className="d-flex align-items-center gap-3">
+                                    {gw.icon}
+                                    <span className="fw-bold">{gw.name}</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-3">
+                                    <span className={`ds-status-badge ${isEnabled ? 'active' : ''}`}>
+                                        {isEnabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                    <FaChevronDown
+                                        className={`transition-all opacity-50 ${isExpanded ? 'rotate-180' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                            {isExpanded && (
+                                <div className="ds-gateway-body p-4 bg-white">
+                                    <Row className="gy-4">
+                                        <Col md={12}>
+                                            <Toggle
+                                                label={`Enable ${gw.name}`}
+                                                checked={isEnabled || false}
+                                                onChange={(val) => setFormData({ ...formData, [`${gw.prefix}enabled`]: val })}
+                                            />
+                                        </Col>
+
+                                        <Col md={12}>
+                                            <Form.Group>
+                                                <Form.Label className="form-label-bold">Custom Name ({activeGlobalLang.toUpperCase()})</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    className="ds-input"
+                                                    value={translations[activeGlobalLang]?.name || ''}
+                                                    onChange={(e) => handleLocalizedChange(gw.id, activeGlobalLang, 'name', e.target.value)}
+                                                    placeholder="Enter name (e.g. Credit Card)"
+                                                />
+                                            </Form.Group>
+                                        </Col>
+
+                                        <Col md={12}>
+                                            <Form.Group>
+                                                <Form.Label className="form-label-bold">Description ({activeGlobalLang.toUpperCase()})</Form.Label>
+                                                <Form.Control
+                                                    as="textarea"
+                                                    rows={2}
+                                                    className="ds-input"
+                                                    value={translations[activeGlobalLang]?.description || ''}
+                                                    onChange={(e) => handleLocalizedChange(gw.id, activeGlobalLang, 'description', e.target.value)}
+                                                    placeholder="Enter description"
+                                                />
+                                            </Form.Group>
+                                        </Col>
+
+                                        <Col md={12}>
+                                            <Form.Label className="form-label-bold">Logo</Form.Label>
+                                            <div className="d-flex align-items-center gap-3">
+                                                <div className="ds-logo-box border p-2 bg-light rounded" style={{ minWidth: '60px', textAlign: 'center' }}>
+                                                    {preview ? <img src={preview} alt="Logo" style={{ height: '32px' }} /> : <FaImage size={24} className="text-muted" />}
+                                                </div>
+                                                <div className="position-relative">
+                                                    <Button variant="outline-secondary" size="sm" className="rounded-pill px-3">Browse image</Button>
+                                                    <input
+                                                        type="file"
+                                                        onChange={handleFileChange}
+                                                        name={`${gw.id}_logo`}
+                                                        className="position-absolute start-0 top-0 w-100 h-100 opacity-0 cursor-pointer"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </Col>
+
+                                        <Col md={12}>
+                                            <div className="bg-light p-3 rounded border">
+                                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                                    <span className="fw-bold small text-uppercase">API Credentials</span>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <span className="xx-small text-muted">Test Mode</span>
+                                                        <Toggle
+                                                            checked={isTestMode || false}
+                                                            onChange={(val) => setFormData({ ...formData, [`${gw.prefix}test_mode`]: val })}
+                                                            size="sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <Row className="gy-3">
+                                                    {isTestMode ? (
+                                                        <>
+                                                            <Col md={6}>
+                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">TEST PUBLIC KEY</Form.Label>
+                                                                <Form.Control type="text" className="ds-input" name={`${gw.prefix}test_public_key`} value={formData[`${gw.prefix}test_public_key`] || ''} onChange={handleInputChange} autoComplete="off" />
+                                                            </Col>
+                                                            <Col md={6}>
+                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">TEST SECRET KEY</Form.Label>
+                                                                <Form.Control type="password" name={`${gw.prefix}test_secret_key`} value={formData[`${gw.prefix}test_secret_key`] || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                            </Col>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Col md={6}>
+                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE PUBLIC KEY</Form.Label>
+                                                                <Form.Control type="text" className="ds-input" name={`${gw.prefix}live_public_key`} value={formData[`${gw.prefix}live_public_key`] || ''} onChange={handleInputChange} autoComplete="off" />
+                                                            </Col>
+                                                            <Col md={6}>
+                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE SECRET KEY</Form.Label>
+                                                                <Form.Control type="password" name={`${gw.prefix}live_secret_key`} value={formData[`${gw.prefix}live_secret_key`] || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                            </Col>
+                                                        </>
+                                                    )}
+                                                </Row>
+                                            </div>
+                                        </Col>
+                                    </Row>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const renderSocialLoginSettings = () => {
+        const platforms = [
+            { id: 'google', name: 'Google Login', icon: <FaGoogle className="text-danger" /> },
+            { id: 'facebook', name: 'Facebook Login', icon: <FaFacebookSquare className="text-primary" /> },
+            { id: 'twitter', name: 'Twitter Login', icon: <FaTwitter className="text-info" /> },
+            { id: 'apple', name: 'Apple Login', icon: <FaApple className="text-dark" /> }
+        ];
+
+        return (
+            <div className="social-login-section">
+                <div className="ds-section-title mb-1">
+                    SOCIAL LOGIN
+                </div>
+                <p className="ds-section-subtitle mb-4">Manage Google, Facebook and Twitter authentication settings</p>
+
+                {platforms.map(platform => {
+                    const isEnabled = formData[`${platform.id}_enabled`];
+                    const isExpanded = expandedGateways.includes(platform.id);
+
+                    return (
+                        <div key={platform.id} className="ds-gateway-card mb-4 border rounded shadow-sm overflow-hidden">
+                            <div
+                                className="ds-gateway-header d-flex align-items-center justify-content-between p-3 bg-light cursor-pointer"
+                                onClick={() => toggleGateway(platform.id)}
+                            >
+                                <div className="d-flex align-items-center gap-3">
+                                    {platform.icon}
+                                    <span className="fw-bold">{platform.name}</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-3">
+                                    <span className={`ds-status-badge ${isEnabled ? 'active' : ''}`}>
+                                        {isEnabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                    <FaChevronDown
+                                        className={`transition-all opacity-50 ${isExpanded ? 'rotate-180' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                            {isExpanded && (
+                                <div className="ds-gateway-body p-4 bg-white">
+                                    <Row className="gy-4">
+                                        <Col md={12}>
+                                            <Toggle
+                                                label={`Enable ${platform.name}`}
+                                                checked={isEnabled || false}
+                                                onChange={(val) => setFormData({ ...formData, [`${platform.id}_enabled`]: val })}
+                                            />
+                                        </Col>
+                                        <Col md={6}>
+                                            <Form.Group>
+                                                <Form.Label className="form-label-bold">{platform.name} Client ID</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    className="ds-input"
+                                                    name={`${platform.id}_client_id`}
+                                                    value={formData[`${platform.id}_client_id`] || ''}
+                                                    onChange={handleInputChange}
+                                                    placeholder={`Enter ${platform.name} Client ID`}
+                                                    autoComplete="off"
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                        <Col md={6}>
+                                            <Form.Group>
+                                                <Form.Label className="form-label-bold">{platform.name} Client Secret</Form.Label>
+                                                <Form.Control
+                                                    type="password"
+                                                    className="ds-input"
+                                                    name={`${platform.id}_client_secret`}
+                                                    value={formData[`${platform.id}_client_secret`] || ''}
+                                                    onChange={handleInputChange}
+                                                    placeholder={`Enter ${platform.name} Client Secret`}
+                                                    autoComplete="new-password"
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                    </Row>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const renderCurrencySection = () => {
+        return (
+            <div className="currency-settings mb-5 p-4 bg-white shadow-sm rounded">
+                <div className="section-header-simple mb-4">
+                    <h6 className="fw-bold m-0 border-bottom pb-2">Currency</h6>
+                </div>
+                <Row className="gy-4">
+                    <Col md={12}>
+                        <Form.Label className="small fw-bold">Main Currency</Form.Label>
+                        <AdminSearchSelect
+                            options={currencies.map(c => ({ value: c._id, label: `${c.name} (${c.code})` }))}
+                            value={formData.default_currency_id || ''}
+                            onChange={(val) => setFormData({ ...formData, default_currency_id: val })}
+                        />
+                        <Form.Text className="text-muted xx-small">The primary currency for your marketplace.</Form.Text>
+                    </Col>
+
+                    <Col md={12} className="border-top pt-4">
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="small fw-bold m-0">Extra Currencies</h6>
+                            <Button variant="outline-primary" size="sm" className="xx-small" onClick={() => showToast('info', 'Additional currency management')}><FaPlus /> Add Items</Button>
+                        </div>
+                        {currencies.filter(c => c._id !== formData.default_currency_id).map(c => (
+                            <div key={c._id} className="currency-row p-3 bg-light rounded border mb-2 d-flex align-items-center justify-content-between">
+                                <div className="d-flex align-items-center gap-3">
+                                    <span className="fw-bold small">{c.code}</span>
+                                    <span className="text-muted small">{c.name}</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-3">
+                                    <div className="xx-small text-muted">Exchange Rate: 1.0</div>
+                                    <Button variant="link" className="text-danger p-0"><FaTrash size={12} /></Button>
+                                </div>
+                            </div>
+                        ))}
+                    </Col>
+                </Row>
+            </div>
+        );
+    };
+
+    const getFieldsForType = (type) => {
+        const fieldMap = {
+            general_settings: [
+                'primary_color', 'secondary_color', 'pagination_limit',
+                'maintenance_mode', 'allow_registration', 'allow_guest_checkout',
+                'support_email', 'timezone', 'admin_commission',
+                'default_language_id', 'default_currency_id'
+            ],
+            site_settings: [
+                'site_name', 'site_logo', 'site_favicon', 'image_not_found', 'empty_table_image'
+            ],
+            cookie_settings: [
+                'cookie_heading', 'cookie_message', 'cookie_button_text', 'cookie_page_id'
+            ],
+            payment_settings: [
+                'stripe_enabled', 'paypal_enabled' // Only global switches, details in tabs
+            ]
+        };
+        return fieldMap[type] || [];
+    };
+
+    const renderField = (key) => {
+        const value = formData[key];
+        // Skip internal/legacy fields
+        if (['_id', '__v', 'created_at', 'updated_at', 'type', 'admin_settings', 'general_settings', 'pagination_mode'].includes(key)) return null;
+
+
+        // Skip gateway fields if we are in payment_settings (they are handled by renderPaymentGateways)
+        if (type === 'payment_settings' && (key.startsWith('stripe_') || key.startsWith('paypal_'))) return null;
+
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        if (['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image'].includes(key)) {
+            return (
+                <Col key={key} md={12} className="mb-4">
+                    <Form.Label className="fw-bold">{label}</Form.Label>
+                    <div className="upload-container">
+                        <input
+                            type="file"
+                            name={key}
+                            id={key}
+                            className="file-input"
+                            onChange={handleFileChange}
+                            accept="image/*"
+                        />
+                        <label htmlFor={key} className="upload-label">
+                            <div className="preview-area">
+                                {previews[key] ? (
+                                    <img src={previews[key]} alt="Preview" className="img-preview" />
+                                ) : (
+                                    <div className="placeholder-preview">
+                                        <FaCloudUploadAlt size={40} className="mb-2" />
+                                        <span>Click to upload or drag & drop</span>
+                                    </div>
+                                )}
+                            </div>
+                        </label>
+                    </div>
+                </Col>
+            );
+        }
+
+        if (typeof value === 'boolean') {
+            return (
+                <Col key={key} md={6} className="mb-4 d-flex justify-content-start flex-column">
+                    <Form.Group className="d-flex flex-column h-100 pb-2">
+                        {/* Invisible label for spacing consistency with neighbor inputs */}
+                        <Form.Label className="invisible mb-2">{label}</Form.Label>
+                        <div className="mt-auto">
+                            <Toggle
+                                label={label}
+                                checked={formData[key] || false}
+                                onChange={(checked) => setFormData(prev => ({ ...prev, [key]: checked }))}
+                            />
+                        </div>
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (key.includes('color')) {
+            return (
+                <Col key={key} md={6} className="mb-4">
+                    <Form.Group>
+                        <Form.Label className="mb-2">{label}</Form.Label>
+                        <div className="d-flex gap-3 align-items-center">
+                            <div className="color-picker-wrapper">
+                                <Form.Control
+                                    type="color"
+                                    name={key}
+                                    value={formData[key] || '#000000'}
+                                    onChange={handleInputChange}
+                                    className="color-picker"
+                                />
+                            </div>
+                            <Form.Control
+                                type="text"
+                                name={key}
+                                value={formData[key] || '#000000'}
+                                onChange={handleInputChange}
+                                className="color-input-field"
+                                style={{ maxWidth: '150px' }}
+                            />
+                        </div>
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (key === 'admin_commission') {
+            return (
+                <Col key={key} md={6} className="mb-4">
+                    <Form.Group>
+                        <Form.Label className="mb-2">{label}</Form.Label>
+                        <InputGroup>
+                            <Form.Control
+                                type="number"
+                                name={key}
+                                value={formData[key] || 0}
+                                onChange={handleInputChange}
+                            />
+                            <InputGroup.Text className="bg-light fw-bold text-muted">%</InputGroup.Text>
+                        </InputGroup>
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (key === 'default_language_id') {
+            return (
+                <Col key={key} md={6} className="mb-4">
+                    <Form.Group>
+                        <Form.Label className="mb-2">{label}</Form.Label>
+                        <AdminSearchSelect
+                            options={languages.map(lang => ({ value: lang._id, label: lang.name }))}
+                            value={formData[key] || ''}
+                            onChange={(val) => setFormData({ ...formData, [key]: val })}
+                            placeholder="Select Default Language..."
+                        />
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (key === 'default_currency_id') {
+            return (
+                <Col key={key} md={6} className="mb-4">
+                    <Form.Group>
+                        <Form.Label className="mb-2">{label}</Form.Label>
+                        <AdminSearchSelect
+                            options={currencies.map(curr => ({ value: curr._id, label: `${curr.name} (${curr.code})` }))}
+                            value={formData[key] || ''}
+                            onChange={(val) => setFormData({ ...formData, [key]: val })}
+                            placeholder="Select Default Currency..."
+                        />
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (key === 'cookie_page_id') {
+            return (
+                <Col key={key} md={6} className="mb-4">
+                    <Form.Group>
+                        <Form.Label className="mb-2">{label}</Form.Label>
+                        <AdminSearchSelect
+                            options={pages.map(p => ({ value: p._id, label: p.title }))}
+                            value={formData[key] || ''}
+                            onChange={(val) => setFormData({ ...formData, [key]: val })}
+                            placeholder="Select Cookie Policy Page..."
+                        />
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (key === 'cookie_message') {
+            return (
+                <Col key={key} md={12} className="mb-3">
+                    <Form.Group>
+                        <Form.Label className="fw-bold">{label} ({activeGlobalLang.toUpperCase()})</Form.Label>
+                        <Form.Control
+                            as="textarea"
+                            rows={3}
+                            name={key}
+                            value={(formData[key] && typeof formData[key] === 'object' ? formData[key][activeGlobalLang] : formData[key]) || ''}
+                            onChange={(e) => handleGenericLocalizedChange(key, activeGlobalLang, e.target.value)}
+                        />
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (typeof value === 'number') {
+            return (
+                <Col key={key} md={6} className="mb-3">
+                    <Form.Group>
+                        <Form.Label>{label}</Form.Label>
+                        <Form.Control
+                            type="number"
+                            name={key}
+                            value={formData[key] || 0}
+                            onChange={handleInputChange}
+                        />
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        return (
+            <Col key={key} md={6} className="mb-3">
+                <Form.Group>
+                    <Form.Label className="fw-bold">{label} ({activeGlobalLang.toUpperCase()})</Form.Label>
+                    <Form.Control
+                        type="text"
+                        name={key}
+                        value={(formData[key] && typeof formData[key] === 'object' ? formData[key][activeGlobalLang] : formData[key]) || ''}
+                        onChange={(e) => handleGenericLocalizedChange(key, activeGlobalLang, e.target.value)}
+                    />
+                </Form.Group>
+            </Col>
+        );
+    };
+
+    return (
+        <div className="dynamic-settings-container">
+            <Container fluid className="px-0">
+                <div className="ds-header">
+                    <div>
+                        <div className="ds-breadcrumb">
+                            <Link to="/dashboard">Dashboard</Link>
+                            <span className="separator"><FaChevronRight size={10} /></span>
+                            <span>Setting</span>
+                            <span className="separator"><FaChevronRight size={10} /></span>
+                            <span className="text-capitalize">{type.replace(/_/g, ' ')}</span>
+                        </div>
+                        <h2 className="ds-title text-capitalize">{type.replace(/_/g, ' ')}</h2>
+                    </div>
+                    <div className="ds-header-actions d-flex align-items-center gap-3">
+                        {type !== 'social_login_settings' && (
+                            <div className="ds-lang-selector-wrapper" style={{ width: '220px' }}>
+                                <AdminSearchSelect
+                                    options={languages.map(l => ({ label: l.name, value: l.code }))}
+                                    value={activeGlobalLang}
+                                    onChange={(val) => setActiveGlobalLang(val)}
+                                    placeholder="Select Language..."
+                                />
+                            </div>
+                        )}
+                        <Button className="ds-btn-save" onClick={handleSubmit} disabled={saving}>
+                            {saving ? <div className="spinner-border spinner-border-sm" role="status"></div> : <><FaSave /> Save settings</>}
+                        </Button>
+                    </div>
+                </div>
+
+                {type === 'payment_settings' && (
+                    <div className="ds-tabs">
+                        <Nav className="ds-nav-pills">
+                            <Nav.Item>
+                                <Nav.Link
+                                    active={activeTab === 'settings'}
+                                    onClick={() => setActiveTab('settings')}
+                                    className="ds-tab-link"
+                                >
+                                    Gateway Settings
+                                </Nav.Link>
+                            </Nav.Item>
+                            <Nav.Item>
+                                <Nav.Link
+                                    active={activeTab === 'methods'}
+                                    onClick={() => setActiveTab('methods')}
+                                    className="ds-tab-link"
+                                >
+                                    Payment Methods
+                                </Nav.Link>
+                            </Nav.Item>
+                        </Nav>
+                    </div>
+                )}
+
+                <div className="ds-main-card">
+                    <Form onSubmit={handleSubmit}>
+                        {type === 'payment_settings' ? (
+                            activeTab === 'settings' ? renderPaymentGateways() : <PaymentMethodsList isIntegrated={true} activeGlobalLang={activeGlobalLang} />
+                        ) : type === 'social_login_settings' ? (
+                            <>{renderSocialLoginSettings()}</>
+                        ) : (
+                            <Row>
+                                {getFieldsForType(type).map(key => renderField(key))}
+                            </Row>
+                        )}
+                        {type === 'currency_settings' && renderCurrencySection()}
+                    </Form>
+                </div>
+            </Container>
+        </div>
+    );
+};
+
+export default DynamicSettings;

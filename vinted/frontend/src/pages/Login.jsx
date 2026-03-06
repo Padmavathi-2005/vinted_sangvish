@@ -1,0 +1,151 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useState, useContext, useEffect } from 'react';
+import axios from '../utils/axios';
+import { useNavigate, Link } from 'react-router-dom';
+import { FaGoogle, FaApple, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaShieldAlt, FaFacebookSquare, FaTwitter } from 'react-icons/fa';
+import AuthContext from '../context/AuthContext';
+import '../styles/Auth.css';
+
+const Login = () => {
+    const { login } = useContext(AuthContext);
+    const [formData, setFormData] = useState({ email: '', password: '' });
+    const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [error, setError] = useState('');
+    const [socialSettings, setSocialSettings] = useState(null);
+    const navigate = useNavigate();
+    const { email, password } = formData;
+
+    useEffect(() => {
+        const fetchSocialSettings = async () => {
+            try {
+                const response = await axios.get('/api/settings/social_login_settings');
+                if (response.data) {
+                    setSocialSettings(response.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch social settings", err);
+            }
+        };
+        fetchSocialSettings();
+    }, []);
+
+    const onChange = (e) => {
+        setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const onSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await axios.post('/api/users/login', formData);
+            if (response.data) {
+                login(response.data, rememberMe);
+                navigate('/');
+            }
+        } catch (err) {
+            console.error("Login Error Details:", err.response); // Log full response
+            setError(err.response?.data?.message || 'Login failed');
+        }
+    };
+
+    return (
+        <div className="auth-page">
+            <div className="auth-card">
+                <h2 className="text-center">Welcome Back</h2>
+                <p className="subtitle text-center">Securely access your marketplace account</p>
+
+                {(socialSettings?.google_enabled || socialSettings?.facebook_enabled || socialSettings?.twitter_enabled || socialSettings?.apple_enabled) && (
+                    <>
+                        <div className="social-buttons">
+                            {socialSettings?.google_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/google`}><FaGoogle /> Google</button>
+                            )}
+                            {socialSettings?.facebook_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/facebook`}><FaFacebookSquare style={{ color: '#1877F2' }} /> Facebook</button>
+                            )}
+                            {socialSettings?.twitter_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/twitter`}><FaTwitter style={{ color: '#1DA1F2' }} /> Twitter</button>
+                            )}
+                            {socialSettings?.apple_enabled && (
+                                <button type="button" className="social-btn" onClick={() => window.location.href = `${axios.defaults.baseURL}/api/auth/apple`}><FaApple className="text-dark" /> Apple</button>
+                            )}
+                        </div>
+                        <div className="divider"><span>Or continue with email</span></div>
+                    </>
+                )}
+
+                <form onSubmit={onSubmit}>
+                    {error && <div className="auth-error">{error}</div>}
+
+                    {/* Email Field */}
+                    <div className="auth-field">
+                        <label className="auth-label">Email Address</label>
+                        <div className="auth-input-wrapper">
+                            <span className="auth-icon"><FaEnvelope /></span>
+                            <input
+                                type="email"
+                                className="auth-input"
+                                name="email"
+                                value={email}
+                                placeholder="user@email.com"
+                                onChange={onChange}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Password Field */}
+                    <div className="auth-field">
+                        <div className="auth-label-row">
+                            <label className="auth-label">Password</label>
+                            <Link to="/forgot-password" className="auth-forgot">Forgot?</Link>
+                        </div>
+                        <div className="auth-input-wrapper">
+                            <span className="auth-icon"><FaLock /></span>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                className="auth-input"
+                                name="password"
+                                value={password}
+                                placeholder="••••••••"
+                                onChange={onChange}
+                                required
+                            />
+                            <span
+                                className="auth-icon auth-icon-right"
+                                onClick={() => setShowPassword(!showPassword)}
+                            >
+                                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Remember Me */}
+                    <div className="auth-remember">
+                        <input
+                            type="checkbox"
+                            id="rememberMe"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                        />
+                        <label htmlFor="rememberMe">Keep me logged in</label>
+                    </div>
+
+                    <button type="submit" className="btn-submit">Login to Account</button>
+                </form>
+
+                <div className="auth-footer">
+                    <span>Don't have an account? </span>
+                    <Link to="/register">Create an account</Link>
+                </div>
+
+                {/* <div className="security-badges">
+                    <span><FaShieldAlt /> SECURE SSL</span>
+                    <span><FaLock /> PRIVACY PROTECTED</span>
+                </div> */}
+            </div>
+        </div>
+    );
+};
+
+export default Login;

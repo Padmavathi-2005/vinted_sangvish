@@ -1,0 +1,148 @@
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from '../utils/axios';
+import { getAdminInfo } from '../utils/auth';
+import en from '../locales/en.json';
+
+const LocalizationContext = createContext();
+
+export const LocalizationProvider = ({ children }) => {
+    const [language, setLanguage] = useState(localStorage.getItem('adminLanguage') || 'en');
+    const [currency, setCurrency] = useState(localStorage.getItem('adminCurrency') || 'USD');
+    const [availableLanguages, setAvailableLanguages] = useState([]);
+    const [availableCurrencies, setAvailableCurrencies] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [translations, setTranslations] = useState(en);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            const adminInfo = getAdminInfo();
+            if (!adminInfo) {
+                // Return defaults if not logged in to prevent 401s
+                setAvailableLanguages([
+                    { name: 'English', code: 'en', native_name: 'English', is_active: true }
+                ]);
+                setAvailableCurrencies([
+                    { name: 'US Dollar', code: 'USD', symbol: '$', exchange_rate: 1, decimal_places: 2, is_active: true }
+                ]);
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const [langRes, currRes] = await Promise.all([
+                    axios.get('/api/admin/languages'),
+                    axios.get('/api/admin/currencies')
+                ]);
+
+                const activeLangs = langRes.data.length > 0 ? langRes.data.filter(l => l.is_active) : [
+                    { name: 'English', code: 'en', native_name: 'English', is_active: true },
+                    { name: 'French', code: 'fr', native_name: 'Français', is_active: true }
+                ];
+                const activeCurrs = currRes.data.length > 0 ? currRes.data.filter(c => c.is_active) : [
+                    { name: 'US Dollar', code: 'USD', symbol: '$', exchange_rate: 1, decimal_places: 2, is_active: true },
+                    { name: 'Euro', code: 'EUR', symbol: '€', exchange_rate: 0.92, decimal_places: 2, is_active: true }
+                ];
+
+                setAvailableLanguages(activeLangs);
+                setAvailableCurrencies(activeCurrs);
+
+                // If currently saved is not in active, reset to first active or stay
+                if (activeLangs.length > 0 && !activeLangs.find(l => l.code === language)) {
+                    // keep current if it exists even if inactive for UI purposes, or reset
+                }
+            } catch (error) {
+                console.error("Error fetching localization settings", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSettings();
+    }, []);
+
+    useEffect(() => {
+        const loadTranslations = async () => {
+            if (language === 'en') {
+                setTranslations(en);
+                return;
+            }
+            try {
+                // Vite compatible dynamic import for JSON files
+                const locales = import.meta.glob('../locales/*.json');
+                const loadFile = locales[`../locales/${language}.json`];
+
+                if (loadFile) {
+                    const messages = await loadFile();
+                    setTranslations(messages.default || messages);
+                } else {
+                    console.warn(`Translation file for ${language} not found.`);
+                    setTranslations(en);
+                }
+            } catch (err) {
+                console.warn(`Could not load translations for ${language}`, err);
+                setTranslations(en); // Fallback to EN
+            }
+        };
+        loadTranslations();
+    }, [language]);
+
+    const changeLanguage = (code) => {
+        setLanguage(code);
+        localStorage.setItem('adminLanguage', code);
+        // In a real app, you might trigger i18n change here
+    };
+
+    const changeCurrency = (code) => {
+        setCurrency(code);
+        localStorage.setItem('adminCurrency', code);
+    };
+
+    const formatPrice = (amount) => {
+        const curr = availableCurrencies.find(c => c.code === currency);
+        if (!curr) return `${amount} ${currency}`;
+
+        const converted = amount * curr.exchange_rate;
+        const formatted = converted.toFixed(curr.decimal_places);
+
+        if (curr.symbol_position === 'before') {
+            return `${curr.symbol}${formatted}`;
+        } else {
+            return `${formatted}${curr.symbol}`;
+        }
+    };
+
+    const t = (path, params = {}) => {
+        const keys = path.split('.');
+        let result = translations;
+        for (const key of keys) {
+            if (!result || result[key] === undefined) return path;
+            result = result[key];
+        }
+
+        if (typeof result === 'string' && params) {
+            Object.keys(params).forEach(key => {
+                result = result.replace(`{${key}}`, params[key]);
+            });
+        }
+
+        return result || path;
+    };
+
+    return (
+        <LocalizationContext.Provider value={{
+            language,
+            currency,
+            availableLanguages,
+            availableCurrencies,
+            changeLanguage,
+            changeCurrency,
+            formatPrice,
+            t,
+            loading
+        }}>
+            {children}
+        </LocalizationContext.Provider>
+    );
+};
+
+export const useLocalization = () => useContext(LocalizationContext);

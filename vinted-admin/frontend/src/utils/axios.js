@@ -1,0 +1,78 @@
+import axios from 'axios';
+import { clearAdminInfo } from './auth';
+
+const instance = axios.create({
+    baseURL: import.meta.env.VITE_ADMIN_API_BASE_URL || 'http://localhost:5001',
+});
+
+// Separate URL for serving images/media (always main backend port 5000)
+export const imageBaseURL = import.meta.env.VITE_IMAGE_BASE_URL || 'http://localhost:5000';
+
+// Add interceptors to handle authentication tokens
+instance.interceptors.request.use(
+    (config) => {
+        // If it's an admin, settings, or frontend-content route, use the admin token
+        if (config.url.includes('/api/admin') || config.url.includes('/api/settings') || config.url.includes('/api/frontend-content')) {
+            const adminInfo = localStorage.getItem('admin') || sessionStorage.getItem('admin');
+
+            if (adminInfo) {
+                try {
+                    const { token } = JSON.parse(adminInfo);
+                    if (token) {
+                        config.headers = config.headers || {};
+                        config.headers.Authorization = `Bearer ${token}`;
+                    } else {
+                        console.error('Axios Interceptor: Admin token was empty in localStorage.');
+                    }
+                } catch (e) {
+                    console.error('Axios Interceptor: Failed parsing adminInfo', e);
+                }
+            }
+        } else {
+            // Regular user token logic...
+            const userInfo = localStorage.getItem('user') || sessionStorage.getItem('user');
+            if (userInfo) {
+                try {
+                    const { token } = JSON.parse(userInfo);
+                    if (token) {
+                        config.headers.Authorization = `Bearer ${token}`;
+                    }
+                } catch (e) {
+                    // Error parsing user info
+                }
+            }
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Add response interceptor to handle admin session expiration
+instance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        // Handle 401 errors for admin and settings routes
+        if (error.response && error.response.status === 401 && (error.config.url.includes('/api/admin') || error.config.url.includes('/api/settings'))) {
+            const isLoginRequest = error.config.url.includes('/api/admin/login');
+
+            console.log('Admin 401 Error:', {
+                url: error.config.url,
+                currentPath: window.location.pathname,
+                isLogin: isLoginRequest,
+                responseData: error.response.data
+            });
+
+            if (!isLoginRequest) {
+                console.log('Admin session invalid - clearing and redirecting');
+                clearAdminInfo();
+                if (window.location.pathname !== '/login') {
+                    // Restore redirect after bug fix
+                    window.location.href = '/login';
+                }
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
+export default instance;

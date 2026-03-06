@@ -1,0 +1,230 @@
+/* Mega Menu Container */
+.mega-menu-container {
+    position: absolute;
+    top: 100%;
+    left: 20px;
+    right: 20px;
+    width: auto;
+    /* height: 515px; Removed fixed height */
+    padding-top: 15px;
+    z-index: 1100;
+    transition: all 0.3s ease;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mega-menu-content {
+    background: white;
+    width: 100%;
+    /* height: 100%; */
+    display: flex;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    max-height: 70vh;
+    /* Dynamic max height */
+    min-height: 400px;
+    /* Minimum useful height */
+}
+
+/* Left Panel: Subcategories */
+.mega-menu-left {
+    width: 280px;
+    background-color: #f8f9fa;
+    padding: 30px 20px;
+    border-right: 1px solid #e9ecef;
+    overflow-y: auto;
+}
+
+.mega-menu-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #868e96;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.subcat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #495057;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-decoration: none !important;
+}
+
+.subcat-item:hover,
+.subcat-item.active {
+    background-color: white;
+    color: var(--primary-color, #0ea5e9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.subcat-arrow {
+    font-size: 0.8rem;
+    opacity: 0;
+    transform: translateX(-5px);
+    transition: all 0.2s ease;
+}
+
+.subcat-item:hover .subcat-arrow,
+.subcat-item.active .subcat-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Right Panel: Item Types */
+.mega-menu-right {
+    flex: 1;
+    padding: 40px 60px;
+    background-color: white;
+    overflow-y: auto;
+}
+
+.mm-right-header {
+    margin-bottom: 30px;
+    border-bottom: 1px solid #f1f3f5;
+    padding-bottom: 15px;
+}
+
+.mm-active-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+.mm-item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px 40px;
+}
+
+.mm-item-link {
+    color: #495057;
+    text-decoration: none !important;
+    font-size: 0.95rem;
+    transition: color 0.1s ease;
+    padding: 4px 0;
+    display: block;
+}
+
+.mm-item-link:hover {
+    color: var(--primary-color, #0ea5e9);
+    text-decoration: none !important;
+}
+
+
+/* Mobile Offcanvas */
+.mobile-offcanvas {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: white;
+    z-index: 2000;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-offcanvas.open {
+    transform: translateX(0);
+}
+
+.mo-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+}
+
+.mo-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.mo-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #495057;
+}
+
+.mo-back-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #495057;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mo-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.mo-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid #f1f3f5;
+    text-decoration: none;
+    color: #343a40;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.mo-item:hover {
+    background-color: #f8f9fa;
+}
+
+.mo-arrow {
+    color: #adb5bd;
+}
+
+.item-list-container {
+    padding: 20px;
+}
+
+.mo-sub-item {
+    display: block;
+    padding: 12px 16px;
+    color: #495057;
+    text-decoration: none;
+    font-size: 0.95rem;
+    border-radius: 8px;
+}
+
+.mo-sub-item:hover {
+    background-color: #f1f3f5;
+    color: var(--primary-color);
+}
