@@ -1,11 +1,25 @@
-import { HfInference } from "@huggingface/inference";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import asyncHandler from 'express-async-handler';
 import Category from '../models/Category.js';
 import Setting from '../models/Setting.js';
 import fs from 'fs';
 
-let hf;
+// Initialize Gemini
+let genAI;
 
+const getGenAI = () => {
+    if (!genAI) {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is missing in the .env file.");
+        }
+        genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    }
+    return genAI;
+};
+
+// @desc    Chat with AI assistant
+// @route   POST /api/ai/chat
+// @access  Public
 const chatWithAI = asyncHandler(async (req, res) => {
     const { message, history } = req.body;
 
@@ -14,15 +28,9 @@ const chatWithAI = asyncHandler(async (req, res) => {
         throw new Error("Message is required");
     }
 
-    if (!process.env.HF_TOKEN || process.env.HF_TOKEN === "your_hf_token_here") {
-        res.status(500);
-        throw new Error("HF_TOKEN is missing or invalid in the .env file. Please add a valid Hugging Face token.");
-    }
-
     try {
-        if (!hf) {
-            hf = new HfInference(process.env.HF_TOKEN);
-        }
+        const genAIInstance = getGenAI();
+        const model = genAIInstance.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // Fetch categories and settings dynamically to give AI context
         const categories = await Category.find({ is_active: true }).select('name');
@@ -41,35 +49,30 @@ CRITICAL RULES:
 5. Keep your answers concise, friendly, and directly related to buying, selling, and managing profile items.
 6. Available categories include: ${categoryNames}.`;
 
-        // Format history for Hugging Face
-        let formattedHistory = (history || []).map(msg => ({
-            role: msg.isAi ? "assistant" : "user",
-            content: msg.text
-        }));
-
-        const messages = [
-            { role: "system", content: systemInstruction },
-            ...formattedHistory,
-            { role: "user", content: message }
-        ];
-
-        // Call the Hugging Face Serverless Inference API
-        const response = await hf.chatCompletion({
-            model: "Qwen/Qwen2.5-72B-Instruct", // Powerful, reliable free-tier model
-            messages: messages,
-            max_tokens: 500,
+        // Format history for Gemini
+        // Gemini expects role: 'user' or 'model'
+        const chat = model.startChat({
+            history: (history || []).map(msg => ({
+                role: msg.isAi ? "model" : "user",
+                parts: [{ text: msg.text }]
+            })),
+            generationConfig: {
+                maxOutputTokens: 500,
+            },
         });
 
-        // Return the actual AI response to the UI
-        return res.json({ text: response.choices[0].message.content });
+        const fullMessage = `${systemInstruction}\n\nUser: ${message}`;
+        const result = await chat.sendMessage(fullMessage);
+        const responseData = await result.response;
+        const text = responseData.text();
+
+        return res.json({ text });
 
     } catch (error) {
-        // Log the EXACT error to the backend console so you can read what failed
-        console.error("=== REAL HUGGING FACE API ERROR ===");
+        console.error("=== GEMINI CHAT ERROR ===");
         console.error(error.message);
-        console.error("=================================");
+        console.error("=========================");
 
-        // Send a message back to the chat bubble saying it failed, with the error reason
         res.status(500).json({
             message: "AI Error: " + error.message,
             text: "Sorry, I could not connect. Error: " + error.message
@@ -77,53 +80,37 @@ CRITICAL RULES:
     }
 });
 
-import OpenAI from "openai";
-
+// @desc    Analyze image with AI for search
+// @route   POST /api/search/image
+// @access  Public
 const imageSearch = asyncHandler(async (req, res) => {
     if (!req.file) {
-        console.error("AI SEARCH: No file received");
         res.status(400);
         throw new Error("No image uploaded");
     }
 
-    console.log("AI SEARCH: Analyzing image with OpenAI:", req.file.path);
-
-    if (!process.env.OPENAI_API_KEY) {
-        console.error("AI SEARCH: OPENAI_API_KEY is missing");
-        res.status(500);
-        throw new Error("AI Configuration Error: OPENAI_API_KEY is missing.");
-    }
+    console.log("AI SEARCH: Analyzing image with Gemini:", req.file.path);
 
     try {
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        const genAIInstance = getGenAI();
+        const model = genAIInstance.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        // Read image file and convert to base64
+        // Read image file and convert to parts
         const imageBuffer = await fs.promises.readFile(req.file.path);
-        const base64Image = imageBuffer.toString('base64');
+        const image = {
+            inlineData: {
+                data: imageBuffer.toString('base64'),
+                mimeType: req.file.mimetype
+            }
+        };
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini", // Fast, cheap, and supports vision
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: "What is this product? Provide a 3-word search query to find similar items in a marketplace. Return ONLY the search query." },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                url: `data:${req.file.mimetype};base64,${base64Image}`,
-                            },
-                        },
-                    ],
-                },
-            ],
-            max_tokens: 50,
-        });
+        const prompt = "What is this product? Provide a short, 3-word search query to find similar items in a marketplace. Return ONLY the search query text, no punctuation or extra words.";
 
-        const caption = response.choices[0].message.content.trim().replace(/['"]+/g, '');
-        console.log("AI SEARCH: OpenAI generated keywords:", caption);
+        const result = await model.generateContent([prompt, image]);
+        const responseData = await result.response;
+        const caption = responseData.text().trim().replace(/['"]+/g, '');
+
+        console.log("AI SEARCH: Gemini generated keywords:", caption);
 
         // Clean up
         try {
@@ -133,13 +120,13 @@ const imageSearch = asyncHandler(async (req, res) => {
         }
 
         if (!caption) {
-            return res.status(500).json({ message: "OpenAI could not analyze this image." });
+            return res.status(500).json({ message: "AI could not analyze this image." });
         }
 
         return res.json({ query: caption });
 
     } catch (error) {
-        console.error("=== OPENAI IMAGE SEARCH FAILURE ===");
+        console.error("=== GEMINI IMAGE SEARCH FAILURE ===");
         console.error(error);
 
         // Final fallback: delete file if still exists
@@ -153,3 +140,4 @@ const imageSearch = asyncHandler(async (req, res) => {
 });
 
 export { chatWithAI, imageSearch };
+
