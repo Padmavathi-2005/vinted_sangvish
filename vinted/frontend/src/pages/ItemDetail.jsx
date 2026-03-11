@@ -20,7 +20,7 @@ import CartContext from '../context/CartContext';
 import ItemCard from '../components/common/ItemCard';
 import { usePopup } from '../components/common/Popup';
 import '../styles/ItemDetail.css';
-import { getImageUrl, getItemImageUrl } from '../utils/constants';
+import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 
 const RECENTLY_VIEWED_KEY = 'vinted_recently_viewed';
 const MAX_RECENT = 12;
@@ -56,7 +56,7 @@ const ItemDetail = () => {
     const navigate = useNavigate();
     const { user, login } = useContext(AuthContext);
     const { isWishlisted, addToWishlist, removeFromWishlist } = useContext(WishlistContext);
-    const { formatPrice } = useContext(CurrencyContext);
+    const { formatPrice, currentCurrency, defaultCurrency } = useContext(CurrencyContext);
     const { addToCart, isInCart } = useContext(CartContext);
     const { showPopup, PopupComponent } = usePopup();
     const { t } = useTranslation();
@@ -199,11 +199,18 @@ const ItemDetail = () => {
         if (!offerAmount || parseFloat(offerAmount) <= 0) return;
         setOfferSending(true);
         try {
-            const msg = `💰 Offer: ${formatPrice(parseFloat(offerAmount), item.currency_id)}${offerMsg ? `\n\n${offerMsg}` : ''}`;
+            const targetCurrency = currentCurrency || defaultCurrency;
+            let rate = targetCurrency?.exchange_rate || 1;
+            let baseRate = item.currency_id?.exchange_rate || 1;
+            const offerInBaseCurrency = (parseFloat(offerAmount) / rate) * baseRate;
+
+            const msg = `💰 Offer: ${formatPrice(offerInBaseCurrency, item.currency_id)}${offerMsg ? `\n\n${offerMsg}` : ''}`;
             const res = await axios.post('/api/messages', {
                 receiver_id: item.seller_id?._id,
                 message: msg,
-                item_id: item._id
+                item_id: item._id,
+                message_type: 'offer',
+                offer_amount: offerInBaseCurrency
             });
             const convId = res.data.conversation?._id || res.data.conversation_id || res.data._id;
             setOfferModal(false);
@@ -315,21 +322,21 @@ const ItemDetail = () => {
                 </span>
             )
         },
-        item.brand && { icon: <FaTag />, label: t('item_detail.brand'), value: item.brand },
-        item.size && { icon: <FaRuler />, label: t('item_detail.size'), value: item.size },
+        item.brand && { icon: <FaTag />, label: t('item_detail.brand'), value: safeString(item.brand) },
+        item.size && { icon: <FaRuler />, label: t('item_detail.size'), value: safeString(item.size) },
         item.color && {
             icon: <FaPalette />, label: t('item_detail.color'),
             value: (
                 <span className="id-color-inline">
-                    <span className="id-color-dot" style={{ backgroundColor: item.color.toLowerCase() }} />
-                    {item.color}
+                    <span className="id-color-dot" style={{ backgroundColor: safeString(item.color).toLowerCase() }} />
+                    {safeString(item.color)}
                 </span>
             )
         },
-        item.category_id && { icon: <FaList />, label: t('item_detail.category'), value: item.category_id.name },
-        item.subcategory_id && { icon: <FaList />, label: t('item_detail.subcategory'), value: item.subcategory_id.name },
-        item.item_type_id && { icon: <FaBoxes />, label: t('item_detail.type'), value: item.item_type_id.name },
-        ...(item.attributes || []).map(attr => ({ icon: <FaTag />, label: attr.key, value: attr.value })),
+        item.category_id && { icon: <FaList />, label: t('item_detail.category'), value: safeString(item.category_id.name) },
+        item.subcategory_id && { icon: <FaList />, label: t('item_detail.subcategory'), value: safeString(item.subcategory_id.name) },
+        item.item_type_id && { icon: <FaBoxes />, label: t('item_detail.type'), value: safeString(item.item_type_id.name) },
+        ...(item.attributes || []).map(attr => ({ icon: <FaTag />, label: safeString(attr.key), value: safeString(attr.value) })),
     ].filter(Boolean);
 
     return (
@@ -339,10 +346,10 @@ const ItemDetail = () => {
                 <div className="id-breadcrumb" style={{ gridColumn: '1 / -1' }}>
                     <nav className="id-crumbs">
                         <Link to="/">{t('item_detail.home')}</Link>
-                        {item.category_id && <><span className="id-crumb-sep">/</span> <Link to={`/products?category=${item.category_id.slug}`}>{item.category_id.name}</Link></>}
-                        {item.subcategory_id && <><span className="id-crumb-sep">/</span> <Link to={`/products?subcategory=${item.subcategory_id.slug}`}>{item.subcategory_id.name}</Link></>}
+                        {item.category_id && <><span className="id-crumb-sep">/</span> <Link to={`/products?category=${item.category_id.slug}`}>{safeString(item.category_id.name)}</Link></>}
+                        {item.subcategory_id && <><span className="id-crumb-sep">/</span> <Link to={`/products?subcategory=${item.subcategory_id.slug}`}>{safeString(item.subcategory_id.name)}</Link></>}
                         <span className="id-crumb-sep">/</span>
-                        <span className="id-crumb-current">{item.title}</span>
+                        <span className="id-crumb-current">{safeString(item.title)}</span>
                     </nav>
                 </div>
 
@@ -422,7 +429,7 @@ const ItemDetail = () => {
                     <div className="id-info-col">
                         {/* PRICE SECTION — FIRST */}
                         <div className="id-price-card">
-                            <h1 className="id-item-title">{item.title}</h1>
+                            <h1 className="id-item-title">{safeString(item.title)}</h1>
                             <div className="id-price-row">
                                 <div className="id-price">{formatPrice(item.price, item.currency_id)}</div>
                                 {item.negotiable && (
@@ -465,7 +472,7 @@ const ItemDetail = () => {
                         {item.description && (
                             <div className="id-desc-box">
                                 <h3 className="id-box-title">{t('item_detail.description')}</h3>
-                                <p className="id-description">{item.description}</p>
+                                <p className="id-description">{safeString(item.description)}</p>
                             </div>
                         )}
 
@@ -526,7 +533,7 @@ const ItemDetail = () => {
                                     </Link>
                                     <div className="id-seller-info">
                                         <Link to={`/seller/${seller._id}`} className="id-seller-name-link">
-                                            <h4 className="id-seller-name">{seller.username}</h4>
+                                            <h4 className="id-seller-name">{safeString(seller.username)}</h4>
                                         </Link>
                                         <p className="id-seller-since">
                                             <FaCalendarAlt /> {t('item_detail.member_since')} {memberSinceYear}
@@ -537,6 +544,21 @@ const ItemDetail = () => {
                                         <FaUser /> {t('item_detail.view_profile')}
                                     </Link>
                                 </div>
+                                {seller.bundle_discounts?.enabled && (
+                                    <div className="id-seller-bundle-info">
+                                        <div className="id-bundle-promo">
+                                            <FaTag /> <strong>Bundle & Save!</strong> This seller offers discounts:
+                                        </div>
+                                        <div className="id-bundle-rates">
+                                            {seller.bundle_discounts.two_items > 0 && <span>2 items ({seller.bundle_discounts.two_items}%)</span>}
+                                            {seller.bundle_discounts.three_items > 0 && <span>3 items ({seller.bundle_discounts.three_items}%)</span>}
+                                            {seller.bundle_discounts.five_items > 0 && <span>5 items ({seller.bundle_discounts.five_items}%)</span>}
+                                        </div>
+                                        <Link to={`/seller/${seller._id}`} className="id-btn-shop-bundles">
+                                            <FaBoxOpen /> Shop Bundles
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -646,7 +668,7 @@ const ItemDetail = () => {
                         <div className="id-offer-form">
                             <label className="id-offer-label">{t('item_detail.your_offer')}</label>
                             <div className="id-offer-input-wrap">
-                                <span className="id-offer-currency">{item.currency_id?.symbol || '₹'}</span>
+                                <span className="id-offer-currency">{(currentCurrency || defaultCurrency)?.symbol || '₹'}</span>
                                 <input
                                     type="number"
                                     className="id-offer-input"

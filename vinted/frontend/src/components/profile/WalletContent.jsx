@@ -3,6 +3,7 @@ import axios from '../../utils/axios';
 import { FaWallet, FaArrowDown, FaArrowUp, FaClock, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import CurrencyContext from '../../context/CurrencyContext';
 import { useTranslation } from 'react-i18next';
+import { safeString } from '../../utils/constants';
 
 const WalletContent = ({ activeSubTab = 'wallet' }) => {
     const { t } = useTranslation();
@@ -94,7 +95,7 @@ const WalletContent = ({ activeSubTab = 'wallet' }) => {
                                     {tx.type === 'credit' ? <FaArrowDown color="#16a34a" /> : <FaArrowUp color="#dc2626" />}
                                 </div>
                                 <div>
-                                    <div className="fw-bold" style={{ fontSize: '0.9rem' }}>{tx.description}</div>
+                                    <div className="fw-bold" style={{ fontSize: '0.9rem' }}>{safeString(tx.description)}</div>
                                     <div className="text-muted" style={{ fontSize: '0.75rem' }}>
                                         {new Date(tx.created_at).toLocaleDateString()} • {tx.purpose.replace(/_/g, ' ')}
                                     </div>

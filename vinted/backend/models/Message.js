@@ -35,8 +35,17 @@ const messageSchema = mongoose.Schema(
         },
         message_type: {
             type: String,
-            enum: ['text', 'image', 'system'],
+            enum: ['text', 'image', 'system', 'offer'],
             default: 'text',
+        },
+        offer_amount: {
+            type: Number,
+            default: null,
+        },
+        offer_status: {
+            type: String,
+            enum: ['pending', 'accepted', 'declined', 'countered'],
+            default: 'pending',
         },
         is_read: {
             type: Boolean,

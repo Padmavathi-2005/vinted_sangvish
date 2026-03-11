@@ -3,10 +3,11 @@ import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import {
     FaMobileAlt, FaHome, FaTv, FaTshirt, FaFutbol, FaEllipsisH,
-    FaShoppingBag, FaGem, FaChild, FaDice, FaGamepad
+    FaShoppingBag, FaGem, FaChild, FaDice, FaGamepad, FaBox
 } from 'react-icons/fa';
 import axios from '../../utils/axios';
 import { useTranslation } from 'react-i18next';
+import { safeString } from '../../utils/constants';
 
 const CategoriesSection = () => {
     const { t } = useTranslation();
@@ -71,18 +72,21 @@ const CategoriesSection = () => {
                                         {cat.image ? (
                                             <img
                                                 src={`${axios.defaults.baseURL || ''}/${cat.image.replace(/^\/+/, '')}`}
-                                                alt={cat.name}
+                                                alt={safeString(cat.name)}
                                                 className="cat-img"
                                                 onError={(e) => {
                                                     e.target.style.display = 'none';
-                                                    e.target.nextSibling.style.display = 'block';
+                                                    const next = e.target.nextSibling;
+                                                    if (next) next.style.display = 'block';
                                                 }}
                                             />
                                         ) : null}
-                                        <span style={{ display: cat.image ? 'none' : 'block' }}>{cat.icon}</span>
+                                        <span className="cat-icon-span" style={{ display: cat.image ? 'none' : 'block' }}>
+                                            {cat.icon || <FaBox />}
+                                        </span>
                                     </div>
                                 </div>
-                                <span className="category-label">{cat.name}</span>
+                                <span className="category-label">{safeString(cat.name)}</span>
                             </Link>
                         );
                     })}

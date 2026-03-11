@@ -37,10 +37,14 @@ export const CurrencyProvider = ({ children }) => {
                     if (found) {
                         setCurrentCurrency(found);
                     } else if (defCurrency) {
-                        setCurrentCurrency(defCurrency);
+                        const defFound = currenciesRes.data.find(c => c._id === defCurrency);
+                        if (defFound) setCurrentCurrency(defFound);
                     }
-                } else if (defCurrency) {
-                    setCurrentCurrency(defCurrency);
+                } else if (defCurrency && Array.isArray(currenciesRes.data)) {
+                    const defFound = currenciesRes.data.find(c => c._id === defCurrency);
+                    if (defFound) setCurrentCurrency(defFound);
+                } else if (Array.isArray(currenciesRes.data) && currenciesRes.data.length > 0) {
+                    setCurrentCurrency(currenciesRes.data[0]);
                 }
 
             } catch (error) {

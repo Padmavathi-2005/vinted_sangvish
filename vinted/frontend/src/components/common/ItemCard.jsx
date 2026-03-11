@@ -6,7 +6,7 @@ import AuthContext from '../../context/AuthContext';
 import WishlistContext from '../../context/WishlistContext';
 import CurrencyContext from '../../context/CurrencyContext';
 
-import { getImageUrl, getItemImageUrl } from '../../utils/constants';
+import { getImageUrl, getItemImageUrl, safeString } from '../../utils/constants';
 
 const ItemCard = ({ item }) => {
     const navigate = useNavigate();
@@ -95,14 +95,14 @@ const ItemCard = ({ item }) => {
         return (
             <div className="listing-card" style={{ display: 'block', width: '100%', height: '100%', position: 'relative', opacity: 0.6, pointerEvents: 'none' }}>
                 <div className="listing-image-wrapper" style={{ position: 'relative' }}>
-                    <img src={imageUrl} alt={item.title || item.name} className="listing-image" style={{ filter: 'grayscale(100%)' }} />
+                    <img src={imageUrl} alt={safeString(item.title || item.name)} className="listing-image" style={{ filter: 'grayscale(100%)' }} />
                     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', zIndex: 10 }}>
                         User No Longer Exists
                     </div>
                 </div>
                 <div className="listing-details">
                     <h3 className="listing-title" style={{ fontSize: '1rem', fontWeight: '600', margin: 0 }}>
-                        {typeof item.title === 'string' ? item.title : 'Unavailable'}
+                        {safeString(item.title, 'Unavailable')}
                     </h3>
                 </div>
             </div>
@@ -112,7 +112,7 @@ const ItemCard = ({ item }) => {
     return (
         <Link to={`/items/${item._id}`} className={`listing-card ${isFav ? 'is-favorited' : ''}`} style={{ textDecoration: 'none', display: 'block', width: '100%', height: '100%', position: 'relative' }}>
             <div className="listing-image-wrapper" style={{ position: 'relative' }}>
-                <img src={imageUrl} alt={item.title || item.name} className="listing-image" />
+                <img src={imageUrl} alt={safeString(item.title || item.name)} className="listing-image" />
 
                 {/* Favorites Button - ONLY SHOW IN BUYER MODE */}
                 {mode === 'buyer' && (
@@ -149,10 +149,11 @@ const ItemCard = ({ item }) => {
                 {/* Top Rated Badge (Bottom Left) */}
                 {item.isTopRated && <span className="badge-top-rated">TOP RATED</span>}
 
-                {/* New Badge with Shimmer (Top Left) */}
-                {isNew && !item.is_sold && item.status !== 'sold' && (
-                    <span className="new-badge">
-                        NEW
+                {/* Condition Badge (Top Left) */}
+                {item.condition && !item.is_sold && item.status !== 'sold' && (
+                    <span className="condition-badge">
+                        <FaTag style={{ fontSize: '0.6rem' }} />
+                        {safeString(item.condition)}
                     </span>
                 )}
 
@@ -165,83 +166,20 @@ const ItemCard = ({ item }) => {
             </div>
 
             <div className="listing-details">
-                {/* Title & Seller Info */}
-                {/* Product Title (Left) & Seller Info (Right) */}
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                    <h3 className="listing-title" style={{ fontSize: '1rem', fontWeight: '600', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, paddingRight: '8px' }} title={typeof item.title === 'string' ? item.title : (typeof item.name === 'string' ? item.name : 'Untitled')}>
-                        {typeof item.title === 'string' ? item.title : (typeof item.name === 'string' ? item.name : 'Untitled')}
-                    </h3>
+                {/* Row 1: Title Full Line */}
+                <h3 className="listing-title mb-2" style={{ fontSize: '1rem', fontWeight: '600', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }} title={safeString(item.title || item.name, 'Untitled')}>
+                    {safeString(item.title || item.name, 'Untitled')}
+                </h3>
 
-                    {item.seller_id && typeof item.seller_id === 'object' && (
-                        <div className="seller-info" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1' }}>
-                                <span className="seller-name" style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.seller_id.username || 'Unknown'}>
-                                    {item.seller_id.username || 'Unknown'}
-                                </span>
-                                <div className="mt-1" style={{ transform: 'scale(0.8)', transformOrigin: 'right center' }}>
-                                    {renderStars(item.seller_id.rating_avg)}
-                                </div>
-                            </div>
-
-                            {item.seller_id.profile_image ? (
-                                <img
-                                    src={getImageUrl(item.seller_id.profile_image)}
-                                    alt={item.seller_id.username}
-                                    style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }}
-                                />
-                            ) : (
-                                <div
-                                    style={{
-                                        width: '28px',
-                                        height: '28px',
-                                        borderRadius: '50%',
-                                        background: '#cbd5e1',
-                                        color: 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '11px',
-                                        fontWeight: 'bold',
-                                        textTransform: 'uppercase'
-                                    }}
-                                >
-                                    {item.seller_id.username ? item.seller_id.username.charAt(0) : '?'}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-
-
-                {/* Condition & Time Ago Metadata */}
-                <div className="item-meta mb-2">
-                    {item.condition && (
-                        <span className="item-condition">
-                            <FaTag style={{ fontSize: '0.6rem', marginRight: '4px' }} />
-                            {item.condition}
-                        </span>
-                    )}
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
-                        <FaClock style={{ fontSize: '0.7rem', marginRight: '4px' }} />
-                        {timeAgoText}
-                    </span>
-                </div>
-
-                {/* Location */}
-                <div className="listing-location mb-2">
-                    <FaMapMarkerAlt style={{ marginRight: '4px', opacity: 0.6 }} />
-                    {typeof item.location === 'string' ? item.location : 'Unknown Location'}
-                </div>
-
-                {/* Price & Action */}
-                <div className="d-flex justify-content-between align-items-center mt-auto">
+                {/* Row 2: Price & Time Ago in same row */}
+                <div className="d-flex justify-content-between align-items-end mt-auto">
                     <div className="listing-price">
                         <strong>{formatPrice(item.price, item.currency_id)}</strong>
                     </div>
-                    <div className="action-btn-circle">
-                        <FaArrowRight />
-                    </div>
+                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                        <FaClock style={{ fontSize: '0.6rem', marginRight: '4px' }} />
+                        {timeAgoText}
+                    </span>
                 </div>
             </div>
         </Link>

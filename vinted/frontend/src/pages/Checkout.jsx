@@ -11,7 +11,7 @@ import StripePaymentForm from '../components/checkout/StripePaymentForm';
 import { useCart } from '../context/CartContext';
 import CurrencyContext from '../context/CurrencyContext';
 import AuthContext from '../context/AuthContext';
-import { getImageUrl, getItemImageUrl } from '../utils/constants';
+import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 import { usePopup } from '../components/common/Popup';
 import '../styles/Checkout.css';
 import { useTranslation } from 'react-i18next';
@@ -29,9 +29,52 @@ const Checkout = () => {
     const { showPopup, PopupComponent } = usePopup();
     const { t } = useTranslation();
 
-    const subtotal = selectedItems.reduce((s, i) => s + (i.price || 0), 0);
-    const shippingTotal = selectedItems.reduce((s, i) => s + (i.shipping_included ? 0 : SHIPPING_FEE), 0);
-    const total = subtotal + shippingTotal;
+    const calculateBundleTotals = () => {
+        let subtotal = 0;
+        let shippingTotal = 0;
+        let discountTotal = 0;
+
+        selectedItems.forEach(item => {
+            subtotal += (item.price || 0);
+        });
+
+        // Group selected items by seller to calculate shipping and discounts
+        const selectedBySeller = selectedItems.reduce((acc, item) => {
+            const sid = item.seller_id?._id || item.seller_id;
+            if (!acc[sid]) acc[sid] = { items: [], seller: item.seller_id };
+            acc[sid].items.push(item);
+            return acc;
+        }, {});
+
+        Object.values(selectedBySeller).forEach(group => {
+            const { items, seller } = group;
+            if (items.length === 0) return;
+
+            // Shipping: One fee per seller unless any item has free shipping
+            const hasFreeShipping = items.some(i => i.shipping_included);
+            if (!hasFreeShipping) {
+                shippingTotal += SHIPPING_FEE;
+            }
+
+            // Discount: Check seller bundle discounts
+            if (seller && seller.bundle_discounts?.enabled) {
+                const count = items.length;
+                let pct = 0;
+                if (count >= 5) pct = seller.bundle_discounts.five_items;
+                else if (count >= 3) pct = seller.bundle_discounts.three_items;
+                else if (count >= 2) pct = seller.bundle_discounts.two_items;
+
+                if (pct > 0) {
+                    const groupSubtotal = items.reduce((s, i) => s + (i.price || 0), 0);
+                    discountTotal += (groupSubtotal * pct) / 100;
+                }
+            }
+        });
+
+        return { subtotal, shippingTotal, discountTotal, total: subtotal + shippingTotal - discountTotal };
+    };
+
+    const { subtotal, shippingTotal, discountTotal, total } = calculateBundleTotals();
 
     const [availableMethods, setAvailableMethods] = useState([]);
     const [paymentMethod, setPaymentMethod] = useState('');
@@ -379,10 +422,10 @@ const Checkout = () => {
                                     <div key={item._id} className="checkout-summary-item">
                                         <img
                                             src={getItemImageUrl(item.images?.[0])}
-                                            alt={item.title}
+                                            alt={safeString(item.title)}
                                         />
                                         <div className="checkout-summary-item-info">
-                                            <p className="checkout-summary-item-name">{item.title}</p>
+                                            <p className="checkout-summary-item-name">{safeString(item.title)}</p>
                                             {item.condition && <span>{item.condition}</span>}
                                         </div>
                                         <div className="checkout-summary-item-price">
@@ -410,6 +453,12 @@ const Checkout = () => {
                                     {shippingTotal === 0 ? t('checkout.free') : `₹${shippingTotal}`}
                                 </span>
                             </div>
+                            {discountTotal > 0 && (
+                                <div className="checkout-summary-row checkout-discount-row">
+                                    <span>{t('checkout.bundle_discount') || 'Bundle Discount'}</span>
+                                    <span className="text-success">-{formatPrice(discountTotal)}</span>
+                                </div>
+                            )}
 
                             <div className="checkout-summary-divider" />
 

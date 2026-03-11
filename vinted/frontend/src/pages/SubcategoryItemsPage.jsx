@@ -4,7 +4,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import ItemCard from '../components/common/ItemCard';
 import { FaAngleLeft, FaAngleRight, FaRedo, FaSearch, FaSortAmountDown, FaThLarge, FaList } from 'react-icons/fa';
-import { getImageUrl } from '../utils/constants';
+import { getImageUrl, safeString } from '../utils/constants';
 
 const SkeletonLoader = () => (
     <div className="skeleton-item" style={{
@@ -145,8 +145,8 @@ const SubcategoryItemsPage = () => {
     };
 
     const displayTitle = isAllSub
-        ? `All ${category?.name || ''} Items`
-        : (subcategory?.name || subSlug?.split('-').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '));
+        ? `All ${safeString(category?.name) || ''} Items`
+        : (safeString(subcategory?.name) || subSlug?.split('-').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '));
 
     return (
         <div style={{ backgroundColor: '#fff', minHeight: '80vh' }}>
@@ -159,7 +159,7 @@ const SubcategoryItemsPage = () => {
                         <Link to="/categories" style={{ color: '#94a3b8', textDecoration: 'none' }}>Categories</Link>
                         <span style={{ color: '#94a3b8' }}>/</span>
                         <Link to={`/categories/${slug}`} style={{ color: '#94a3b8', textDecoration: 'none' }}>
-                            {category?.name || slug}
+                            {safeString(category?.name) || slug}
                         </Link>
                         {!isAllSub && (
                             <>
@@ -303,7 +303,7 @@ const SubcategoryItemsPage = () => {
                                 fontWeight: '700', cursor: 'pointer', marginTop: '8px'
                             }}
                         >
-                            Back to {category?.name || 'Categories'}
+                            Back to {safeString(category?.name) || 'Categories'}
                         </button>
                     </div>
                 )}

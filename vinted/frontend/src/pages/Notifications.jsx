@@ -4,6 +4,7 @@ import NotificationContext from '../context/NotificationContext';
 import AuthContext from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { FaBell, FaCheckCircle, FaExclamationCircle, FaInfoCircle, FaEnvelope, FaBox, FaLongArrowAltRight } from 'react-icons/fa';
+import { safeString } from '../utils/constants';
 import '../styles/Notifications.css';
 
 const Notifications = () => {
@@ -78,10 +79,10 @@ const Notifications = () => {
                                     </div>
                                     <div className="notif-info-col">
                                         <div className="notif-top-row">
-                                            <h3>{notif.title}</h3>
+                                            <h3>{safeString(notif.title)}</h3>
                                             <span className="notif-time">{formatDate(notif.created_at)}</span>
                                         </div>
-                                        <p className="notif-msg">{notif.message}</p>
+                                        <p className="notif-msg">{safeString(notif.message)}</p>
                                         {notif.link && (
                                             <Link to={notif.link} className="notif-link">
                                                 {t('notifications.view_details', 'View details')} <FaLongArrowAltRight />

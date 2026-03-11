@@ -10,7 +10,18 @@ const orderSchema = mongoose.Schema(
         item_id: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Item',
-            required: true,
+            required: false, // Optional for bundles where multiple items exist
+        },
+        items: [{
+            item_id: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Item',
+            },
+            price: Number,
+        }],
+        is_bundle: {
+            type: Boolean,
+            default: false,
         },
         buyer_id: {
             type: mongoose.Schema.Types.ObjectId,
@@ -25,6 +36,10 @@ const orderSchema = mongoose.Schema(
         item_price: {
             type: Number,
             required: true,
+        },
+        bundle_discount_amount: {
+            type: Number,
+            default: 0,
         },
         shipping_fee: {
             type: Number,

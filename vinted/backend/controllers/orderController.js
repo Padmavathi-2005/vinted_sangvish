@@ -1,12 +1,10 @@
 import asyncHandler from 'express-async-handler';
 import Order from '../models/Order.js';
 import Item from '../models/Item.js';
-import { processOrderPaymentSplit } from './walletController.js';
 import Notification from '../models/Notification.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
-import { reverseOrderPayment } from './walletController.js';
-import { processRefundSplit } from './walletController.js';
+import { processOrderPaymentSplit, reverseOrderPayment, processRefundSplit } from './walletController.js';
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -23,64 +21,103 @@ const createOrder = asyncHandler(async (req, res) => {
 
     const createdOrders = [];
 
-    // Protocol: Create an order for each item (since they might have different sellers)
+    // Group items by seller_id to handle bundles
+    const sellerGroups = {};
     for (const cartItem of items) {
-        const item = await Item.findById(cartItem._id);
+        const item = await Item.findById(cartItem._id).populate('seller_id');
         if (!item) continue;
 
-        // CRITICAL: Prevent purchasing of sold items
         if (item.is_sold || item.status === 'sold') {
             console.warn(`Attempted purchase of sold item: ${item._id}`);
             continue;
         }
 
+        const sellerId = item.seller_id?._id?.toString() || item.seller_id?.toString();
+        if (!sellerGroups[sellerId]) {
+            sellerGroups[sellerId] = {
+                items: [],
+                seller: item.seller_id
+            };
+        }
+        sellerGroups[sellerId].items.push(item);
+    }
+
+    // Process each seller group as a single Order (Unified Transaction)
+    for (const sellerId in sellerGroups) {
+        const group = sellerGroups[sellerId];
+        const groupItems = group.items;
+        const seller = group.seller;
+
         const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-        const shippingFee = item.shipping_included ? 0 : 200; // Flat 200 fee from frontend
-        const totalAmount = item.price + shippingFee;
+        // Calculate Totals
+        const itemPriceSum = groupItems.reduce((sum, i) => sum + i.price, 0);
 
+        // Calculate Bundle Discount
+        let discountAmount = 0;
+        if (seller.bundle_discounts?.enabled) {
+            const count = groupItems.length;
+            let percentage = 0;
+            if (count >= 5) percentage = seller.bundle_discounts.five_items;
+            else if (count >= 3) percentage = seller.bundle_discounts.three_items;
+            else if (count >= 2) percentage = seller.bundle_discounts.two_items;
+
+            if (percentage > 0) {
+                discountAmount = Math.round((itemPriceSum * percentage) / 100);
+            }
+        }
+
+        // Calculate Combined Shipping
+        const anyFreeShipping = groupItems.some(i => i.shipping_included);
+        const shippingFee = anyFreeShipping ? 0 : 200;
+
+        const discountedItemPrice = itemPriceSum - discountAmount;
+        const totalAmount = discountedItemPrice + shippingFee;
+
+        // Create Order record
         const order = await Order.create({
             order_number: orderNumber,
-            item_id: item._id,
+            item_id: groupItems[0]._id, // First item for compatibility
+            items: groupItems.map(i => ({ item_id: i._id, price: i.price })),
+            is_bundle: groupItems.length > 1,
             buyer_id: req.user._id,
-            seller_id: item.seller_id,
-            item_price: item.price,
+            seller_id: sellerId,
+            item_price: itemPriceSum,
+            bundle_discount_amount: discountAmount,
             shipping_fee: shippingFee,
             total_amount: totalAmount,
             payment_method: actualPaymentMethod,
-            payment_status: 'paid', // Assuming payment succeeded on frontend
+            payment_status: 'paid',
             order_status: 'placed',
-            shipping_address
+            shipping_address,
+            stripe_payment_id
         });
 
-        // Track Stripe payment ID if provided
-        if (stripe_payment_id) {
-            order.stripe_payment_id = stripe_payment_id;
-            await order.save();
-        }
-
-        // Trigger Wallet Split (Calculates 2% Admin, 98% Seller)
+        // Split Wallet (98% to seller, 2% to admin)
         const { adminCommission } = await processOrderPaymentSplit({
-            seller_id: item.seller_id,
-            item_price: item.price,
+            seller_id: sellerId,
+            item_price: discountedItemPrice,
             shipping_fee: shippingFee,
             order_id: order._id
         });
 
-        // Save platform_fee explicitly so it tracks in the Admin Report Analytics
         order.platform_fee = adminCommission;
         await order.save();
 
-        // Mark item as sold
-        item.status = 'sold';
-        item.is_sold = true;
-        await item.save();
+        // Mark all items as sold
+        for (const item of groupItems) {
+            item.status = 'sold';
+            item.is_sold = true;
+            await item.save();
+        }
 
         // 1. Notify Seller
         await Notification.create({
-            user_id: item.seller_id,
-            title: 'New Order Received!',
-            message: `Your item "${item.title}" has been booked by ${req.user.username}. Order ID: #${orderNumber}`,
+            user_id: sellerId,
+            title: groupItems.length > 1 ? 'New Bundle Order!' : 'New Order Received!',
+            message: groupItems.length > 1
+                ? `You sold a bundle of ${groupItems.length} items to ${req.user.username}. Order ID: #${orderNumber}`
+                : `Your item "${groupItems[0].title}" has been booked by ${req.user.username}. Order ID: #${orderNumber}`,
             type: 'order',
             link: `/profile?tab=orders`
         });
@@ -89,39 +126,41 @@ const createOrder = asyncHandler(async (req, res) => {
         await Notification.create({
             user_id: req.user._id,
             title: 'Order Confirmed!',
-            message: `Your order for "${item.title}" (#${orderNumber}) has been placed successfully. Track your order in the Orders section.`,
+            message: groupItems.length > 1
+                ? `Your bundle order (#${orderNumber}) from ${seller.username} has been placed successfully.`
+                : `Your order for "${groupItems[0].title}" (#${orderNumber}) has been placed successfully.`,
             type: 'order',
             link: `/profile?tab=orders`
         });
 
         // 3. Send System Message in Conversation
         try {
-            // Find or create conversation
             let conversation = await Conversation.findOne({
-                participants: { $all: [req.user._id, item.seller_id] },
-                item_id: item._id
+                participants: { $all: [req.user._id, sellerId] },
+                item_id: groupItems[0]._id
             });
 
             if (!conversation) {
                 conversation = await Conversation.create({
-                    participants: [req.user._id, item.seller_id],
-                    item_id: item._id,
+                    participants: [req.user._id, sellerId],
+                    item_id: groupItems[0]._id,
                     initiator_id: req.user._id,
                     status: 'accepted'
                 });
             } else if (conversation.status !== 'accepted') {
-                // If it was rejected or pending, force accept because a purchase happened
                 conversation.status = 'accepted';
                 await conversation.save();
             }
 
             const systemMetadata = JSON.stringify({
                 type: 'order_placed',
-                item_title: item.title,
-                item_image: item.images?.[0] || '',
+                item_title: groupItems.length > 1 ? `Bundle of ${groupItems.length} items` : groupItems[0].title,
+                item_image: groupItems[0].images?.[0] || '',
+                bundle_count: groupItems.length,
                 buyer_name: req.user.username,
                 order_id: orderNumber,
-                item_price: item.price,
+                item_price: itemPriceSum,
+                discount: discountAmount,
                 shipping_fee: shippingFee,
                 total_amount: totalAmount,
                 payment_method: actualPaymentMethod
@@ -132,16 +171,17 @@ const createOrder = asyncHandler(async (req, res) => {
             const newMessage = await Message.create({
                 conversation_id: conversation._id,
                 sender_id: req.user._id,
-                receiver_id: item.seller_id,
+                receiver_id: sellerId,
                 message: systemMsgText,
                 message_type: 'system'
             });
 
-            conversation.last_message = `🛒 Order placed: "${item.title}" by ${req.user.username}`;
+            conversation.last_message = groupItems.length > 1
+                ? `🛒 Bundle order placed by ${req.user.username}`
+                : `🛒 Order placed: "${groupItems[0].title}" by ${req.user.username}`;
             conversation.last_message_at = Date.now();
             await conversation.save();
 
-            // Emit to socket for immediate reflection
             if (req.io) {
                 req.io.to(conversation._id.toString()).emit('receive_message', {
                     message: newMessage,
@@ -150,7 +190,6 @@ const createOrder = asyncHandler(async (req, res) => {
             }
         } catch (msgErr) {
             console.error("Error sending system message:", msgErr);
-            // Non-blocking error
         }
 
         createdOrders.push(order);

@@ -26,7 +26,6 @@ import { CurrencyProvider } from './context/CurrencyContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { NotificationProvider } from './context/NotificationContext';
 import ScrollToTop from './components/common/ScrollToTop';
-import ScrollToTopButton from './components/common/ScrollToTopButton';
 import CookieConsent from './components/common/CookieConsent';
 
 // Layout wrapper to conditionally show Header/Footer
@@ -42,7 +41,6 @@ const Layout = ({ children }) => {
         {children}
       </main>
       {!isAdminRoute && <Footer />}
-      {!isAdminRoute && <ScrollToTopButton />}
       {!isAdminRoute && <CookieConsent />}
     </div>
   );

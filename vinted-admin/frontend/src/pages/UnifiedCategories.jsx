@@ -5,6 +5,7 @@ import Table from '../components/Table';
 import Modal from '../components/Modal';
 import axios, { imageBaseURL } from '../utils/axios';
 import { showToast, showConfirm } from '../utils/swal';
+import { safeString } from '../utils/constants';
 import '../styles/UnifiedCategories.css';
 
 const AVATAR = (image, fallback) => (
@@ -111,7 +112,7 @@ const UnifiedCategories = () => {
                 <div className="d-flex align-items-center gap-3">
                     {AVATAR(row.image, <FaFolder />)}
                     <div>
-                        <div className="fw-bold">{row.name}</div>
+                        <div className="fw-bold">{safeString(row.name)}</div>
                         <div className="text-muted small font-monospace">{row.slug}</div>
                     </div>
                 </div>
@@ -135,7 +136,7 @@ const UnifiedCategories = () => {
         },
         {
             header: 'Description', accessor: 'description',
-            render: (row) => <span className="text-muted small">{row.description || '—'}</span>
+            render: (row) => <span className="text-muted small">{safeString(row.description) || '—'}</span>
         },
     ];
 
@@ -156,7 +157,7 @@ const UnifiedCategories = () => {
             header: 'Parent Category', accessor: 'category_id',
             render: (row) => (
                 <span className="badge bg-light text-dark border">
-                    {row.category_id?.name || categories.find(c => c._id === row.category_id)?.name || '—'}
+                    {safeString(row.category_id?.name || categories.find(c => c._id === row.category_id)?.name) || '—'}
                 </span>
             )
         },
@@ -197,7 +198,7 @@ const UnifiedCategories = () => {
             header: 'Subcategory', accessor: 'subcategory_id',
             render: (row) => (
                 <span className="badge bg-light text-dark border">
-                    {row.subcategory_id?.name || subcategories.find(s => s._id === row.subcategory_id)?.name || '—'}
+                    {safeString(row.subcategory_id?.name || subcategories.find(s => s._id === row.subcategory_id)?.name) || '—'}
                 </span>
             )
         },
@@ -291,14 +292,14 @@ const UnifiedCategories = () => {
                         {activeTab === 'subcategories' && (
                             <Form.Select style={{ width: '220px' }} value={selectedCatFilter} onChange={(e) => setSelectedCatFilter(e.target.value)} className="admin-filter-select">
                                 <option value="">All Categories</option>
-                                {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                {categories.map(c => <option key={c._id} value={c._id}>{safeString(c.name)}</option>)}
                             </Form.Select>
                         )}
 
                         {activeTab === 'itemTypes' && (
                             <Form.Select style={{ width: '220px' }} value={selectedSubFilter} onChange={(e) => setSelectedSubFilter(e.target.value)} className="admin-filter-select">
                                 <option value="">All Subcategories</option>
-                                {subcategories.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                                {subcategories.map(s => <option key={s._id} value={s._id}>{safeString(s.name)}</option>)}
                             </Form.Select>
                         )}
                     </div>
@@ -352,7 +353,7 @@ const UnifiedCategories = () => {
                     <Form className="admin-form">
                         <Form.Group className="mb-3">
                             <Form.Label>Name *</Form.Label>
-                            <Form.Control type="text" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={`Enter ${modalType} name`} />
+                            <Form.Control type="text" value={safeString(formData.name) || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={`Enter ${modalType} name`} />
                         </Form.Group>
 
                         <Form.Group className="mb-3">
@@ -365,7 +366,7 @@ const UnifiedCategories = () => {
                                 <Form.Label>Parent Category *</Form.Label>
                                 <Form.Select value={formData.category_id || ''} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
                                     <option value="">Select Category...</option>
-                                    {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                    {categories.map(c => <option key={c._id} value={c._id}>{safeString(c.name)}</option>)}
                                 </Form.Select>
                             </Form.Group>
                         )}
@@ -375,7 +376,7 @@ const UnifiedCategories = () => {
                                 <Form.Label>Parent Subcategory *</Form.Label>
                                 <Form.Select value={formData.subcategory_id || ''} onChange={(e) => setFormData({ ...formData, subcategory_id: e.target.value })}>
                                     <option value="">Select Subcategory...</option>
-                                    {subcategories.map(s => <option key={s._id} value={s._id}>{s.name} ({s.category_id?.name || ''})</option>)}
+                                    {subcategories.map(s => <option key={s._id} value={s._id}>{safeString(s.name)} ({safeString(s.category_id?.name) || ''})</option>)}
                                 </Form.Select>
                             </Form.Group>
                         )}
@@ -405,7 +406,7 @@ const UnifiedCategories = () => {
 
                                 <Form.Group className="mb-3">
                                     <Form.Label>Description</Form.Label>
-                                    <Form.Control as="textarea" rows={2} value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Brief description..." />
+                                    <Form.Control as="textarea" rows={2} value={safeString(formData.description) || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Brief description..." />
                                 </Form.Group>
                             </>
                         )}

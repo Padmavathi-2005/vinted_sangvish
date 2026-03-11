@@ -1643,3 +1643,83 @@ body.modal-open {
         min-height: 350px;
     }
 }
+
+/* Bundle Settings Styles */
+.pd-bundle-settings-form {
+    padding: 10px 0;
+}
+
+.pd-bundle-toggle {
+    background: #f8fafc;
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.pd-bundle-toggle .form-check-input {
+    width: 3em;
+    height: 1.5em;
+    cursor: pointer;
+}
+
+.pd-bundle-toggle .form-check-label {
+    padding-left: 10px;
+    font-size: 1rem;
+    color: #1e293b;
+    cursor: pointer;
+}
+
+.pd-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pd-input-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.input-with-pct {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-pct .form-control {
+    padding-right: 70px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    height: 48px;
+    border-radius: 10px;
+}
+
+.pct-unit {
+    position: absolute;
+    right: 12px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.pd-bundle-preview-box {
+    background: #f0f9ff;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #bae6fd;
+}
+
+.pd-preview-text {
+    font-size: 0.9rem;
+    color: #0369a1;
+    line-height: 1.5;
+}
+
+.disabled-logic .form-control {
+    background-color: #f1f5f9;
+    border-color: #e2e8f0;
+}

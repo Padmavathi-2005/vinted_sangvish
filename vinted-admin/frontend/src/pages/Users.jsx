@@ -10,6 +10,7 @@ import axios from '../utils/axios';
 import { useSettings } from '../context/SettingsContext';
 import { useLocalization } from '../context/LocalizationContext';
 import { showToast, showConfirm } from '../utils/swal';
+import { safeString } from '../utils/constants';
 
 const Users = () => {
     const location = useLocation();
@@ -64,7 +65,7 @@ const Users = () => {
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
                 data = data.filter(u =>
-                    u.username.toLowerCase().includes(term) ||
+                    safeString(u.username).toLowerCase().includes(term) ||
                     u.email.toLowerCase().includes(term)
                 );
             }
@@ -104,7 +105,7 @@ const Users = () => {
     const handleDeleteClick = (user) => {
         showConfirm(
             'Delete User?',
-            `Are you sure you want to delete ${user.username}?`,
+            `Are you sure you want to delete ${safeString(user.username)}?`,
             'Yes, Delete'
         ).then((result) => {
             if (result.isConfirmed) {
@@ -212,7 +213,7 @@ const Users = () => {
                 <div className="d-flex align-items-center gap-3">
                     {row.profile_image ? (
                         <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle overflow-hidden border shadow-sm" style={{ width: '40px', height: '40px' }}>
-                            <img src={`${axios.defaults.baseURL}/${row.profile_image}`} alt={row.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={`${axios.defaults.baseURL}/${row.profile_image}`} alt={safeString(row.username)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                     ) : (
                         <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle shadow-sm" style={{ width: '40px', height: '40px' }}>
@@ -220,7 +221,7 @@ const Users = () => {
                         </div>
                     )}
                     <div>
-                        <div className="fw-bold">{row.username}</div>
+                        <div className="fw-bold">{safeString(row.username)}</div>
                         <div className="text-muted small">{row.email}</div>
                     </div>
                 </div>
@@ -265,8 +266,8 @@ const Users = () => {
             accessor: 'bio',
             render: (row) => (
                 <div style={{ maxWidth: '180px' }}>
-                    <div className="text-truncate small text-muted" title={row.bio || 'No bio'}>
-                        {row.bio || <span className="fst-italic opacity-50">No bio provided</span>}
+                    <div className="text-truncate small text-muted" title={safeString(row.bio) || 'No bio'}>
+                        {safeString(row.bio) || <span className="fst-italic opacity-50">No bio provided</span>}
                     </div>
                 </div>
             )

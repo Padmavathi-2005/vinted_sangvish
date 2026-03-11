@@ -10,6 +10,7 @@ import axios from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
 import { useSettings } from '../context/SettingsContext';
 import { showToast, showConfirm } from '../utils/swal';
+import { safeString } from '../utils/constants';
 
 const Listings = () => {
     const { formatPrice, t } = useLocalization();
@@ -86,7 +87,7 @@ const Listings = () => {
         setSelectedListing(listing);
         showConfirm(
             'Delete Listing?',
-            `Are you sure you want to delete "${listing.title}"?`,
+            `Are you sure you want to delete "${safeString(listing.title)}"?`,
             'Yes, Delete'
         ).then((result) => {
             if (result.isConfirmed) {
@@ -190,7 +191,7 @@ const Listings = () => {
                         }
                     </div>
                     <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>{row.title}</div>
+                        <div className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>{safeString(row.title)}</div>
                         <div className="text-muted small">ID: {row._id.slice(-6).toUpperCase()}</div>
                     </div>
                 </div>
@@ -204,7 +205,7 @@ const Listings = () => {
         {
             header: t('listings.table.category'),
             accessor: 'category_id',
-            render: (row) => <span className="badge bg-light text-dark border">{row.category_id?.name || 'N/A'}</span>
+            render: (row) => <span className="badge bg-light text-dark border">{safeString(row.category_id?.name) || 'N/A'}</span>
         },
         {
             header: t('listings.table.condition'),

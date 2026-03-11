@@ -557,14 +557,14 @@
 }
 
 .category-card:hover .cat-img {
-    filter: brightness(0) invert(1);
-    transform: scale(1.1);
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+    transform: scale(1.15);
 }
 
 .category-card:hover .category-icon,
 .category-card.active .category-icon {
     color: white;
-    /* Contrast against hover background */
+    transform: scale(1.1);
 }
 
 .category-label {

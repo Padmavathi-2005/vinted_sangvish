@@ -85,6 +85,12 @@ const userSchema = mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        bundle_discounts: {
+            enabled: { type: Boolean, default: false },
+            two_items: { type: Number, default: 0 }, // percentage
+            three_items: { type: Number, default: 0 },
+            five_items: { type: Number, default: 0 },
+        },
     },
     {
         timestamps: {

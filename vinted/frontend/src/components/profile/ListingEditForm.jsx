@@ -4,7 +4,7 @@ import { FaImage, FaTimes, FaSave, FaArrowLeft, FaPlusCircle } from 'react-icons
 import CustomSelect from '../common/CustomSelect';
 import CurrencyContext from '../../context/CurrencyContext';
 import '../../styles/SellItem.css';
-import { getImageUrl } from '../../utils/constants';
+import { getImageUrl, safeString } from '../../utils/constants';
 
 const MAX_PHOTOS = 20;
 
@@ -143,9 +143,9 @@ const ListingEditForm = ({ item, onCancel, onUpdate }) => {
         }
     };
 
-    const catOptions = useMemo(() => categories.map(c => ({ value: c._id, label: c.name })), [categories]);
-    const subOptions = useMemo(() => subcategories.map(s => ({ value: s._id, label: s.name })), [subcategories]);
-    const itemTypeOptions = useMemo(() => itemTypes.map(i => ({ value: i._id, label: i.name })), [itemTypes]);
+    const catOptions = useMemo(() => categories.map(c => ({ value: c._id, label: safeString(c.name) })), [categories]);
+    const subOptions = useMemo(() => subcategories.map(s => ({ value: s._id, label: safeString(s.name) })), [subcategories]);
+    const itemTypeOptions = useMemo(() => itemTypes.map(i => ({ value: i._id, label: safeString(i.name) })), [itemTypes]);
 
     return (
         <div className="si-page" style={{ padding: 0, backgroundColor: 'transparent' }}>

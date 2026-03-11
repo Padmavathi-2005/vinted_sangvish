@@ -23,3 +23,13 @@ export const getItemImageUrl = (path) => {
     }
     return getImageUrl(path);
 };
+
+export const safeString = (val, fallback = '') => {
+    if (!val) return fallback;
+    if (typeof val === 'object') {
+        // Try getting from localStorage, default to 'en'
+        const langCode = (localStorage.getItem('i18nextLng') || 'en').split('-')[0];
+        return val[langCode] || val.en || val[Object.keys(val)[0]] || fallback;
+    }
+    return String(val);
+};

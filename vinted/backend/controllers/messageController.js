@@ -1,9 +1,11 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
+import Currency from '../models/Currency.js';
 
 // Helper for population
 const participantsPopulate = {
@@ -21,7 +23,7 @@ const getConversations = asyncHandler(async (req, res) => {
         'participants.id': identifier
     })
         .populate(participantsPopulate)
-        .populate('item_id', 'title price images')
+        .populate('item_id', 'title price images currency_id')
         .sort({ last_message_at: -1 });
 
     res.status(200).json(conversations);
@@ -32,7 +34,8 @@ const getConversations = asyncHandler(async (req, res) => {
 // @access  Private
 const getMessages = asyncHandler(async (req, res) => {
     const conversation = await Conversation.findById(req.params.id)
-        .populate(participantsPopulate);
+        .populate(participantsPopulate)
+        .populate('item_id', 'title price images currency_id');
 
     if (!conversation) {
         res.status(404);
@@ -59,7 +62,7 @@ const getMessages = asyncHandler(async (req, res) => {
 // @route   POST /api/messages
 // @access  Private
 const sendMessage = asyncHandler(async (req, res) => {
-    const { receiver_id, receiver_model = 'User', message, item_id } = req.body;
+    const { receiver_id, receiver_model = 'User', message, item_id, message_type = 'text', offer_amount = null } = req.body;
 
     if (!receiver_id || !message) {
         res.status(400);
@@ -118,6 +121,8 @@ const sendMessage = asyncHandler(async (req, res) => {
         receiver_id: receiver_id,
         receiver_model: receiver_model,
         message: message,
+        message_type: message_type,
+        offer_amount: offer_amount,
     });
 
     const populatedMessage = await Message.findById(newMessage._id).populate('sender_id', 'name username profile_image');
@@ -214,10 +219,80 @@ const toggleBlock = asyncHandler(async (req, res) => {
     res.status(200).json(conversation);
 });
 
+// @desc    Respond to an offer
+// @route   PATCH /api/messages/offer/:id
+// @access  Private
+const respondToOffer = asyncHandler(async (req, res) => {
+    const { status } = req.body; // 'accepted' or 'declined'
+    if (!['accepted', 'declined'].includes(status)) {
+        res.status(400);
+        throw new Error('Invalid status');
+    }
+
+    const message = await Message.findById(req.params.id);
+    if (!message || message.message_type !== 'offer') {
+        res.status(404);
+        throw new Error('Offer not found');
+    }
+
+    if (message.receiver_id.toString() !== req.user._id.toString()) {
+        res.status(401);
+        throw new Error('Only the recipient can respond to this offer');
+    }
+
+    message.offer_status = status;
+    await message.save();
+
+    const conversation = await Conversation.findById(message.conversation_id).populate('item_id', 'currency_id title');
+    let symbol = '$';
+    if (conversation && conversation.item_id && conversation.item_id.currency_id) {
+        // Find currency symbol without requiring the full model import if possible, or assume it's there
+        const Currency = mongoose.model('Currency');
+        const curr = await Currency.findById(conversation.item_id.currency_id);
+        if (curr) symbol = curr.symbol;
+    }
+
+    // Send a system message indicating the outcome
+    const systemMessageText = status === 'accepted'
+        ? `✅ Offer of ${symbol}${message.offer_amount} was accepted!`
+        : `❌ Offer of ${symbol}${message.offer_amount} was declined.`;
+
+    const systemMsg = await Message.create({
+        conversation_id: message.conversation_id,
+        sender_id: req.user._id, // Set the current user to system message sender_id or keep it as user
+        sender_model: 'User',
+        receiver_id: message.sender_id,
+        receiver_model: message.sender_model,
+        message: systemMessageText,
+        message_type: 'system'
+    });
+
+    if (conversation) {
+        conversation.last_message = systemMessageText;
+        conversation.last_message_at = Date.now();
+        await conversation.save();
+    }
+
+    // Notify sender of the outcome
+    if (message.sender_model === 'User') {
+        await Notification.create({
+            user_id: message.sender_id,
+            title: status === 'accepted' ? 'Offer Accepted!' : 'Offer Declined',
+            message: `${req.user.username || req.user.name} ${status} your offer.`,
+            type: status === 'accepted' ? 'success' : 'error',
+            link: `/profile?tab=messages&conversation=${message.conversation_id}`,
+        });
+    }
+
+    const populatedMessage = await Message.findById(systemMsg._id).populate('sender_id', 'name username profile_image');
+    res.status(200).json({ offerMessage: message, systemMessage: populatedMessage, conversation });
+});
+
 export {
     getConversations,
     getMessages,
     sendMessage,
     respondToRequest,
     toggleBlock,
+    respondToOffer,
 };

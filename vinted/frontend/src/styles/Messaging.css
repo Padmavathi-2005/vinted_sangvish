@@ -791,6 +791,79 @@
     margin-right: 4px;
 }
 
+/* ─── Offer Bubbles ─── */
+.offer-bubble {
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    background: #fff;
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+}
+
+.offer-bubble.sent {
+    background: #f0f9ff;
+    border-color: #bae6fd;
+    color: #0c4a6e;
+    align-items: flex-end;
+}
+
+.offer-bubble.received {
+    background: #fff;
+    border-color: #e2e8f0;
+    color: #0f172a;
+    align-items: flex-start;
+}
+
+.offer-bubble-header {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.offer-bubble-price {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 4px 0;
+    color: #1e293b;
+}
+
+.offer-bubble.sent .offer-bubble-price {
+    color: #0369a1;
+}
+
+.offer-bubble-text {
+    font-size: 0.9rem;
+    font-style: italic;
+    color: #475569;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+.offer-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.offer-status-badge.accepted {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.offer-status-badge.declined {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.offer-action-btns button {
+    flex: 1;
+}
+
 /* ═══ MESSAGES MOBILE RESPONSIVE ═══ */
 @media (max-width: 768px) {
     .pd-messages-container {

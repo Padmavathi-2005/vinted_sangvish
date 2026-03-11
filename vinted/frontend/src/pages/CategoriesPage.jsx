@@ -3,7 +3,7 @@ import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import axios from '../utils/axios';
-import { getImageUrl } from '../utils/constants';
+import { getImageUrl, safeString } from '../utils/constants';
 
 const CategoriesPage = () => {
     const [allCategories, setAllCategories] = useState([]);
@@ -123,7 +123,7 @@ const CategoriesPage = () => {
                                             {cat.image ? (
                                                 <img
                                                     src={getImageUrl(cat.image)}
-                                                    alt={cat.name}
+                                                    alt={safeString(cat.name)}
                                                     style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }}
                                                     onError={e => {
                                                         e.target.style.display = 'none';
@@ -149,7 +149,7 @@ const CategoriesPage = () => {
                                             overflow: 'hidden',
                                             maxHeight: '2.6em',
                                         }}>
-                                            {cat.name}
+                                            {safeString(cat.name)}
                                         </span>
                                     </div>
                                 </Link>

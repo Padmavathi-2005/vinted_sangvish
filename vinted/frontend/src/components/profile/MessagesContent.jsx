@@ -3,19 +3,25 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import axios from '../../utils/axios';
 import AuthContext from '../../context/AuthContext';
 import NotificationContext from '../../context/NotificationContext';
+import CurrencyContext from '../../context/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { FaPaperPlane, FaUser, FaClock, FaCheck, FaTimes, FaInbox, FaBan, FaEllipsisV, FaEnvelope, FaShoppingBag, FaArrowLeft } from 'react-icons/fa';
-import { getImageUrl } from '../../utils/constants';
+import { getImageUrl, safeString } from '../../utils/constants';
 import '../../styles/Messaging.css';
 
 import { io } from 'socket.io-client';
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const socket = io(SOCKET_URL);
 
+const getMarketplaceName = (siteNameStrOrObj) => {
+    return safeString(siteNameStrOrObj) || 'Marketplace';
+};
+
 const MessagesContent = () => {
     const { t } = useTranslation();
     const { user } = useContext(AuthContext);
     const { notifications, markAsRead } = useContext(NotificationContext);
+    const { formatPrice } = useContext(CurrencyContext);
     const location = useLocation();
     const navigate = useNavigate();
     const [conversations, setConversations] = useState([]);
@@ -295,6 +301,16 @@ const MessagesContent = () => {
         }
     };
 
+    const handleRespondToOffer = async (id, status) => {
+        try {
+            await axios.patch(`/api/messages/offer/${id}`, { status });
+            if (activeConv) fetchMessages(activeConv._id);
+        } catch (err) {
+            console.error('Error responding to offer:', err);
+            alert(err.response?.data?.message || 'Error responding to offer');
+        }
+    };
+
     const handleToggleBlock = async () => {
         if (!activeConv) return;
 
@@ -400,13 +416,13 @@ const MessagesContent = () => {
                                     <div key={u._id} className="pd-user-picker-item">
                                         <div className="pd-avatar-wrapper-mini">
                                             {!u.profile_image ? (
-                                                <div className="pd-avatar-placeholder-mini">{u.username?.charAt(0).toUpperCase()}</div>
+                                                <div className="pd-avatar-placeholder-mini">{safeString(u.username)?.charAt(0).toUpperCase()}</div>
                                             ) : (
                                                 <img src={getImageUrl(u.profile_image)} alt={u.username} className="pd-msg-user-avatar" />
                                             )}
                                         </div>
                                         <div className="pd-msg-user-info flex-grow-1">
-                                            <span className="pd-msg-user-name">{u.username}</span>
+                                            <span className="pd-msg-user-name">{safeString(u.username)}</span>
                                         </div>
                                         {isPending ? (
                                             <span className="pd-picker-status-pill pending">{t('profile.pending', 'Pending')}</span>
@@ -472,8 +488,8 @@ const MessagesContent = () => {
                         const other = otherData?.id || otherData;
                         const lm = conv.last_message || '';
                         const isSystemConv = lm.startsWith('🛒') || lm.startsWith('✅') || lm.startsWith('ORDER') || lm.includes('Order placed') || lm.includes('Order delivered') || lm.includes('ORDER_NOTIFICATION');
-                        const marketplaceName = settings?.site_name || 'My Marketplace';
-                        const displayName = otherData?.on_model === 'Admin' ? 'Admin' : (other?.username || marketplaceName);
+                        const marketplaceName = getMarketplaceName(settings?.site_name);
+                        const displayName = otherData?.on_model === 'Admin' ? 'Admin' : (safeString(other?.username) || marketplaceName);
                         const siteLogo = settings?.site_logo;
                         const siteInitial = marketplaceName.charAt(0).toUpperCase();
                         return (
@@ -491,7 +507,7 @@ const MessagesContent = () => {
                                         )
                                     ) : (
                                         !other?.profile_image ? (
-                                            <div className="pd-avatar-placeholder-mini">{other?.username?.charAt(0).toUpperCase()}</div>
+                                            <div className="pd-avatar-placeholder-mini">{safeString(other?.username)?.charAt(0).toUpperCase()}</div>
                                         ) : (
                                             <img src={getImageUrl(other.profile_image)} alt={other.username} className="pd-msg-user-avatar" />
                                         )
@@ -502,7 +518,7 @@ const MessagesContent = () => {
                                         <span className="pd-msg-user-name">{displayName}</span>
                                         <span className="pd-msg-last-time">{conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : ''}</span>
                                     </div>
-                                    <div className="pd-msg-last-text">{conv.last_message}</div>
+                                    <div className="pd-msg-last-text">{safeString(conv.last_message)}</div>
                                     {conv.status !== 'accepted' && (
                                         <span className={`pd-msg-status ${conv.status}`}>{conv.status.toUpperCase()}</span>
                                     )}
@@ -528,12 +544,13 @@ const MessagesContent = () => {
                         {/* Chat Header */}
                         {(() => {
                             const hasSystemMsgs = messages.some(m => m.message_type === 'system');
-                            const headerSiteName = settings?.site_name || 'My Marketplace';
+                            const headerSiteName = getMarketplaceName(settings?.site_name);
                             const headerSiteLogo = settings?.site_logo;
                             const headerOtherData = getOtherParticipant(activeConv);
                             const headerOther = headerOtherData?.id || headerOtherData;
                             const headerOtherOnModel = headerOtherData?.on_model;
                             const isMarketplace = headerOtherOnModel === 'Admin' || hasSystemMsgs;
+                            const headerSiteInitial = headerSiteName.charAt(0).toUpperCase();
 
                             return (
                                 <div className="pd-msg-chat-header">
@@ -554,13 +571,13 @@ const MessagesContent = () => {
                                                 <img src={getImageUrl(headerOther.profile_image) || null} alt="" className="pd-msg-user-avatar" style={{ width: '36px', height: '36px' }} />
                                             ) : (
                                                 <div className="pd-avatar-placeholder-mini" style={{ width: '36px', height: '36px', fontSize: '14px' }}>
-                                                    {headerOther?.username?.charAt(0).toUpperCase()}
+                                                    {safeString(headerOther?.username)?.charAt(0).toUpperCase()}
                                                 </div>
                                             )
                                         )}
                                     </div>
                                     <div className="pd-msg-user-meta">
-                                        <div className="fw-bold">{isMarketplace ? (headerOtherOnModel === 'Admin' ? 'Admin' : headerSiteName) : headerOther?.username}</div>
+                                        <div className="fw-bold">{isMarketplace ? (headerOtherOnModel === 'Admin' ? 'Admin' : headerSiteName) : safeString(headerOther?.username)}</div>
                                         {isMarketplace ? (
                                             <div className="text-muted small" style={{ fontSize: '0.75rem' }}>{headerOtherOnModel === 'Admin' ? 'System Admin' : 'Order Notifications'}</div>
                                         ) : (
@@ -595,7 +612,7 @@ const MessagesContent = () => {
                             (activeConv.initiator_id?._id || activeConv.initiator_id)?.toString() !== (user._id || user.id)?.toString() && (
                                 <div className="pd-msg-request-bar">
                                     <div className="pd-msg-request-text">
-                                        <strong>{getOtherParticipant(activeConv).username}</strong> sent you a message request.
+                                        <strong>{safeString(getOtherParticipant(activeConv)?.username)}</strong> sent you a message request.
                                     </div>
                                     <div className="pd-msg-action-btns">
                                         <button className="pd-msg-btn accept" onClick={() => handleRespond('accepted')}><FaCheck /> Accept</button>
@@ -612,7 +629,7 @@ const MessagesContent = () => {
                                     <div className="pd-rejected-icon">✗</div>
                                     <div className="pd-rejected-body">
                                         <p className="pd-rejected-title">Your request was declined</p>
-                                        <p className="pd-rejected-sub">{getOtherParticipant(activeConv).username} declined your message request. Only they can accept the conversation now.</p>
+                                        <p className="pd-rejected-sub">{safeString(getOtherParticipant(activeConv)?.username)} declined your message request. Only they can accept the conversation now.</p>
                                     </div>
                                 </div>
                             ) : (
@@ -653,7 +670,7 @@ const MessagesContent = () => {
                                         const isSent = senderId?.toString() === (user.id || user._id)?.toString();
 
                                         if (isSystem) {
-                                            const siteName = settings?.site_name || 'Marketplace';
+                                            const siteName = getMarketplaceName(settings?.site_name);
                                             const siteLogo = settings?.site_logo;
                                             const siteInitial = siteName.charAt(0).toUpperCase();
 
@@ -668,16 +685,28 @@ const MessagesContent = () => {
                                                         <>
                                                             {data.type === 'order_delivered' ? (
                                                                 <>
-                                                                    <div className="pd-sys-msg-line"><strong>✅ Order Delivered</strong></div>
-                                                                    <div className="pd-sys-msg-line">Item: <strong>{data.item_title}</strong></div>
+                                                                    <div className="pd-sys-msg-line"><strong>✅ {data.is_bundle ? 'Bundle Delivered' : 'Order Delivered'}</strong></div>
+                                                                    <div className="pd-sys-msg-line">
+                                                                        {data.is_bundle ? (
+                                                                            <span>Bundle of <strong>{data.item_count} items</strong></span>
+                                                                        ) : (
+                                                                            <span>Item: <strong>{safeString(data.item_title)}</strong></span>
+                                                                        )}
+                                                                    </div>
                                                                     <div className="pd-sys-msg-line">Order: <span className="pd-sys-msg-code">{data.order_id}</span></div>
                                                                     <div className="pd-sys-msg-line">Your order has been delivered successfully! ⭐ Please rate your experience.</div>
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <div className="pd-sys-msg-line"><strong>🛒 New Order Placed</strong></div>
-                                                                    <div className="pd-sys-msg-line">Item: <strong>{data.item_title}</strong></div>
-                                                                    {data.buyer_name && <div className="pd-sys-msg-line">Buyer: <strong>{data.buyer_name}</strong></div>}
+                                                                    <div className="pd-sys-msg-line"><strong>🛒 {data.is_bundle ? 'New Bundle Order' : 'New Order Placed'}</strong></div>
+                                                                    <div className="pd-sys-msg-line">
+                                                                        {data.is_bundle ? (
+                                                                            <span>Bundle of <strong>{data.item_count} items</strong></span>
+                                                                        ) : (
+                                                                            <span>Item: <strong>{safeString(data.item_title)}</strong></span>
+                                                                        )}
+                                                                    </div>
+                                                                    {data.buyer_name && <div className="pd-sys-msg-line">Buyer: <strong>{safeString(data.buyer_name)}</strong></div>}
                                                                     <div className="pd-sys-msg-line">Order ID: <span className="pd-sys-msg-code">{data.order_id}</span></div>
                                                                     {data.total_amount && <div className="pd-sys-msg-line">Total: <strong>₹{data.total_amount?.toLocaleString()}</strong></div>}
                                                                     {data.payment_method && <div className="pd-sys-msg-line">Payment: {data.payment_method === 'wallet' ? 'Wallet' : 'Card'} ✅</div>}
@@ -704,10 +733,10 @@ const MessagesContent = () => {
                                                 const purchasedMatch = msg.message.match(/purchased by ([^.]+)/);
                                                 msgContent = (
                                                     <>
-                                                        {itemMatch && <div className="pd-sys-msg-line"><strong>🛒 {itemMatch[1]}</strong></div>}
-                                                        {purchasedMatch?.[1] && <div className="pd-sys-msg-line">Buyer: {purchasedMatch[1]}</div>}
+                                                        {itemMatch && <div className="pd-sys-msg-line"><strong>🛒 {safeString(itemMatch[1])}</strong></div>}
+                                                        {purchasedMatch?.[1] && <div className="pd-sys-msg-line">Buyer: {safeString(purchasedMatch[1])}</div>}
                                                         {orderIdMatch && <div className="pd-sys-msg-line">Order: <span className="pd-sys-msg-code">{orderIdMatch[1]}</span></div>}
-                                                        {!itemMatch && <div className="pd-sys-msg-line">{msg.message}</div>}
+                                                        {!itemMatch && <div className="pd-sys-msg-line">{safeString(msg.message)}</div>}
                                                         {orderIdMatch && (
                                                             <button
                                                                 className="pd-sys-msg-link"
@@ -743,9 +772,43 @@ const MessagesContent = () => {
                                             );
                                         }
 
+                                        if (msg.message_type === 'offer') {
+                                            return (
+                                                <div key={msg._id} className={`pd-msg-bubble offer-bubble ${isSent ? 'sent' : 'received'}`}>
+                                                    <div className="offer-bubble-header">
+                                                        <strong>{isSent ? 'You made an offer' : 'Offer received'}</strong>
+                                                    </div>
+                                                    <div className="offer-bubble-price">
+                                                        {formatPrice(msg.offer_amount || 0, activeConv?.item_id?.currency_id || activeConv?.item_id)}
+                                                    </div>
+                                                    {msg.message && !msg.message.startsWith('💰 Offer:') && (
+                                                        <div className="offer-bubble-text">"{safeString(msg.message)}"</div>
+                                                    )}
+
+                                                    <div className="offer-bubble-status mt-2">
+                                                        {msg.offer_status === 'pending' ? (
+                                                            isSent ? (
+                                                                <span className="text-muted small">Awaiting response...</span>
+                                                            ) : (
+                                                                <div className="offer-action-btns d-flex gap-2 mt-2">
+                                                                    <button className="btn btn-sm btn-success" onClick={() => handleRespondToOffer(msg._id, 'accepted')}>Accept</button>
+                                                                    <button className="btn btn-sm btn-outline-danger" onClick={() => handleRespondToOffer(msg._id, 'declined')}>Decline</button>
+                                                                </div>
+                                                            )
+                                                        ) : (
+                                                            <div className={`offer-status-badge ${msg.offer_status}`}>
+                                                                {msg.offer_status === 'accepted' ? '✅ Accepted' : '❌ Declined'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="pd-msg-bubble-time">{formatTime(msg.created_at)}</div>
+                                                </div>
+                                            );
+                                        }
+
                                         return (
                                             <div key={msg._id} className={`pd-msg-bubble ${isSent ? 'sent' : 'received'}`}>
-                                                {msg.message}
+                                                {safeString(msg.message)}
                                                 <div className="pd-msg-bubble-time">{formatTime(msg.created_at)}</div>
                                             </div>
                                         );

@@ -3,7 +3,7 @@ import { Container } from 'react-bootstrap';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import axios from '../utils/axios';
-import { getImageUrl } from '../utils/constants';
+import { getImageUrl, safeString } from '../utils/constants';
 
 const CategoryPage = () => {
     const { slug } = useParams();
@@ -137,7 +137,7 @@ const CategoryPage = () => {
                 {item.image ? (
                     <img
                         src={getImageUrl(item.image)}
-                        alt={item.name}
+                        alt={safeString(item.name)}
                         style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }}
                         onError={e => {
                             e.target.style.display = 'none';
@@ -155,7 +155,7 @@ const CategoryPage = () => {
                 display: '-webkit-box', WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical', overflow: 'hidden', maxHeight: '2.6em',
             }}>
-                {item.name}
+                {safeString(item.name)}
             </span>
         </div>
     );
@@ -217,7 +217,7 @@ const CategoryPage = () => {
                         <span style={{ color: '#94a3b8' }}>/</span>
                         <Link to="/categories" style={{ color: '#94a3b8', textDecoration: 'none' }}>All Categories</Link>
                         <span style={{ color: '#94a3b8' }}>/</span>
-                        <span style={{ color: '#1e293b', fontWeight: '600' }}>{category.name}</span>
+                        <span style={{ color: '#1e293b', fontWeight: '600' }}>{safeString(category.name)}</span>
                     </div>
 
                     <div className="d-flex align-items-center gap-4">
@@ -227,12 +227,12 @@ const CategoryPage = () => {
                             background: `${pc}12`, fontSize: '2.2rem', flexShrink: 0,
                         }}>
                             {category.image ? (
-                                <img src={getImageUrl(category.image)} alt={category.name}
+                                <img src={getImageUrl(category.image)} alt={safeString(category.name)}
                                     style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }} />
                             ) : <span>{category.icon || '📦'}</span>}
                         </div>
                         <div>
-                            <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', margin: 0 }}>{category.name}</h1>
+                            <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', margin: 0 }}>{safeString(category.name)}</h1>
                             <p style={{ color: '#64748b', marginTop: '4px', marginBottom: 0 }}>
                                 {allSubcategories.length > 0
                                     ? `${allSubcategories.length} subcategories · Select one to browse items`
@@ -255,7 +255,7 @@ const CategoryPage = () => {
                                 fontWeight: '700', cursor: 'pointer', marginTop: '12px'
                             }}
                         >
-                            Browse All {category.name} Items
+                            Browse All {safeString(category.name)} Items
                         </button>
                     </div>
                 ) : (
@@ -267,7 +267,7 @@ const CategoryPage = () => {
                         }}>
                             {/* "All" card to browse entire category */}
                             <CategoryCard
-                                item={{ name: `All ${category.name}`, icon: '🛍️', image: null }}
+                                item={{ name: `All ${safeString(category.name)}`, icon: '🛍️', image: null }}
                                 onClick={() => navigate(`/categories/${slug}/all`)}
                             />
                             {subcategories.map(sub => (

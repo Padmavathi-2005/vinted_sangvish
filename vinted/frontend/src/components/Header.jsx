@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import axios from '../utils/axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaSearch, FaBell, FaShoppingCart, FaBars, FaTimes, FaChevronRight, FaChevronLeft, FaPlus, FaHeart, FaCoins, FaCheck, FaGlobe, FaUser, FaExchangeAlt, FaSignOutAlt, FaThLarge } from 'react-icons/fa';
+import { FaSearch, FaBell, FaShoppingCart, FaBars, FaTimes, FaChevronRight, FaChevronLeft, FaPlus, FaHeart, FaCoins, FaCheck, FaGlobe, FaUser, FaExchangeAlt, FaSignOutAlt, FaThLarge, FaCamera } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi';
+import ReactMarkdown from 'react-markdown';
 import '../styles/Header.css';
 import '../styles/MegaMenu.css'; // New styles
 import AuthContext from '../context/AuthContext';
@@ -11,7 +12,7 @@ import CurrencyContext from '../context/CurrencyContext';
 import LanguageContext from '../context/LanguageContext';
 import CartContext from '../context/CartContext';
 import { useTranslation } from 'react-i18next';
-import { getImageUrl } from '../utils/constants';
+import { getImageUrl, safeString } from '../utils/constants';
 import NotificationContext from '../context/NotificationContext';
 
 const Header = () => {
@@ -25,6 +26,7 @@ const Header = () => {
     const navigate = useNavigate();
     const menuRef = useRef(null);
     const searchRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Settings State
     const [settings, setSettings] = useState({
@@ -41,15 +43,40 @@ const Header = () => {
     const [languageSearchTerm, setLanguageSearchTerm] = useState('');
     const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
     const [isAIDrawerOpen, setIsAIDrawerOpen] = useState(false);
-    const [aiMessages, setAiMessages] = useState([
-        { id: 1, text: "Hello! I'm your Rental AI. How can I help you find the perfect item today?", isAi: true }
-    ]);
+    const [aiMessages, setAiMessages] = useState([]);
+
+    // Initialize AI message with dynamic name once settings are loaded
+    useEffect(() => {
+        const name = safeString(settings.site_name, 'Vinted');
+        setAiMessages([
+            { id: 1, text: `Hello! I'm your ${name} AI. How can I help you find the perfect item today?`, isAi: true }
+        ]);
+    }, [settings.site_name]);
+
     const [aiInput, setAiInput] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const [isAiHovered, setIsAiHovered] = useState(false);
     const [hasSentFirstMsg, setHasSentFirstMsg] = useState(false);
-    const [isAiBtnVisible, setIsAiBtnVisible] = useState(false);
+    const [isAiBtnVisible, setIsAiBtnVisible] = useState(true);
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
     const aiBoxRef = useRef(null);
+    const chatMessagesEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        if (isAIDrawerOpen) {
+            scrollToBottom();
+        }
+    }, [aiMessages, isAIDrawerOpen]);
+
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     // Data State
     const [categories, setCategories] = useState([
         { _id: '1', slug: 'women', name: 'Women', icon: '👗', subcategories: [] },
@@ -170,26 +197,15 @@ const Header = () => {
                 setShowSearchHistory(false);
             }
             // AI Box persistent closure logic
-            if (hasSentFirstMsg && isAIDrawerOpen && aiBoxRef.current && !aiBoxRef.current.contains(event.target)) {
+            if (isAIDrawerOpen && aiBoxRef.current && !aiBoxRef.current.contains(event.target)) {
                 setIsAIDrawerOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [hasSentFirstMsg, isAIDrawerOpen]);
+    }, [isAIDrawerOpen]);
 
-    // AI Scroll Visibility logic
-    useEffect(() => {
-        const handleScroll = () => {
-            if (window.scrollY > 300) {
-                setIsAiBtnVisible(true);
-            } else {
-                setIsAiBtnVisible(false);
-            }
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    // AI Scroll Visibility logic removed as per user request to always show
 
     const closeAllDropdowns = () => {
         setIsUserDropdownOpen(false);
@@ -224,25 +240,78 @@ const Header = () => {
         }
     };
 
+    const [isImageSearching, setIsImageSearching] = useState(false);
+
+    const handleImageSearchClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleImageChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            setIsImageSearching(true);
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const res = await axios.post('/api/search/image', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            if (res.data.query) {
+                // Navigate to products page with the AI generated query
+                navigate(`/products?search=${encodeURIComponent(res.data.query)}`);
+                setSearchTerm(res.data.query);
+            }
+        } catch (error) {
+            console.error("Image search failed:", error);
+            const errMsg = error.response?.data?.message || "Visual search failed. Please try again with a clearer image.";
+            alert(errMsg);
+        } finally {
+            setIsImageSearching(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     const handleAiSendMessage = async () => {
         if (!aiInput.trim()) return;
 
-        const userMsg = { id: Date.now(), text: aiInput, isAi: false };
+        const currentInput = aiInput.trim();
+        const userMsg = { id: Date.now(), text: currentInput, isAi: false };
         setAiMessages(prev => [...prev, userMsg]);
         setAiInput('');
         setIsAiTyping(true);
         setHasSentFirstMsg(true);
 
-        // Simulate AI Response
-        setTimeout(() => {
+        try {
+            // Keep only meaningful history (text and isAi)
+            const chatHistory = aiMessages.map(m => ({ text: m.text, isAi: m.isAi }));
+
+            const res = await axios.post('/api/ai/chat', {
+                message: currentInput,
+                history: chatHistory
+            });
+
             const aiResponse = {
                 id: Date.now() + 1,
-                text: "That's a great question! I'm currently in 'Demo Mode', but soon I'll be able to help you search for products, check prices, and answer site-related questions directly.",
+                text: res.data.text || "I'm sorry, I couldn't generate a response. Please try again.",
                 isAi: true
             };
             setAiMessages(prev => [...prev, aiResponse]);
+        } catch (error) {
+            console.error("AI Error:", error);
+            const errorMsg = {
+                id: Date.now() + 1,
+                text: error.response?.data?.message || "I'm having a little trouble connecting to the server. Please check if the backend is running and restart it if you just added the API key!",
+                isAi: true
+            };
+            setAiMessages(prev => [...prev, errorMsg]);
+        } finally {
             setIsAiTyping(false);
-        }, 1500);
+        }
     };
 
     const handleLogout = () => {
@@ -257,13 +326,13 @@ const Header = () => {
                 <div className="logo-section">
                     <Link to="/" className="site-logo">
                         {settings.site_logo ? (
-                            <img src={getImageUrl(settings.site_logo)} alt={settings.site_name} style={{ height: '40px' }} />
+                            <img src={getImageUrl(settings.site_logo)} alt={safeString(settings.site_name, 'Marketplace')} style={{ height: '40px' }} />
                         ) : (
                             <>
                                 <div className="logo-icon" style={{ backgroundColor: settings.primary_color }}>
-                                    {settings.site_name ? settings.site_name.charAt(0) : 'M'}
+                                    {safeString(settings.site_name, 'Marketplace').charAt(0)}
                                 </div>
-                                <span className="logo-text">{settings.site_name}</span>
+                                <span className="logo-text">{safeString(settings.site_name, 'Marketplace')}</span>
                             </>
                         )}
                     </Link>
@@ -331,7 +400,7 @@ const Header = () => {
                                 style={{
                                     flex: 1,
                                     padding: '0 16px',
-                                    paddingRight: searchTerm.trim() ? '100px' : '20px',
+                                    paddingRight: searchTerm.trim() ? '140px' : '50px', // Wider padding when search button is visible
                                     border: 'none',
                                     background: 'transparent',
                                     fontSize: '0.95rem',
@@ -354,6 +423,46 @@ const Header = () => {
                                     }
                                 }}
                             />
+
+                            {/* Image Search Input (Hidden) */}
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                style={{ display: 'none' }}
+                                accept="image/*"
+                                onChange={handleImageChange}
+                            />
+
+                            <div style={{
+                                position: 'absolute',
+                                right: searchTerm.trim() ? '105px' : '15px', // Shift left when search button appears
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'all 0.3s ease'
+                            }}>
+                                <button
+                                    onClick={handleImageSearchClick}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: isImageSearching ? settings.primary_color : '#adb5bd',
+                                        fontSize: '1.1rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '5px'
+                                    }}
+                                    disabled={isImageSearching}
+                                    title="Search by image"
+                                >
+                                    {isImageSearching ? (
+                                        <div className="spinner-border spinner-border-sm" role="status" style={{ width: '1rem', height: '1rem' }} />
+                                    ) : (
+                                        <FaCamera />
+                                    )}
+                                </button>
+                            </div>
+
                             {searchTerm.trim() && (
                                 <button
                                     onClick={() => handleSearchSubmit(searchTerm)}
@@ -797,7 +906,7 @@ const Header = () => {
                                                                         fontSize: '0.76rem', color: '#64748b',
                                                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                                                         marginBottom: '2px'
-                                                                    }}>{n.message}</div>
+                                                                    }}>{safeString(n.message)}</div>
                                                                     <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{relTime}</div>
                                                                 </div>
                                                                 {!n.is_read && (
@@ -879,7 +988,7 @@ const Header = () => {
                                         (user.username || user.name || user.email || 'User').charAt(0).toUpperCase()
                                     )}
                                 </div>
-                                <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#495057' }}>{user.username || user.name || user.email?.split('@')[0]}</span>
+                                <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#495057' }}>{safeString(user.username || user.name) || user.email?.split('@')[0]}</span>
 
                                 {isUserDropdownOpen && (
                                     <div className="user-dropdown-wrapper" style={{
@@ -1047,7 +1156,7 @@ const Header = () => {
                                         padding: '5px 0'
                                     }}
                                 >
-                                    {t(`categories.${cat.name}`, { defaultValue: cat.name })}
+                                    {t(`categories.${safeString(cat.name)}`, { defaultValue: safeString(cat.name) })}
                                     {activeCategory?._id === cat._id && (
                                         <div style={{
                                             position: 'absolute',
@@ -1081,7 +1190,7 @@ const Header = () => {
                             {/* Panel 1: Subcategories (Left) */}
                             <div className="mega-menu-panel" style={{ width: '280px', borderRight: '1px solid #e9ecef', padding: '20px', overflowY: 'auto', backgroundColor: '#f8f9fa' }}>
                                 <div className="mega-menu-title">
-                                    {t(`categories.${activeCategory.name}`, { defaultValue: activeCategory.name })} Subcategories
+                                    {t(`categories.${safeString(activeCategory.name)}`, { defaultValue: safeString(activeCategory.name) })} Subcategories
                                 </div>
 
                                 <Link
@@ -1090,7 +1199,7 @@ const Header = () => {
                                     onMouseEnter={() => setActiveSubcategory(null)}
                                     onClick={() => setShowCategoryBar(false)}
                                 >
-                                    <span>All {t(`categories.${activeCategory.name}`, { defaultValue: activeCategory.name })}</span>
+                                    <span>All {t(`categories.${safeString(activeCategory.name)}`, { defaultValue: safeString(activeCategory.name) })}</span>
                                 </Link>
 
                                 {activeCategory.subcategories && activeCategory.subcategories.map(sub => (
@@ -1099,7 +1208,7 @@ const Header = () => {
                                         className={`subcat-item ${activeSubcategory && activeSubcategory._id === sub._id ? 'active' : ''}`}
                                         onMouseEnter={() => setActiveSubcategory(sub)}
                                     >
-                                        <span>{t(`categories.${sub.name}`, { defaultValue: sub.name })}</span>
+                                        <span>{t(`categories.${safeString(sub.name)}`, { defaultValue: safeString(sub.name) })}</span>
                                         <FaChevronRight className="subcat-arrow" />
                                     </div>
                                 ))}
@@ -1109,7 +1218,7 @@ const Header = () => {
                             <div className="mega-menu-right">
                                 <div className="mm-right-header">
                                     <h3 className="mm-active-title">
-                                        {activeSubcategory ? t(`categories.${activeSubcategory.name}`, { defaultValue: activeSubcategory.name }) : t(`categories.${activeCategory.name}`, { defaultValue: activeCategory.name })}
+                                        {activeSubcategory ? t(`categories.${safeString(activeSubcategory.name)}`, { defaultValue: safeString(activeSubcategory.name) }) : t(`categories.${safeString(activeCategory.name)}`, { defaultValue: safeString(activeCategory.name) })}
                                     </h3>
                                 </div>
 
@@ -1122,7 +1231,7 @@ const Header = () => {
                                             style={{ fontWeight: '600' }}
                                             onClick={() => setShowCategoryBar(false)}
                                         >
-                                            All {t(`categories.${activeSubcategory.name}`, { defaultValue: activeSubcategory.name })}
+                                            All {t(`categories.${safeString(activeSubcategory.name)}`, { defaultValue: safeString(activeSubcategory.name) })}
                                         </Link>
 
                                         {activeSubcategory.items && activeSubcategory.items.length > 0 && activeSubcategory.items.map(item => (
@@ -1132,7 +1241,7 @@ const Header = () => {
                                                 className="mm-item-link"
                                                 onClick={() => setShowCategoryBar(false)}
                                             >
-                                                {t(`categories.${item.name}`, { defaultValue: item.name })}
+                                                {t(`categories.${safeString(item.name)}`, { defaultValue: safeString(item.name) })}
                                             </Link>
                                         ))}
                                     </div>
@@ -1144,7 +1253,7 @@ const Header = () => {
                                             style={{ fontWeight: '600', fontSize: '1.1rem' }}
                                             onClick={() => setShowCategoryBar(false)}
                                         >
-                                            View all {t(`categories.${activeCategory.name}`, { defaultValue: activeCategory.name })} products
+                                            View all {t(`categories.${safeString(activeCategory.name)}`, { defaultValue: safeString(activeCategory.name) })} products
                                         </Link>
                                     </div>
                                 )}
@@ -1165,8 +1274,8 @@ const Header = () => {
                         )}
                         <span className="mo-title">
                             {mobileLevel === 0 && 'Menu'}
-                            {mobileLevel === 1 && t(`categories.${mobileSelectedCategory?.name}`, { defaultValue: mobileSelectedCategory?.name })}
-                            {mobileLevel === 2 && t(`categories.${mobileSelectedSubcategory?.name}`, { defaultValue: mobileSelectedSubcategory?.name })}
+                            {mobileLevel === 1 && t(`categories.${safeString(mobileSelectedCategory?.name)}`, { defaultValue: safeString(mobileSelectedCategory?.name) })}
+                            {mobileLevel === 2 && t(`categories.${safeString(mobileSelectedSubcategory?.name)}`, { defaultValue: safeString(mobileSelectedSubcategory?.name) })}
                         </span>
                     </div>
                     <button onClick={closeMobileMenu} className="mo-close-btn"><FaTimes /></button>
@@ -1178,7 +1287,7 @@ const Header = () => {
                         <>
                             {!loading && categories.map(cat => (
                                 <div key={cat._id} className="mo-item" onClick={() => handleMobileCategoryClick(cat)}>
-                                    <span>{t(`categories.${cat.name}`, { defaultValue: cat.name })}</span>
+                                    <span>{t(`categories.${safeString(cat.name)}`, { defaultValue: safeString(cat.name) })}</span>
                                     {cat.subcategories?.length > 0 && <FaChevronRight className="mo-arrow" />}
                                 </div>
                             ))}
@@ -1204,11 +1313,11 @@ const Header = () => {
                         <div>
                             {/* All Category Link Mobile */}
                             <div className="mo-item" onClick={() => { closeMobileMenu(); navigate(`/products?category=${mobileSelectedCategory.slug}`); }}>
-                                <span>All {t(`categories.${mobileSelectedCategory.name}`, { defaultValue: mobileSelectedCategory.name })}</span>
+                                <span>All {t(`categories.${safeString(mobileSelectedCategory.name)}`, { defaultValue: safeString(mobileSelectedCategory.name) })}</span>
                             </div>
                             {mobileSelectedCategory.subcategories?.map(sub => (
                                 <div key={sub._id} className="mo-item" onClick={() => handleMobileSubcategoryClick(sub)}>
-                                    <span>{t(`categories.${sub.name}`, { defaultValue: sub.name })}</span>
+                                    <span>{t(`categories.${safeString(sub.name)}`, { defaultValue: safeString(sub.name) })}</span>
                                     {sub.items?.length > 0 && <FaChevronRight className="mo-arrow" />}
                                 </div>
                             ))}
@@ -1220,11 +1329,11 @@ const Header = () => {
                         <div className="item-list-container">
                             {/* All Subcategory Link Mobile */}
                             <div className="mo-item" onClick={() => { closeMobileMenu(); navigate(`/products?category=${mobileSelectedCategory.slug}&subcategory=${mobileSelectedSubcategory.slug}`); }}>
-                                <span>All {t(`categories.${mobileSelectedSubcategory.name}`, { defaultValue: mobileSelectedSubcategory.name })}</span>
+                                <span>All {t(`categories.${safeString(mobileSelectedSubcategory.name)}`, { defaultValue: safeString(mobileSelectedSubcategory.name) })}</span>
                             </div>
                             {mobileSelectedSubcategory.items?.map(item => (
                                 <div key={item._id} className="mo-item" onClick={() => { closeMobileMenu(); navigate(`/products?category=${mobileSelectedCategory.slug}&subcategory=${mobileSelectedSubcategory.slug}&itemType=${item.slug}`); }}>
-                                    <span>{t(`categories.${item.name}`, { defaultValue: item.name })}</span>
+                                    <span>{t(`categories.${safeString(item.name)}`, { defaultValue: safeString(item.name) })}</span>
                                 </div>
                             ))}
                         </div>
@@ -1246,35 +1355,32 @@ const Header = () => {
                         ref={aiBoxRef}
                         style={{
                             position: 'fixed',
-                            bottom: '100px', // Moved up to not cover arrows
-                            right: '30px',
+                            bottom: windowWidth < 480 ? '20px' : '30px',
+                            right: windowWidth < 480 ? '15px' : '30px',
                             zIndex: 2500,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'flex-end',
                             fontFamily: "'Outfit', sans-serif"
                         }}
-                        onMouseLeave={() => {
-                            // Close if mouse leaves AND input is empty AND hasn't sent a message yet
-                            if (!aiInput.trim() && !hasSentFirstMsg) {
-                                setIsAIDrawerOpen(false);
-                            }
-                        }}
                     >
                         {/* Chat Box - Shown when Open */}
                         {isAIDrawerOpen && (
                             <div style={{
-                                width: '350px',
-                                height: '480px',
+                                position: 'fixed',
+                                top: '85px',
+                                bottom: windowWidth < 480 ? '100px' : '110px',
+                                right: windowWidth < 480 ? '15px' : '30px',
+                                width: windowWidth < 480 ? 'calc(100vw - 30px)' : '380px',
                                 backgroundColor: 'white',
                                 borderRadius: '24px',
                                 boxShadow: '0 15px 40px rgba(0,0,0,0.15)',
-                                marginBottom: '20px',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 overflow: 'hidden',
                                 animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                border: '1px solid #f1f3f5'
+                                border: '1px solid #f1f3f5',
+                                zIndex: 2500
                             }}>
                                 {/* AI Header */}
                                 <div style={{
@@ -1287,7 +1393,7 @@ const Header = () => {
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <HiSparkles size={20} />
-                                        <span style={{ fontWeight: '800', fontSize: '1rem' }}>Rental AI</span>
+                                        <span style={{ fontWeight: '800', fontSize: '1rem' }}>{safeString(settings.site_name, 'Vinted')} AI</span>
                                     </div>
                                     <FaTimes
                                         onClick={() => setIsAIDrawerOpen(false)}
@@ -1306,9 +1412,16 @@ const Header = () => {
                                                 color: msg.isAi ? '#333' : 'white',
                                                 boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
                                                 fontSize: '0.88rem',
-                                                lineHeight: '1.4'
+                                                lineHeight: '1.4',
+                                                wordBreak: 'break-word',
                                             }}>
-                                                {msg.text}
+                                                {msg.isAi ? (
+                                                    <div className="ai-markdown-content">
+                                                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                                    </div>
+                                                ) : (
+                                                    msg.text
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -1319,6 +1432,7 @@ const Header = () => {
                                             <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: settings.primary_color, opacity: 0.4 }}></div>
                                         </div>
                                     )}
+                                    <div ref={chatMessagesEndRef} />
                                 </div>
 
                                 {/* Input Area */}
@@ -1397,37 +1511,34 @@ const Header = () => {
                                 transition: 'transform 0.3s ease',
                                 transform: (isAiHovered || isAIDrawerOpen) ? 'scale(1.1)' : 'scale(1)'
                             }}>
-                                <div style={{ position: 'relative' }}>
-                                    <HiSparkles size={28} />
-                                    {/* Question Mark Badge */}
-                                    {!isAIDrawerOpen && (
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: '-8px',
-                                            right: '-8px',
-                                            background: 'white',
-                                            color: settings.primary_color,
-                                            width: '20px',
-                                            height: '20px',
-                                            borderRadius: '50%',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '0.8rem',
-                                            fontWeight: '900',
-                                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                                        }}>
-                                            ?
-                                        </div>
-                                    )}
-                                </div>
+                                <HiSparkles size={28} />
+                                {/* Question Mark Badge */}
+                                {!isAIDrawerOpen && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '-8px',
+                                        right: '-8px',
+                                        background: 'white',
+                                        color: settings.primary_color,
+                                        width: '20px',
+                                        height: '20px',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.8rem',
+                                        fontWeight: '900',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                                    }}>
+                                        ?
+                                    </div>
+                                )}
                             </div>
                         </div>
-
                     </div>
                 )
             }
-        </header >
+        </header>
     );
 };
 

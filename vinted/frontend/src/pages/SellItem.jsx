@@ -7,6 +7,7 @@ import CurrencyContext from '../context/CurrencyContext';
 import CustomSelect from '../components/common/CustomSelect';
 import { useTranslation } from 'react-i18next';
 import { Modal, Button, Form } from 'react-bootstrap';
+import { safeString } from '../utils/constants';
 import '../styles/SellItem.css';
 import '../components/common/CustomSelect.css';
 
@@ -276,7 +277,7 @@ const SellItem = () => {
     const displayedPhotos = showAllPhotos ? photos : photos.slice(0, VISIBLE_PHOTOS);
     const hiddenCount = photos.length - VISIBLE_PHOTOS;
 
-    const formatOptions = (items) => items.map(item => ({ value: item._id, label: item.name }));
+    const formatOptions = (items) => items.map(item => ({ value: item._id, label: safeString(item.name) }));
 
     return (
         <div className="si-page">

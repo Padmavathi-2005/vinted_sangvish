@@ -3,6 +3,7 @@ import { Spinner, Form, Button, Modal } from 'react-bootstrap';
 import { FaUser, FaSearch, FaPaperPlane, FaEllipsisV, FaImage, FaSmile, FaCheckDouble, FaEnvelope, FaExclamationCircle, FaPlus } from 'react-icons/fa';
 import axios from '../utils/axios';
 import { getAdminInfo } from '../utils/auth';
+import { safeString } from '../utils/constants';
 import '../styles/AdminMessages.css';
 
 const Messages = () => {
@@ -130,7 +131,7 @@ const Messages = () => {
 
     const filteredConversations = conversations.filter(c => {
         const other = getOtherParticipant(c);
-        const name = other?.id?.username || other?.id?.name || 'User';
+        const name = safeString(other?.id?.username || other?.id?.name) || 'User';
         return name.toLowerCase().includes(search.toLowerCase());
     });
 
@@ -223,13 +224,13 @@ const Messages = () => {
                                 </div>
                                 <div className="conv-info">
                                     <div className="conv-header">
-                                        <span className="conv-name">{other?.username || other?.name || 'User'}</span>
+                                        <span className="conv-name">{safeString(other?.username || other?.name) || 'User'}</span>
                                         <span className="conv-time">
                                             {c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                         </span>
                                     </div>
                                     <div className="d-flex justify-content-between align-items-center">
-                                        <p className="conv-last-msg">{c.last_message || 'No messages yet'}</p>
+                                        <p className="conv-last-msg">{safeString(c.last_message) || 'No messages yet'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -267,7 +268,7 @@ const Messages = () => {
                                                 {isOnline && <div className="online-status-dot"></div>}
                                             </div>
                                             <div>
-                                                <h4 className="chat-header-name">{other?.username || other?.name || 'User'}</h4>
+                                                <h4 className="chat-header-name">{safeString(other?.username || other?.name) || 'User'}</h4>
                                                 <span className="chat-header-status" style={{ color: isOnline ? '#10b981' : '#94a3b8' }}>
                                                     {isOnline ? 'Active Now' : 'Offline'}
                                                 </span>
@@ -296,7 +297,7 @@ const Messages = () => {
                                         return (
                                             <div key={m._id} className={`message-wrapper ${isMe ? 'sent' : 'received'}`}>
                                                 <div className="message-bubble">
-                                                    {m.message}
+                                                    {safeString(m.message)}
                                                     <div className="message-time-meta">
                                                         <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                         {isMe && <FaCheckDouble size={10} />}
@@ -382,7 +383,7 @@ const Messages = () => {
                                     )}
                                 </div>
                                 <div className="user-picker-info">
-                                    <h6 className="user-picker-name">{u.username || u.name}</h6>
+                                    <h6 className="user-picker-name">{safeString(u.username || u.name)}</h6>
                                     <p className="user-picker-email">{u.email}</p>
                                 </div>
                                 <div className="user-picker-action">Message</div>

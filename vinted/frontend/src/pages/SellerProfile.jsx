@@ -9,7 +9,7 @@ import {
 import AuthContext from '../context/AuthContext';
 import CurrencyContext from '../context/CurrencyContext';
 import ItemCard from '../components/common/ItemCard';
-import { getImageUrl } from '../utils/constants';
+import { getImageUrl, safeString } from '../utils/constants';
 import '../styles/SellerProfile.css';
 import { useTranslation } from 'react-i18next';
 
@@ -181,7 +181,7 @@ const SellerProfile = () => {
                                 </div>
                             )}
                         </div>
-                        <h2 className="sp-seller-name">{seller.username || seller.name}</h2>
+                        <h2 className="sp-seller-name">{safeString(seller.username || seller.name)}</h2>
                         <p className="sp-seller-email">{seller.email || ''}</p>
                         {renderStars(seller.rating_avg, seller.rating_count)}
                         <div className="sp-meta-row">
@@ -194,7 +194,7 @@ const SellerProfile = () => {
                                 <span>{seller.location}</span>
                             </div>
                         )}
-                        {seller.bio && <p className="sp-bio">{seller.bio}</p>}
+                        {seller.bio && <p className="sp-bio">{safeString(seller.bio)}</p>}
                     </div>
 
                     {/* Vertical Nav */}
@@ -242,7 +242,7 @@ const SellerProfile = () => {
                     {activeTab === 'products' && (
                         <div className="sp-section">
                             <div className="sp-section-header">
-                                <h2 className="sp-section-title"><FaShoppingBag /> {t('seller_profile.products_by', 'Products by')} {seller.username}</h2>
+                                <h2 className="sp-section-title"><FaShoppingBag /> {t('seller_profile.products_by', 'Products by')} {safeString(seller.username)}</h2>
                             </div>
                             {productsLoading ? (
                                 <div className="sp-tab-loading"><FaSpinner className="sp-spinner" /></div>
@@ -313,14 +313,14 @@ const SellerProfile = () => {
                                                     )}
                                                 </div>
                                                 <div className="sp-reviewer-info">
-                                                    <strong>{review.reviewer?.username || t('seller_profile.anonymous', 'Anonymous')}</strong>
+                                                    <strong>{safeString(review.reviewer?.username) || t('seller_profile.anonymous', 'Anonymous')}</strong>
                                                     {renderStars(review.rating)}
                                                 </div>
                                                 <span className="sp-review-date">
                                                     {review.created_at ? new Date(review.created_at).toLocaleDateString() : ''}
                                                 </span>
                                             </div>
-                                            {review.comment && <p className="sp-review-comment">{review.comment}</p>}
+                                            {review.comment && <p className="sp-review-comment">{safeString(review.comment)}</p>}
                                         </div>
                                     ))}
                                 </div>
@@ -346,7 +346,7 @@ const SellerProfile = () => {
                         <div className="sp-login-header">
                             <div className="sp-login-icon"><FaEnvelope /></div>
                             <h2>{t('seller_profile.login_to_message', 'Login to Message')}</h2>
-                            <p>{t('seller_profile.sign_in_to_start', 'Sign in to start a conversation with')} {seller.username}</p>
+                            <p>{t('seller_profile.sign_in_to_start', 'Sign in to start a conversation with')} {safeString(seller.username)}</p>
                         </div>
                         {loginError && <div className="sp-login-error">{loginError}</div>}
                         <form className="sp-login-form" onSubmit={handleLoginSubmit}>

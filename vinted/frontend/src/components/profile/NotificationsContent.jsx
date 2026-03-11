@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fa';
 import '../../styles/NotificationsContent.css';
 import { useTranslation } from 'react-i18next';
+import { safeString } from '../../utils/constants';
 
 const typeConfig = {
     success: { icon: FaCheckCircle, color: '#22c55e', bg: '#f0fdf4', labelKey: 'notifications.accepted' },
@@ -67,8 +68,8 @@ const NotificationsContent = () => {
     }, [notifications]);
 
     const filtered = notifications.filter(n => {
-        const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase()) ||
-            n.message.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = safeString(n.title).toLowerCase().includes(search.toLowerCase()) ||
+            safeString(n.message).toLowerCase().includes(search.toLowerCase());
         const matchesFilter = filter === 'all' || !n.is_read;
         return matchesSearch && matchesFilter;
     });
@@ -147,8 +148,8 @@ const NotificationsContent = () => {
                                         <Icon />
                                     </div>
                                     <div className="nc-item-body">
-                                        <div className="nc-item-title">{notif.title}</div>
-                                        <div className="nc-item-preview">{notif.message}</div>
+                                        <div className="nc-item-title">{safeString(notif.title)}</div>
+                                        <div className="nc-item-preview">{safeString(notif.message)}</div>
                                         <div className="nc-item-time">{formatRelativeTime(notif.created_at)}</div>
                                     </div>
                                     {!notif.is_read && <div className="nc-unread-dot" />}
@@ -175,13 +176,13 @@ const NotificationsContent = () => {
                                     <span className="nc-detail-type-label" style={{ background: cfg.bg, color: cfg.color }}>
                                         {t(cfg.labelKey, cfg.labelKey.split('.').pop())}
                                     </span>
-                                    <h2 className="nc-detail-title">{activeNotif.title}</h2>
+                                    <h2 className="nc-detail-title">{safeString(activeNotif.title)}</h2>
                                     <span className="nc-detail-time">{formatFullDate(activeNotif.created_at)}</span>
                                 </div>
                             </div>
 
                             <div className="nc-detail-body">
-                                <p className="nc-detail-message">{activeNotif.message}</p>
+                                <p className="nc-detail-message">{safeString(activeNotif.message)}</p>
 
                                 {showMsgLink && (
                                     <div className="nc-detail-action-card">

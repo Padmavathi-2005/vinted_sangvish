@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../utils/axios';
 import AuthContext from '../../context/AuthContext';
+import { safeString } from '../../utils/constants';
 
 const CookieConsent = () => {
     const { user, updateUser } = useContext(AuthContext);
@@ -129,7 +130,7 @@ const CookieConsent = () => {
                                     letterSpacing: '-0.02em',
                                     lineHeight: '1.2'
                                 }}>
-                                    {settings?.cookie_heading || 'Better experience with cookies'}
+                                    {safeString(settings?.cookie_heading, 'Better experience with cookies')}
                                 </h1>
                                 <p style={{
                                     margin: 0,
@@ -139,7 +140,7 @@ const CookieConsent = () => {
                                     lineHeight: '1.5',
                                     maxWidth: '800px'
                                 }}>
-                                    {settings?.cookie_message || 'Our website uses cookies to improve your experience and show you relevant content. To continue, please accept our use of cookies.'}{' '}
+                                    {safeString(settings?.cookie_message, 'Our website uses cookies to improve your experience and show you relevant content. To continue, please accept our use of cookies.')}{' '}
                                     {cookiePage && (
                                         <Link
                                             to={`/pages/${cookiePage.slug}`}
@@ -181,7 +182,7 @@ const CookieConsent = () => {
                                     e.currentTarget.style.transform = 'translateY(0)';
                                 }}
                             >
-                                {settings?.cookie_button_text || 'Accept All'}
+                                {safeString(settings?.cookie_button_text, 'Accept All')}
                             </button>
                         </div>
                     </div>

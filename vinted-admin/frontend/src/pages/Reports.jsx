@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
+import { safeString } from '../utils/constants';
 import L from 'leaflet';
 
 // Mock specific coordinates for major cities since exact lat/lon isn't explicitly saved per order.
@@ -247,7 +248,7 @@ const Reports = () => {
                                         >
                                             <Popup>
                                                 <div className="text-center">
-                                                    <strong>{loc.locationString}</strong><br />
+                                                    <strong>{safeString(loc.locationString)}</strong><br />
                                                     <span className="text-primary fw-bold">{loc.bookings} Bookings</span><br />
                                                     Total Value: {formatPrice(loc.revenue)}
                                                 </div>
@@ -287,7 +288,7 @@ const Reports = () => {
                                             onMouseEnter={() => handleOrderHover(order.addressFull)}
                                         >
                                             <td className="py-3 px-3 fw-bold text-primary">{order.order_number}</td>
-                                            <td className="py-3 px-3 small text-truncate" style={{ maxWidth: '180px' }}>{order.addressFull}</td>
+                                            <td className="py-3 px-3 small text-truncate" style={{ maxWidth: '180px' }}>{safeString(order.addressFull)}</td>
                                             <td className="py-3 px-3 fw-bold text-success text-end">{formatPrice(order.total_amount)}</td>
                                         </tr>
                                     ))}
@@ -322,13 +323,13 @@ const Reports = () => {
                                             <td className="py-3 px-3">
                                                 <div className="d-flex align-items-center gap-3">
                                                     {seller.profile_image ? (
-                                                        <img src={`${axios.defaults.baseURL}/${seller.profile_image}`} alt={seller.username} className="rounded-circle shadow-sm" width="40" height="40" style={{ objectFit: 'cover' }} />
+                                                        <img src={`${axios.defaults.baseURL}/${seller.profile_image}`} alt={safeString(seller.username)} className="rounded-circle shadow-sm" width="40" height="40" style={{ objectFit: 'cover' }} />
                                                     ) : (
                                                         <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white shadow-sm" style={{ width: 40, height: 40, fontSize: '14px', background: 'linear-gradient(135deg, #0d6efd, #0dcaf0)' }}>
-                                                            {seller.username?.charAt(0).toUpperCase() || 'S'}
+                                                            {safeString(seller.username)?.charAt(0).toUpperCase() || 'S'}
                                                         </div>
                                                     )}
-                                                    <span className="fw-bold text-dark">{seller.username || 'Unknown'}</span>
+                                                    <span className="fw-bold text-dark">{safeString(seller.username) || 'Unknown'}</span>
                                                 </div>
                                             </td>
                                             <td className="text-muted px-3">{seller.email}</td>

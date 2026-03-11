@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { FaChevronDown, FaSearch, FaCheck } from 'react-icons/fa';
+import { safeString } from '../utils/constants';
 
 const AdminSearchSelect = ({ options, value, onChange, placeholder, searchPlaceholder, error, disabled }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -20,7 +20,7 @@ const AdminSearchSelect = ({ options, value, onChange, placeholder, searchPlaceh
     const selectedOption = options.find((opt) => opt.value === value);
 
     const filteredOptions = options.filter((opt) =>
-        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+        safeString(opt.label).toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -44,7 +44,7 @@ const AdminSearchSelect = ({ options, value, onChange, placeholder, searchPlaceh
                 }}
             >
                 <span style={{ color: selectedOption ? '#212529' : '#6c757d', fontSize: '0.95rem' }}>
-                    {selectedOption ? selectedOption.label : placeholder || 'Select...'}
+                    {selectedOption ? safeString(selectedOption.label) : placeholder || 'Select...'}
                 </span>
                 <FaChevronDown style={{ color: '#6c757d', fontSize: '0.8rem', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
             </div>
@@ -112,7 +112,7 @@ const AdminSearchSelect = ({ options, value, onChange, placeholder, searchPlaceh
                                         if (value !== opt.value) e.currentTarget.style.background = 'transparent';
                                     }}
                                 >
-                                    {opt.label}
+                                    {safeString(opt.label)}
                                     {value === opt.value && <FaCheck style={{ fontSize: '0.8rem' }} />}
                                 </div>
                             ))

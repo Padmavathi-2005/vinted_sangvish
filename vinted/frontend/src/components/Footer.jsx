@@ -16,7 +16,7 @@ import {
 import '../styles/Footer.css';
 import { useTranslation } from 'react-i18next';
 import axios from '../utils/axios';
-import { getImageUrl } from '../utils/constants';
+import { getImageUrl, safeString } from '../utils/constants';
 
 const Footer = () => {
     const { t } = useTranslation();
@@ -69,13 +69,13 @@ const Footer = () => {
                         <div className="footer-brand">
                             <Link to="/" className="footer-logo" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 {settings.site_logo ? (
-                                    <img src={getImageUrl(settings.site_logo)} alt={settings.site_name} style={{ height: '40px' }} />
+                                    <img src={getImageUrl(settings.site_logo)} alt={safeString(settings.site_name, 'Vinted')} style={{ height: '40px' }} />
                                 ) : (
                                     <>
                                         <div className="footer-logo-icon" style={{ backgroundColor: settings.primary_color }}>
-                                            {settings.site_name ? settings.site_name.charAt(0) : 'V'}
+                                            {safeString(settings.site_name, 'Vinted').charAt(0)}
                                         </div>
-                                        <span className="footer-logo-text">{settings.site_name}</span>
+                                        <span className="footer-logo-text">{safeString(settings.site_name, 'Vinted')}</span>
                                     </>
                                 )}
                             </Link>

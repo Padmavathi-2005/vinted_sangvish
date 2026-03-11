@@ -32,6 +32,7 @@ import searchRoutes from './routes/searchRoutes.js';
 import frontendContentRoutes from './routes/frontendContentRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -105,6 +106,7 @@ const startServer = async () => {
         app.use('/api/frontend-content', frontendContentRoutes);
         app.use('/api/newsletter', newsletterRoutes);
         app.use('/api/auth', authRoutes);
+        app.use('/api/ai', aiRoutes);
 
 
         app.use(errorHandler);

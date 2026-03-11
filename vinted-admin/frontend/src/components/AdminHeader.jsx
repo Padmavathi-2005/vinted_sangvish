@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fa';
 import axios from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext.jsx';
+import { safeString } from '../utils/constants';
 import '../styles/AdminHeader.css';
 
 const AdminHeader = ({ toggleSidebar }) => {
@@ -63,8 +64,8 @@ const AdminHeader = ({ toggleSidebar }) => {
                         const otherParticipant = conv.participants.find(p => p.id._id.toString() !== (verifyResp.data.admin._id || '').toString());
                         return {
                             id: conv._id,
-                            sender: otherParticipant?.id?.username || otherParticipant?.id?.name || 'User',
-                            subject: conv.last_message,
+                            sender: safeString(otherParticipant?.id?.username || otherParticipant?.id?.name) || 'User',
+                            subject: safeString(conv.last_message),
                             time: conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
                             read: false // Simplified
                         };
@@ -252,8 +253,8 @@ const AdminHeader = ({ toggleSidebar }) => {
                                                 <FaUser />
                                             </div>
                                             <div className="notif-details">
-                                                <p className="notif-title">{msg.sender}</p>
-                                                <p className="notif-message text-truncate">{msg.subject}</p>
+                                                <p className="notif-title">{safeString(msg.sender)}</p>
+                                                <p className="notif-message text-truncate">{safeString(msg.subject)}</p>
                                                 <span className="notif-time">{msg.time}</span>
                                             </div>
                                             {!msg.read && <div className="notif-unread-dot"></div>}
@@ -290,8 +291,8 @@ const AdminHeader = ({ toggleSidebar }) => {
                                                 <FaBell />
                                             </div>
                                             <div className="notif-details">
-                                                <p className="notif-title">{notif.title}</p>
-                                                <p className="notif-message text-truncate">{notif.message}</p>
+                                                <p className="notif-title">{safeString(notif.title)}</p>
+                                                <p className="notif-message text-truncate">{safeString(notif.message)}</p>
                                                 <span className="notif-time">
                                                     {notif.created_at ? new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                 </span>
@@ -317,7 +318,7 @@ const AdminHeader = ({ toggleSidebar }) => {
                             <div className="admin-avatar-circle">
                                 <FaUser />
                             </div>
-                            <span className="admin-name">{admin?.name || 'Main Admin'}</span>
+                            <span className="admin-name">{safeString(admin?.name) || 'Main Admin'}</span>
                         </div>
                         <div className="divider-line"></div>
                         <button className="logout-icon-btn" onClick={handleLogout}>

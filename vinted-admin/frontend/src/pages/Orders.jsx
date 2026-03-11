@@ -8,6 +8,7 @@ import axios from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
 import { useSettings } from '../context/SettingsContext';
 import { showToast, showConfirm } from '../utils/swal';
+import { safeString } from '../utils/constants';
 
 const Orders = () => {
     const location = useLocation();
@@ -130,7 +131,7 @@ const Orders = () => {
                         )}
                     </div>
                     <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>{order.item_id?.title || 'Unknown Item'}</div>
+                        <div className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>{safeString(order.item_id?.title) || 'Unknown Item'}</div>
                         <div className="text-muted small">{t('orders.table.order_no')}: {order.order_number}</div>
                     </div>
                 </div>
@@ -139,12 +140,12 @@ const Orders = () => {
         {
             header: t('orders.table.buyer'),
             accessor: 'buyer',
-            render: (order) => order.buyer_id?.username || 'Unknown'
+            render: (order) => safeString(order.buyer_id?.username) || 'Unknown'
         },
         {
             header: t('orders.table.seller'),
             accessor: 'seller',
-            render: (order) => order.seller_id?.username || 'Unknown'
+            render: (order) => safeString(order.seller_id?.username) || 'Unknown'
         },
         {
             header: t('orders.table.amount'),
@@ -253,9 +254,9 @@ const Orders = () => {
                         <Form>
                             {/* Order Summary */}
                             <div className="mb-4 p-3 rounded" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                                <div className="fw-bold mb-1">{selectedOrder.item_id?.title || 'Unknown Item'}</div>
+                                <div className="fw-bold mb-1">{safeString(selectedOrder.item_id?.title) || 'Unknown Item'}</div>
                                 <div className="text-muted small">
-                                    {t('orders.modal.order_summary')} #{selectedOrder.order_number} · {t('orders.table.buyer')}: <strong>{selectedOrder.buyer_id?.username || '—'}</strong>
+                                    {t('orders.modal.order_summary')} #{selectedOrder.order_number} · {t('orders.table.buyer')}: <strong>{safeString(selectedOrder.buyer_id?.username) || '—'}</strong>
                                 </div>
                             </div>
 

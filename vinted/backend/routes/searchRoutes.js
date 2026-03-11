@@ -1,7 +1,14 @@
 import express from 'express';
 import SearchHistory from '../models/SearchHistory.js';
 import { protect } from '../middleware/authMiddleware.js';
+import upload from '../middleware/uploadMiddleware.js';
+import { imageSearch } from '../controllers/aiController.js';
 const router = express.Router();
+
+// @desc    Search items by image
+// @route   POST /api/search/image
+// @access  Public
+router.post('/image', upload.single('image'), imageSearch);
 
 // @desc    Get user's search history (limit 5)
 // @route   GET /api/search/history

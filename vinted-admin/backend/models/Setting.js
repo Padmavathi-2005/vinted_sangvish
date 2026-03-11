@@ -9,6 +9,9 @@ const settingSchema = mongoose.Schema(
         site_name: {
             type: mongoose.Schema.Types.Mixed,
         },
+        site_url: {
+            type: String,
+        },
         site_logo: {
             type: String,
         },

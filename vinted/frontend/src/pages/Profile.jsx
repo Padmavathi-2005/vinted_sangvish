@@ -11,7 +11,7 @@ import MessagesContent from '../components/profile/MessagesContent';
 import NotificationsContent from '../components/profile/NotificationsContent';
 import WalletContent from '../components/profile/WalletContent';
 import { useTranslation } from 'react-i18next';
-import { getImageUrl, getItemImageUrl } from '../utils/constants';
+import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 
 const Profile = () => {
     const { user, loading, updateUser, logout, mode, toggleMode } = useContext(AuthContext);
@@ -77,7 +77,8 @@ const Profile = () => {
             favorites: t('profile.favorites'),
             messages: t('user_menu.messages', 'Messages'),
             notifications: t('notifications.title', 'Notifications'),
-            payments: t('profile.payment_account', 'Payment & Account')
+            payments: t('profile.payment_account', 'Payment & Account'),
+            bundle_settings: 'Bundle Discounts'
         };
         return labels[tab] || tab;
     };
@@ -459,6 +460,7 @@ const Profile = () => {
                             <>
                                 <div className={`pd-nav-item ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => setActiveTab('listings')}>{t('user_menu.manage_listings', 'Manage Listings')}</div>
                                 <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>{t('profile.orders_received', 'Orders Received')}</div>
+                                <div className={`pd-nav-item ${activeTab === 'bundle_settings' ? 'active' : ''}`} onClick={() => setActiveTab('bundle_settings')}>Bundle Discounts</div>
                             </>
                         )}
 
@@ -490,12 +492,12 @@ const Profile = () => {
                                         className="pd-avatar"
                                         onError={(e) => {
                                             e.target.style.display = 'none';
-                                            e.target.parentNode.innerHTML = `<div class="pd-avatar-placeholder" style="background-color: var(--primary-color); color: white;">${(user.username || 'U').charAt(0).toUpperCase()}</div>`;
+                                            e.target.parentNode.innerHTML = `<div class="pd-avatar-placeholder" style="background-color: var(--primary-color); color: white;">${safeString(user.username || 'U').charAt(0).toUpperCase()}</div>`;
                                         }}
                                     />
                                 ) : (
                                     <div className="pd-avatar-placeholder" style={{ backgroundColor: 'var(--primary-color)', color: 'white' }}>
-                                        {(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
+                                        {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
                                     </div>
                                 )}
                                 <div className="pd-avatar-upload-icon" onClick={() => setActiveTab('profile_settings')}><FaUserEdit /></div>
@@ -592,7 +594,7 @@ const Profile = () => {
 
                             <div className="pd-section-card">
                                 <h3 className="pd-section-title">{t('profile.bio', 'Bio')}</h3>
-                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>{user.bio || t('profile.no_bio', 'No bio added yet.')}</p>
+                                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>{safeString(user.bio) || t('profile.no_bio', 'No bio added yet.')}</p>
                             </div>
                         </>
                     )}
@@ -603,6 +605,115 @@ const Profile = () => {
                             <EditProfileModal user={user} inline={true} onUpdate={updateUser} />
                         </div>
                     )}
+
+                    {activeTab === 'bundle_settings' && mode === 'seller' && (
+                        <div className="pd-section-card">
+                            <h3 className="pd-section-title d-flex align-items-center gap-2">
+                                <FaTag style={{ color: '#F97316' }} /> Bundle Discount Settings
+                            </h3>
+                            <p className="text-muted small mb-4">
+                                Attract more buyers by offering discounts when they purchase multiple items from you in one go!
+                            </p>
+
+                            <div className="pd-bundle-settings-form">
+                                <div className="form-check form-switch pd-bundle-toggle mb-4">
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        id="bundleEnabled"
+                                        checked={user.bundle_discounts?.enabled || false}
+                                        onChange={(e) => {
+                                            const updated = { ...user.bundle_discounts, enabled: e.target.checked };
+                                            updateUser({ bundle_discounts: updated });
+                                        }}
+                                    />
+                                    <label className="form-check-label fw-bold" htmlFor="bundleEnabled">
+                                        Enable Bundle Discounts
+                                    </label>
+                                </div>
+
+                                <div className={`pd-bundle-inputs ${!(user.bundle_discounts?.enabled) ? 'disabled-logic' : ''}`} style={{ opacity: user.bundle_discounts?.enabled ? 1 : 0.5, pointerEvents: user.bundle_discounts?.enabled ? 'auto' : 'none' }}>
+                                    <div className="row g-3">
+                                        <div className="col-12 col-md-4">
+                                            <div className="pd-input-group">
+                                                <label className="pd-input-label">2 Items</label>
+                                                <div className="input-with-pct">
+                                                    <input
+                                                        type="number"
+                                                        className="form-control"
+                                                        placeholder="0"
+                                                        value={user.bundle_discounts?.two_items || 0}
+                                                        onChange={(e) => {
+                                                            const updated = { ...user.bundle_discounts, two_items: Number(e.target.value) };
+                                                            updateUser({ bundle_discounts: updated });
+                                                        }}
+                                                    />
+                                                    <span className="pct-unit">% OFF</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="col-12 col-md-4">
+                                            <div className="pd-input-group">
+                                                <label className="pd-input-label">3 Items</label>
+                                                <div className="input-with-pct">
+                                                    <input
+                                                        type="number"
+                                                        className="form-control"
+                                                        placeholder="0"
+                                                        value={user.bundle_discounts?.three_items || 0}
+                                                        onChange={(e) => {
+                                                            const updated = { ...user.bundle_discounts, three_items: Number(e.target.value) };
+                                                            updateUser({ bundle_discounts: updated });
+                                                        }}
+                                                    />
+                                                    <span className="pct-unit">% OFF</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="col-12 col-md-4">
+                                            <div className="pd-input-group">
+                                                <label className="pd-input-label">5 Items</label>
+                                                <div className="input-with-pct">
+                                                    <input
+                                                        type="number"
+                                                        className="form-control"
+                                                        placeholder="0"
+                                                        value={user.bundle_discounts?.five_items || 0}
+                                                        onChange={(e) => {
+                                                            const updated = { ...user.bundle_discounts, five_items: Number(e.target.value) };
+                                                            updateUser({ bundle_discounts: updated });
+                                                        }}
+                                                    />
+                                                    <span className="pct-unit">% OFF</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pd-bundle-preview-box mt-4">
+                                        <div className="small fw-bold text-uppercase mb-2 text-primary" style={{ letterSpacing: '0.05em' }}>Bundle Preview</div>
+                                        <div className="pd-preview-text">
+                                            Buyers will automatically see these discounts in their cart when they select multiple items from your closet.
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        className="btn btn-primary mt-4 px-4 rounded-pill"
+                                        onClick={async () => {
+                                            try {
+                                                await axios.put('/api/users/profile', { bundle_discounts: user.bundle_discounts });
+                                                alert('Bundle settings saved successfully!');
+                                            } catch (err) {
+                                                alert('Failed to save settings');
+                                            }
+                                        }}
+                                    >
+                                        Save Bundle Settings
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) || null}
 
                     {activeTab === 'listings' && mode === 'seller' && (
                         <div className="pd-listings-container">
@@ -745,7 +856,7 @@ const Profile = () => {
                                             <div className="pd-oic-image-wrapper">
                                                 <img
                                                     src={getItemImageUrl(order.item_id?.images?.[0])}
-                                                    alt={order.item_id?.title}
+                                                    alt={safeString(order.item_id?.title)}
                                                 />
                                                 <div className={`pd-oic-status-badge ${order.order_status || 'placed'}`}>
                                                     {getStatusLabel(order.order_status)}
@@ -758,7 +869,7 @@ const Profile = () => {
                                             </div>
                                             <div className="pd-oic-details">
                                                 <div className="pd-oic-top">
-                                                    <h3 className="pd-oic-title">{order.item_id?.title || 'Unknown Item'}</h3>
+                                                    <h3 className="pd-oic-title">{safeString(order.item_id?.title) || 'Unknown Item'}</h3>
                                                     <span className="pd-oic-price">{formatPrice(order.total_amount)}</span>
                                                 </div>
                                                 <div className="pd-oic-meta">
@@ -766,7 +877,7 @@ const Profile = () => {
                                                     <span className="pd-oic-date">{new Date(order.created_at).toLocaleDateString()}</span>
                                                 </div>
                                                 <div className="pd-oic-participant small text-muted mb-2">
-                                                    {mode === 'buyer' ? `${t('profile.seller', 'Seller')}: ${order.seller_id?.username}` : `${t('profile.buyer', 'Buyer')}: ${order.buyer_id?.username}`}
+                                                    {mode === 'buyer' ? `${t('profile.seller', 'Seller')}: ${safeString(order.seller_id?.username)}` : `${t('profile.buyer', 'Buyer')}: ${safeString(order.buyer_id?.username)}`}
                                                 </div>
                                                 <button className="pd-oic-view-btn">{t('profile.view_tracking', 'View Tracking & Details')}</button>
                                             </div>
@@ -909,7 +1020,7 @@ const Profile = () => {
                                                             </form>
                                                         ) : (
                                                             <div className="detail-address-card">
-                                                                <p className="fw-bold mb-1 text-dark">{selectedOrder.shipping_address?.full_name}</p>
+                                                                <p className="fw-bold mb-1 text-dark">{safeString(selectedOrder.shipping_address?.full_name)}</p>
                                                                 <p className="mb-1">{selectedOrder.shipping_address?.address_line}</p>
                                                                 <p className="mb-1">{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} {selectedOrder.shipping_address?.pincode}</p>
                                                                 <div className="mt-3 pt-3 border-top d-flex align-items-center gap-2 text-muted small">
@@ -951,9 +1062,9 @@ const Profile = () => {
                                                         <div className="d-flex gap-3">
                                                             <img className="rounded shadow-sm" style={{ width: '60px', height: '60px', objectFit: 'cover' }} src={getItemImageUrl(selectedOrder.item_id?.images?.[0])} alt="" />
                                                             <div>
-                                                                <p className="fw-bold small mb-1">{selectedOrder.item_id?.title}</p>
+                                                                <p className="fw-bold small mb-1">{safeString(selectedOrder.item_id?.title)}</p>
                                                                 <p className="text-muted extra-small mb-0">
-                                                                    {mode === 'buyer' ? `${t('profile.sold_by', 'Sold by:')} ${selectedOrder.seller_id?.username}` : `${t('profile.bought_by', 'Bought by:')} ${selectedOrder.buyer_id?.username}`}
+                                                                    {mode === 'buyer' ? `${t('profile.sold_by', 'Sold by:')} ${safeString(selectedOrder.seller_id?.username)}` : `${t('profile.bought_by', 'Bought by:')} ${safeString(selectedOrder.buyer_id?.username)}`}
                                                                 </p>
                                                             </div>
                                                         </div>
