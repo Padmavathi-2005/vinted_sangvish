@@ -4,6 +4,7 @@ import axios from '../utils/axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaGoogle, FaApple, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaShieldAlt, FaFacebookSquare, FaTwitter } from 'react-icons/fa';
 import AuthContext from '../context/AuthContext';
+import Meta from '../components/common/Meta';
 import '../styles/Auth.css';
 
 const Login = () => {
@@ -50,6 +51,7 @@ const Login = () => {
 
     return (
         <div className="auth-page">
+            <Meta title="Login" description="Sign in to your account to buy and sell pre-loved fashion." />
             <div className="auth-card">
                 <h2 className="text-center">Welcome Back</h2>
                 <p className="subtitle text-center">Securely access your marketplace account</p>

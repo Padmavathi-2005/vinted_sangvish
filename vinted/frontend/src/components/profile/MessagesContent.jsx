@@ -114,7 +114,7 @@ const MessagesContent = () => {
 
         // Check if existing conversation with this user
         const existingConv = conversations.find(c =>
-            c.participants?.some(p => p._id === targetUserId)
+            c.participants?.some(p => (p.user?._id || p.user) === targetUserId)
         );
 
         if (existingConv) {
@@ -228,7 +228,7 @@ const MessagesContent = () => {
 
     const handleStartChat = async (targetUser) => {
         const existing = conversations.find(c =>
-            c.participants.some(p => p._id === targetUser._id)
+            c.participants.some(p => (p.user?._id || p.user) === targetUser._id)
         );
 
         if (existing) {
@@ -237,7 +237,10 @@ const MessagesContent = () => {
         } else {
             setActiveConv({
                 _id: 'new',
-                participants: [user, targetUser],
+                participants: [
+                    { user: user, on_model: 'User' },
+                    { user: targetUser, on_model: 'User' }
+                ],
                 status: 'pending',
                 initiator_id: user.id
             });
@@ -251,8 +254,8 @@ const MessagesContent = () => {
 
         const isCustom = e && e.custom;
         const msgText = isCustom ? e.message : newMessage;
-        const otherParticipant = activeConv?.participants?.find(p => (p.id?._id || p._id || p.id)?.toString() !== (user.id || user._id)?.toString());
-        const targetReceiverId = isCustom ? e.receiver_id : (otherParticipant?.id?._id || otherParticipant?.id || otherParticipant?._id);
+        const otherParticipant = activeConv?.participants?.find(p => (p.user?._id || p.user)?.toString() !== (user.id || user._id)?.toString());
+        const targetReceiverId = isCustom ? e.receiver_id : (otherParticipant?.user?._id || otherParticipant?.user);
         const targetModel = isCustom ? (e.receiver_model || 'User') : (otherParticipant?.on_model || 'User');
 
         if (!msgText.trim() || !targetReceiverId) return;
@@ -333,7 +336,7 @@ const MessagesContent = () => {
     const getOtherParticipant = (conv) => {
         if (!conv || !conv.participants) return null;
         const currentUserId = (user.id || user._id)?.toString();
-        return conv.participants.find(p => (p.id?._id || p.id)?.toString() !== currentUserId);
+        return conv.participants.find(p => (p.user?._id || p.user)?.toString() !== currentUserId);
     };
 
     const formatTime = (date) => {
@@ -378,8 +381,10 @@ const MessagesContent = () => {
     );
 
     const filteredConversations = conversations.filter(conv => {
-        const other = getOtherParticipant(conv);
-        return other?.username?.toLowerCase().includes(searchTerm.toLowerCase());
+        const otherData = getOtherParticipant(conv);
+        const other = otherData?.user;
+        const nameToSearch = (otherData?.on_model === 'Admin' ? 'Admin' : (other?.username || other?.name || ''))?.toLowerCase();
+        return nameToSearch.includes(searchTerm.toLowerCase());
     });
 
     if (loading) return <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>;
@@ -409,7 +414,7 @@ const MessagesContent = () => {
                         <div className="pd-user-picker-list">
                             {filteredUsers.length > 0 ? filteredUsers.map(u => {
                                 const existingConv = conversations.find(c =>
-                                    c.participants.some(p => p._id === u._id)
+                                    c.participants.some(p => (p.user?._id || p.user) === u._id)
                                 );
                                 const isPending = existingConv && existingConv.status === 'pending';
                                 return (
@@ -483,9 +488,35 @@ const MessagesContent = () => {
                     </div>
                 </div>
                 <div className="pd-msg-user-list">
+                    {activeConv?._id === 'new' && (
+                        <div className="pd-msg-user-item active draft">
+                            <div className="pd-avatar-wrapper-mini">
+                                {(() => {
+                                    const otherData = getOtherParticipant(activeConv);
+                                    const other = otherData?.user;
+                                    return !other?.profile_image ? (
+                                        <div className="pd-avatar-placeholder-mini">{safeString(other?.username || other?.name)?.charAt(0).toUpperCase()}</div>
+                                    ) : (
+                                        <img src={getImageUrl(other.profile_image)} alt="" className="pd-msg-user-avatar" />
+                                    );
+                                })()}
+                            </div>
+                            <div className="pd-msg-user-info">
+                                <div className="pd-msg-user-top">
+                                    <span className="pd-msg-user-name">
+                                        {(() => {
+                                            const otherData = getOtherParticipant(activeConv);
+                                            return otherData?.on_model === 'Admin' ? 'Admin' : (safeString(otherData?.user?.username || otherData?.user?.name) || 'New Chat');
+                                        })()}
+                                    </span>
+                                </div>
+                                <div className="pd-msg-last-text text-primary small">Starting new chat...</div>
+                            </div>
+                        </div>
+                    )}
                     {filteredConversations.length > 0 ? filteredConversations.map(conv => {
                         const otherData = getOtherParticipant(conv);
-                        const other = otherData?.id || otherData;
+                        const other = otherData?.user;
                         const lm = conv.last_message || '';
                         const isSystemConv = lm.startsWith('🛒') || lm.startsWith('✅') || lm.startsWith('ORDER') || lm.includes('Order placed') || lm.includes('Order delivered') || lm.includes('ORDER_NOTIFICATION');
                         const marketplaceName = getMarketplaceName(settings?.site_name);
@@ -547,7 +578,7 @@ const MessagesContent = () => {
                             const headerSiteName = getMarketplaceName(settings?.site_name);
                             const headerSiteLogo = settings?.site_logo;
                             const headerOtherData = getOtherParticipant(activeConv);
-                            const headerOther = headerOtherData?.id || headerOtherData;
+                            const headerOther = headerOtherData?.user;
                             const headerOtherOnModel = headerOtherData?.on_model;
                             const isMarketplace = headerOtherOnModel === 'Admin' || hasSystemMsgs;
                             const headerSiteInitial = headerSiteName.charAt(0).toUpperCase();

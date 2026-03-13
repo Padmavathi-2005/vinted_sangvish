@@ -9,7 +9,7 @@ import Currency from '../models/Currency.js';
 
 // Helper for population
 const participantsPopulate = {
-    path: 'participants.id',
+    path: 'participants.user',
     select: 'name username profile_image last_login'
 };
 
@@ -18,15 +18,37 @@ const participantsPopulate = {
 // @access  Private
 const getConversations = asyncHandler(async (req, res) => {
     const identifier = req.user._id;
+    console.log(`[getConversations] Fetching for user: ${identifier}`);
 
-    const conversations = await Conversation.find({
-        'participants.id': identifier
-    })
-        .populate(participantsPopulate)
-        .populate('item_id', 'title price images currency_id')
-        .sort({ last_message_at: -1 });
+    let query = { 'participants.user': identifier };
 
-    res.status(200).json(conversations);
+    // If the user is an admin, allow them to see all conversations
+    if (req.user.role === 'admin') {
+        console.log(`[Admin getConversations] Admin user ${identifier} is requesting all conversations.`);
+        query = {}; // Fetch all conversations for admin
+    }
+
+    let conversations = [];
+    try {
+        conversations = await Conversation.find(query)
+            .populate(participantsPopulate)
+            .populate('item_id', 'title price images currency_id')
+            .sort({ last_message_at: -1 });
+        
+        console.log(`[getConversations] Found ${conversations.length} conversations`);
+    } catch (err) {
+        console.error('getConversations populate error:', err.message);
+        // Try without populate on failure
+        conversations = await Conversation.find({ 'participants.user': identifier })
+            .sort({ last_message_at: -1 });
+    }
+
+    // Filter out any bad conversations where participants failed to populate
+    const safe = conversations.filter(conv =>
+        conv.participants && conv.participants.length >= 1
+    );
+
+    res.status(200).json(safe);
 });
 
 // @desc    Get messages for a conversation
@@ -42,7 +64,11 @@ const getMessages = asyncHandler(async (req, res) => {
         throw new Error('Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(p => p.id._id.toString() === req.user._id.toString());
+    // Null-safe participant check
+    const isParticipant = conversation.participants.some(p => {
+        const pid = p.user?._id || p.user;
+        return pid?.toString() === req.user._id.toString();
+    });
     if (!isParticipant) {
         res.status(401);
         throw new Error('User not authorized');
@@ -76,8 +102,8 @@ const sendMessage = asyncHandler(async (req, res) => {
     let conversation = await Conversation.findOne({
         participants: {
             $all: [
-                { $elemMatch: { id: sender_id, on_model: sender_model } },
-                { $elemMatch: { id: receiver_id, on_model: receiver_model } }
+                { $elemMatch: { user: sender_id, on_model: sender_model } },
+                { $elemMatch: { user: receiver_id, on_model: receiver_model } }
             ]
         },
     });
@@ -87,8 +113,8 @@ const sendMessage = asyncHandler(async (req, res) => {
     if (!conversation) {
         conversation = await Conversation.create({
             participants: [
-                { id: sender_id, on_model: sender_model },
-                { id: receiver_id, on_model: receiver_model }
+                { user: sender_id, on_model: sender_model },
+                { user: receiver_id, on_model: receiver_model }
             ],
             item_id: item_id,
             status: sender_model === 'Admin' ? 'accepted' : 'pending', // Admin starts as accepted
@@ -128,24 +154,31 @@ const sendMessage = asyncHandler(async (req, res) => {
     const populatedMessage = await Message.findById(newMessage._id).populate('sender_id', 'name username profile_image');
 
     // Handle Notifications
-    if (receiver_model === 'User') {
-        if (isNewRequest) {
-            await Notification.create({
-                user_id: receiver_id,
-                title: 'New Message Request',
-                message: `${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)} wants to start a conversation with you.`,
-                type: 'request',
-                link: `/profile?tab=messages&conversation=${conversation._id}`,
-            });
-        } else if (conversation.status === 'accepted') {
-            await Notification.create({
-                user_id: receiver_id,
-                title: 'New Message',
-                message: `You have a new message from ${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)}`,
-                type: 'message',
-                link: `/profile?tab=messages&conversation=${conversation._id}`,
-            });
-        }
+    if (isNewRequest) {
+        await Notification.create({
+            user_id: receiver_id,
+            on_model: receiver_model,
+            title: 'New Message Request',
+            message: `${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)} wants to start a conversation with you.`,
+            type: 'request',
+            link: receiver_model === 'Admin' ? `/messages` : `/profile?tab=messages&conversation=${conversation._id}`,
+        });
+    } else if (conversation.status === 'accepted') {
+        await Notification.create({
+            user_id: receiver_id,
+            on_model: receiver_model,
+            title: 'New Message',
+            message: `You have a new message from ${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)}`,
+            type: 'message',
+            link: receiver_model === 'Admin' ? `/messages` : `/profile?tab=messages&conversation=${conversation._id}`,
+        });
+    }
+
+    if (req.io) {
+        req.io.to(conversation._id.toString()).emit('receive_message', {
+            message: populatedMessage,
+            conversation: conversation
+        });
     }
 
     res.status(201).json({ message: populatedMessage, conversation });
@@ -178,14 +211,20 @@ const respondToRequest = asyncHandler(async (req, res) => {
     await conversation.save();
 
     // Notify initiator
-    if (conversation.initiator_model === 'User') {
-        const initiatorId = conversation.initiator_id;
-        await Notification.create({
-            user_id: initiatorId,
-            title: status === 'accepted' ? 'Message Request Accepted' : 'Message Request Rejected',
-            message: `${req.user.username || req.user.name} ${status === 'accepted' ? 'accepted' : 'declined'} your request.`,
-            type: status === 'accepted' ? 'success' : 'error',
-            link: `/profile?tab=messages&conversation=${conversation._id}`,
+    const initiatorId = conversation.initiator_id;
+    await Notification.create({
+        user_id: initiatorId,
+        on_model: conversation.initiator_model,
+        title: status === 'accepted' ? 'Message Request Accepted' : 'Message Request Rejected',
+        message: `${req.user.username || req.user.name} ${status === 'accepted' ? 'accepted' : 'declined'} your request.`,
+        type: status === 'accepted' ? 'success' : 'error',
+        link: conversation.initiator_model === 'Admin' ? `/messages` : `/profile?tab=messages&conversation=${conversation._id}`,
+    });
+
+    if (req.io) {
+        req.io.to(conversation._id.toString()).emit('receive_message', {
+            message: null,
+            conversation: conversation
         });
     }
 
@@ -202,7 +241,7 @@ const toggleBlock = asyncHandler(async (req, res) => {
         throw new Error('Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(p => p.id.toString() === req.user._id.toString());
+    const isParticipant = conversation.participants.some(p => p.user.toString() === req.user._id.toString());
     if (!isParticipant) {
         res.status(401);
         throw new Error('User not authorized');
@@ -274,17 +313,23 @@ const respondToOffer = asyncHandler(async (req, res) => {
     }
 
     // Notify sender of the outcome
-    if (message.sender_model === 'User') {
-        await Notification.create({
-            user_id: message.sender_id,
-            title: status === 'accepted' ? 'Offer Accepted!' : 'Offer Declined',
-            message: `${req.user.username || req.user.name} ${status} your offer.`,
-            type: status === 'accepted' ? 'success' : 'error',
-            link: `/profile?tab=messages&conversation=${message.conversation_id}`,
+    await Notification.create({
+        user_id: message.sender_id,
+        on_model: message.sender_model,
+        title: status === 'accepted' ? 'Offer Accepted!' : 'Offer Declined',
+        message: `${req.user.username || req.user.name} ${status} your offer.`,
+        type: status === 'accepted' ? 'success' : 'error',
+        link: message.sender_model === 'Admin' ? `/messages` : `/profile?tab=messages&conversation=${message.conversation_id}`,
+    });
+
+    const populatedMessage = await Message.findById(systemMsg._id).populate('sender_id', 'name username profile_image');
+    if (req.io) {
+        req.io.to(message.conversation_id.toString()).emit('receive_message', {
+            message: populatedMessage,
+            conversation: conversation
         });
     }
 
-    const populatedMessage = await Message.findById(systemMsg._id).populate('sender_id', 'name username profile_image');
     res.status(200).json({ offerMessage: message, systemMessage: populatedMessage, conversation });
 });
 

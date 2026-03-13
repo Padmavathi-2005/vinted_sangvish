@@ -12,8 +12,12 @@ async function createConv() {
             process.exit(1);
         }
         const conv = await Conversation.create({
-            participants: [users[0]._id, users[1]._id],
+            participants: [
+                { user: users[0]._id, on_model: 'User' },
+                { user: users[1]._id, on_model: 'User' }
+            ],
             initiator_id: users[0]._id,
+            initiator_model: 'User',
             last_message: 'Test message',
             last_message_at: Date.now(),
             status: 'pending'

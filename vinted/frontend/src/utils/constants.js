@@ -2,24 +2,29 @@ export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5
 
 export const getImageUrl = (path) => {
     if (!path) return '';
-    if (path.startsWith('http')) return path;
-    // Remove leading slash and replace backslashes with forward slashes
-    const normalizedPath = path.replace(/^\/+/, '').replace(/\\/g, '/');
+    if (String(path).startsWith('http')) return path;
 
-    if (BASE_URL === '/') {
-        return `/${normalizedPath}`; // Fix mapping for live server proxy
+    // Robust normalization for frontend
+    // Remove leading slash, replace backslashes, and handle repeated prefixes
+    let clean = String(path).replace(/\\/g, '/').replace(/^\/+/, '');
+    
+    // If it already has BASE_URL or protocol, return it
+    if (clean.startsWith('http')) return clean;
+
+    if (BASE_URL === '/' || !BASE_URL) {
+        return `/${clean}`;
     }
 
     // Remove trailing slashes from BASE_URL to prevent double slashes
     const cleanBase = BASE_URL.replace(/\/+$/, '');
-    return `${cleanBase}/${normalizedPath}`;
+    return `${cleanBase}/${clean}`;
 };
 
 export const getItemImageUrl = (path) => {
     if (!path) {
         const fallback = sessionStorage.getItem('imageNotFound');
         if (fallback) return getImageUrl(fallback);
-        return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&q=80';
+        return getImageUrl('images/site/not_found.png');
     }
     return getImageUrl(path);
 };

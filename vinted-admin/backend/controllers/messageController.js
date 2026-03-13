@@ -6,18 +6,23 @@ import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 
 const participantsPopulate = {
-    path: 'participants.id',
+    path: 'participants.user',
     select: 'name username profile_image last_login'
 };
 
 const getConversations = asyncHandler(async (req, res) => {
     const identifier = req.user._id;
-    const conversations = await Conversation.find({
-        'participants.id': identifier
-    })
+    console.log(`[Admin getConversations] identifier: ${identifier}`);
+
+    // Fetch all conversations for the admin view
+    const query = {}; 
+
+    const conversations = await Conversation.find(query)
         .populate(participantsPopulate)
         .populate('item_id', 'title price images')
         .sort({ last_message_at: -1 });
+    
+    console.log(`[Admin getConversations] Found: ${conversations.length}`);
 
     res.status(200).json(conversations);
 });
@@ -31,7 +36,7 @@ const getMessages = asyncHandler(async (req, res) => {
         throw new Error('Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(p => p.id._id.toString() === req.user._id.toString());
+    const isParticipant = conversation.participants.some(p => p.user._id.toString() === req.user._id.toString());
     if (!isParticipant) {
         res.status(401);
         throw new Error('User not authorized');
@@ -61,8 +66,8 @@ const sendMessage = asyncHandler(async (req, res) => {
     let conversation = await Conversation.findOne({
         participants: {
             $all: [
-                { $elemMatch: { id: sender_id, on_model: sender_model } },
-                { $elemMatch: { id: receiver_id, on_model: receiver_model } }
+                { $elemMatch: { user: sender_id, on_model: sender_model } },
+                { $elemMatch: { user: receiver_id, on_model: receiver_model } }
             ]
         },
     });
@@ -72,8 +77,8 @@ const sendMessage = asyncHandler(async (req, res) => {
     if (!conversation) {
         conversation = await Conversation.create({
             participants: [
-                { id: sender_id, on_model: sender_model },
-                { id: receiver_id, on_model: receiver_model }
+                { user: sender_id, on_model: sender_model },
+                { user: receiver_id, on_model: receiver_model }
             ],
             item_id: item_id,
             status: sender_model === 'Admin' ? 'accepted' : 'pending',
@@ -110,24 +115,25 @@ const sendMessage = asyncHandler(async (req, res) => {
 
     const populatedMessage = await Message.findById(newMessage._id).populate('sender_id', 'name username profile_image');
 
-    if (receiver_model === 'User') {
-        if (isNewRequest) {
-            await Notification.create({
-                user_id: receiver_id,
-                title: 'New Message Request',
-                message: `${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)} wants to start a conversation with you.`,
-                type: 'request',
-                link: `/profile?tab=messages&conversation=${conversation._id}`,
-            });
-        } else if (conversation.status === 'accepted') {
-            await Notification.create({
-                user_id: receiver_id,
-                title: 'New Message',
-                message: `You have a new message from ${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)}`,
-                type: 'message',
-                link: `/profile?tab=messages&conversation=${conversation._id}`,
-            });
-        }
+    // Handle Notifications
+    if (isNewRequest) {
+        await Notification.create({
+            user_id: receiver_id,
+            on_model: receiver_model,
+            title: 'New Message Request',
+            message: `${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)} wants to start a conversation with you.`,
+            type: 'request',
+            link: receiver_model === 'Admin' ? `/messages` : `/profile?tab=messages&conversation=${conversation._id}`,
+        });
+    } else if (conversation.status === 'accepted') {
+        await Notification.create({
+            user_id: receiver_id,
+            on_model: receiver_model,
+            title: 'New Message',
+            message: `You have a new message from ${req.user.role === 'admin' ? 'Admin' : (req.user.username || req.user.name)}`,
+            type: 'message',
+            link: receiver_model === 'Admin' ? `/messages` : `/profile?tab=messages&conversation=${conversation._id}`,
+        });
     }
 
     res.status(201).json({ message: populatedMessage, conversation });

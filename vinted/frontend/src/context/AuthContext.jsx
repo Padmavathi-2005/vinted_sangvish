@@ -28,6 +28,11 @@ export const AuthProvider = ({ children }) => {
                 sessionStorage.removeItem('user');
             }
         }
+        
+        // Initialize Mode
+        const storedMode = localStorage.getItem('mode');
+        if (storedMode) setMode(storedMode);
+        
         setLoading(false);
     }, []);
 
@@ -97,7 +102,11 @@ export const AuthProvider = ({ children }) => {
     const [mode, setMode] = useState('buyer');
 
     const toggleMode = () => {
-        setMode(prev => prev === 'buyer' ? 'seller' : 'buyer');
+        setMode(prev => {
+            const next = prev === 'buyer' ? 'seller' : 'buyer';
+            localStorage.setItem('mode', next);
+            return next;
+        });
     };
 
     return (

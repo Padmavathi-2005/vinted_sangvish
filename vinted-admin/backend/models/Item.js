@@ -83,7 +83,7 @@ const itemSchema = mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['active', 'sold', 'pending', 'deleted'],
+            enum: ['active', 'inactive', 'pending', 'deleted'],
             default: 'active',
         },
         is_sold: {
@@ -91,6 +91,14 @@ const itemSchema = mongoose.Schema(
             default: false,
         },
         is_deleted: {
+            type: Boolean,
+            default: false,
+        },
+        original_price: {
+            type: Number,
+            default: 0,
+        },
+        discount_prompt_sent: {
             type: Boolean,
             default: false,
         },
@@ -108,13 +116,22 @@ const itemSchema = mongoose.Schema(
         },
         toJSON: {
             transform: function (doc, ret) {
+                // Calculate percentage discount if original price exists
+                if (ret.original_price && ret.original_price > ret.price) {
+                    ret.percentage_off = Math.round(((ret.original_price - ret.price) / ret.original_price) * 100);
+                } else {
+                    ret.percentage_off = 0;
+                }
+
                 if (ret.images && Array.isArray(ret.images)) {
                     ret.images = ret.images.map(img => {
-                        if (img && !img.startsWith('http')) {
-                            let clean = img.replace(/^\/+/, '');
-                            clean = clean.replace(/^uploads\//, '');
-                            clean = clean.replace(/^images\/items\//, '');
-                            return `images/items/${clean}`;
+                        if (img && typeof img === 'string' && !img.startsWith('http')) {
+                            // Unified aggressive normalization
+                            let clean = img.replace(/\\/g, '/').replace(/^\/+/, '');
+                            // Strip away any possible nested paths to get just the filename
+                            const parts = clean.split('/');
+                            const filename = parts[parts.length - 1];
+                            return `images/items/${filename}`;
                         }
                         return img;
                     });
@@ -124,13 +141,19 @@ const itemSchema = mongoose.Schema(
         },
         toObject: {
             transform: function (doc, ret) {
+                if (ret.original_price && ret.original_price > ret.price) {
+                    ret.percentage_off = Math.round(((ret.original_price - ret.price) / ret.original_price) * 100);
+                } else {
+                    ret.percentage_off = 0;
+                }
+
                 if (ret.images && Array.isArray(ret.images)) {
                     ret.images = ret.images.map(img => {
-                        if (img && !img.startsWith('http')) {
-                            let clean = img.replace(/^\/+/, '');
-                            clean = clean.replace(/^uploads\//, '');
-                            clean = clean.replace(/^images\/items\//, '');
-                            return `images/items/${clean}`;
+                        if (img && typeof img === 'string' && !img.startsWith('http')) {
+                            let clean = img.replace(/\\/g, '/').replace(/^\/+/, '');
+                            const parts = clean.split('/');
+                            const filename = parts[parts.length - 1];
+                            return `images/items/${filename}`;
                         }
                         return img;
                     });

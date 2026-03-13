@@ -4,7 +4,8 @@ const conversationSchema = mongoose.Schema(
     {
         participants: [
             {
-                id: {
+                _id: false,
+                user: {
                     type: mongoose.Schema.Types.ObjectId,
                     refPath: 'participants.on_model',
                     required: true,

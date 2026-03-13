@@ -26,10 +26,10 @@ const getSettingsByType = asyncHandler(async (req, res) => {
             pagination_limit: 12,
             pagination_mode: 'paginate',
             maintenance_mode: false,
-            allow_registration: true,
-            allow_guest_checkout: false,
             timezone: 'UTC',
-            admin_commission: 2
+            admin_commission: 2,
+            body_font_name: 'Inter',
+            body_font_url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
         });
     }
 
@@ -37,6 +37,8 @@ const getSettingsByType = asyncHandler(async (req, res) => {
         setting = await Setting.create({
             type: 'site_settings',
             site_name: { en: 'My Marketplace' },
+            site_logo: 'images/site/logo.png',
+            site_favicon: 'images/site/favicon.png'
         });
     }
 
@@ -141,7 +143,11 @@ const updateSettingsByType = asyncHandler(async (req, res) => {
     console.log(`[Settings] Updating ${type}. Data:`, JSON.stringify(updateData, null, 2));
 
     const blacklist = ['_id', '__v', 'created_at', 'updated_at', 'type'];
-    blacklist.forEach(field => delete updateData[field]);
+    blacklist.forEach(field => {
+        if (updateData[field] !== undefined) {
+            updateData[field] = undefined;
+        }
+    });
 
     // Handle any files uploaded
     if (req.files) {
@@ -170,27 +176,57 @@ const updateSettingsByType = asyncHandler(async (req, res) => {
 
     try {
         if (setting) {
+            console.log(`[Settings] Found existing setting for ${type}. Updating fields...`);
             Object.keys(updateData).forEach(key => {
+                const val = updateData[key];
                 // Skip invalid data
-                if (updateData[key] === undefined || updateData[key] === 'undefined') return;
+                if (val === undefined || val === 'undefined') {
+                    console.log(`[Settings] Skipping field ${key} because it is undefined`);
+                    return;
+                }
+
+                console.log(`[Settings] Setting field ${key} to value:`, val);
 
                 // Force null for empty ObjectId fields to prevent casting errors
-                if (key.endsWith('_id') && updateData[key] === '') {
-                    setting.set(key, null);
-                } else {
-                    setting.set(key, updateData[key]);
+                if (key.endsWith('_id')) {
+                    if (val === '' || val === null || val === 'null' || val === 'undefined') {
+                        console.log(`[Settings] Field ${key} is empty ObjectId, setting to null`);
+                        setting.set(key, null);
+                    } else {
+                        setting.set(key, val);
+                    }
+                    return;
                 }
+
+                // Explicit casting for known numeric fields
+                if (['pagination_limit', 'admin_commission'].includes(key)) {
+                    const numVal = parseFloat(val);
+                    console.log(`[Settings] Field ${key} is numeric. Cast to:`, numVal);
+                    setting.set(key, isNaN(numVal) ? null : numVal);
+                    return;
+                }
+
+                setting.set(key, val);
             });
+            console.log(`[Settings] Saving setting document...`);
             const updatedSetting = await setting.save();
+            console.log(`[Settings] Successfully saved ${type}`);
             res.json(updatedSetting);
+            return;
         } else {
+            console.log(`[Settings] No setting found for ${type}. Creating new...`);
             const newSetting = await Setting.create({ ...updateData, type });
+            console.log(`[Settings] Successfully created ${type}`);
             res.status(201).json(newSetting);
+            return;
         }
     } catch (error) {
         console.error(`[Settings] ERROR updating ${type}:`, error);
-        res.status(500);
-        throw new Error(`Failed to update settings: ${error.message}`);
+        if (!res.headersSent) {
+            res.status(500).json({
+                message: `Failed to update settings: ${error.message}`
+            });
+        }
     }
 });
 

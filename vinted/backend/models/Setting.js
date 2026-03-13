@@ -30,6 +30,12 @@ const settingSchema = mongoose.Schema(
         secondary_color: {
             type: String,
         },
+        body_font_name: {
+            type: String,
+        },
+        body_font_url: {
+            type: String,
+        },
         pagination_limit: {
             type: Number,
         },
@@ -51,12 +57,6 @@ const settingSchema = mongoose.Schema(
             ref: 'Currency',
         },
         maintenance_mode: {
-            type: Boolean,
-        },
-        allow_registration: {
-            type: Boolean,
-        },
-        allow_guest_checkout: {
             type: Boolean,
         },
         support_email: {
@@ -81,6 +81,28 @@ const settingSchema = mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Page',
         },
+        // Stripe Fields
+        stripe_enabled: { type: Boolean, default: false },
+        stripe_test_mode: { type: Boolean, default: true },
+        stripe_test_public_key: { type: String },
+        stripe_test_secret_key: { type: String },
+        stripe_test_webhook_secret: { type: String },
+        stripe_live_public_key: { type: String },
+        stripe_live_secret_key: { type: String },
+        stripe_live_webhook_secret: { type: String },
+        // PayPal Fields
+        paypal_enabled: { type: Boolean, default: false },
+        paypal_test_mode: { type: Boolean, default: true },
+        paypal_test_client_id: { type: String },
+        paypal_test_client_secret: { type: String },
+        paypal_live_client_id: { type: String },
+        paypal_live_client_secret: { type: String },
+        // Gateway logos
+        stripe_logo: { type: String },
+        paypal_logo: { type: String },
+        // Gateway translations (Mixed for localized names/descriptions)
+        stripe_translations: { type: mongoose.Schema.Types.Mixed },
+        paypal_translations: { type: mongoose.Schema.Types.Mixed },
     },
     {
         timestamps: {
@@ -89,7 +111,7 @@ const settingSchema = mongoose.Schema(
         },
         toJSON: {
             transform: function (doc, ret) {
-                ['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image'].forEach(field => {
+                ['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image', 'stripe_logo', 'paypal_logo'].forEach(field => {
                     if (ret[field] && !ret[field].startsWith('http')) {
                         let clean = ret[field].replace(/^\/+/, '');
                         clean = clean.replace(/^images\/site\//, '');
@@ -101,7 +123,7 @@ const settingSchema = mongoose.Schema(
         },
         toObject: {
             transform: function (doc, ret) {
-                ['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image'].forEach(field => {
+                ['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image', 'stripe_logo', 'paypal_logo'].forEach(field => {
                     if (ret[field] && !ret[field].startsWith('http')) {
                         let clean = ret[field].replace(/^\/+/, '');
                         clean = clean.replace(/^images\/site\//, '');

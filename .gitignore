@@ -7,3 +7,7 @@ build/
 coverage/
 .next/
 out/
+db_backup/
+images/items/
+images/profile/
+*.zip

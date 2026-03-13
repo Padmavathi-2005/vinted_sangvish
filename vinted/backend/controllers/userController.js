@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Register new user
 // @route   POST /api/users
@@ -36,6 +37,29 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (user) {
+        // 1. Send Welcome Notification to the User
+        await Notification.create({
+            user_id: user._id,
+            on_model: 'User',
+            title: 'Welcome to Vinted!',
+            message: `Hello ${user.username}, thanks for joining us! We hope you have a great experience buying and selling.`,
+            type: 'info',
+            link: '/profile'
+        });
+
+        // 2. Notify Admin about the new user registration (Stored)
+        const admins = await Admin.find({ is_active: true });
+        for (const admin of admins) {
+            await Notification.create({
+                user_id: admin._id,
+                on_model: 'Admin',
+                title: 'New User Registered',
+                message: `A new user ${user.username} (${user.email}) has just registered.`,
+                type: 'info',
+                link: '/users'
+            });
+        }
+
         const userJSON = user.toJSON();
         userJSON.token = generateToken(user._id);
         userJSON.id = user._id;
@@ -149,6 +173,15 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     const updateData = {};
     if (req.body.username) updateData.username = req.body.username;
     if (req.body.bio !== undefined) updateData.bio = req.body.bio;
+    if (req.body.bundle_discounts) {
+        try {
+            updateData.bundle_discounts = typeof req.body.bundle_discounts === 'string' 
+                ? JSON.parse(req.body.bundle_discounts) 
+                : req.body.bundle_discounts;
+        } catch (e) {
+            console.error("Error parsing bundle_discounts:", e);
+        }
+    }
     if (req.file) {
         updateData.profile_image = `images/profile/${req.file.filename}`;
     }
@@ -164,6 +197,9 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         user.username = updateData.username || user.username;
         user.bio = updateData.bio !== undefined ? updateData.bio : user.bio;
         user.profile_image = updateData.profile_image || user.profile_image;
+        if (updateData.bundle_discounts) {
+            user.bundle_discounts = updateData.bundle_discounts;
+        }
         user.password_hash = req.body.password;
 
         const updatedUser = await user.save();

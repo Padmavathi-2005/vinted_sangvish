@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card } from 'react-bootstrap';
-import { FaUserPlus, FaShoppingBag, FaMoneyBillAlt, FaTshirt, FaTags, FaTruck, FaArrowRight, FaUsers, FaShoppingCart, FaStore, FaChartLine } from 'react-icons/fa';
+import { FaUserPlus, FaShoppingBag, FaMoneyBillAlt, FaTshirt, FaTags, FaTruck, FaArrowRight, FaUsers, FaShoppingCart, FaStore, FaChartLine, FaWallet, FaCheckCircle, FaThLarge } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
@@ -151,27 +151,41 @@ const AdminDashboard = () => {
                                 </Col>
                             </Row>
 
-                            <h5 className="fw-bold mb-3 mt-2">{t('dashboard.orders.title')}</h5>
+                            <div className="d-flex justify-content-between align-items-center mb-3 mt-2">
+                                <h5 className="fw-bold mb-0">{t('dashboard.content.pending_withdrawals')}</h5>
+                                <Link to="/wallet/withdrawal-requests?filter=pending" className="more-info text-decoration-none d-flex align-items-center gap-1">{t('dashboard.commission.wallet')} <FaArrowRight size={12} /></Link>
+                            </div>
                             <Row className="g-3">
                                 <Col sm={6}>
-                                    <Link to="/orders" className="stat-card-link">
-                                        <div className="stat-card bg-r-crimson">
+                                    <Link to="/wallet/withdrawal-requests?filter=pending" className="stat-card-link">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #f59e0b, #b45309)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.reservation.total)}</div>
-                                                <div className="stat-label">{t('dashboard.orders.total')}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.content?.pendingWithdrawals)}</div>
+                                                <div className="stat-label">{t('dashboard.content.pending_withdrawals')}</div>
                                             </div>
-                                            <div className="stat-icon"><FaTruck /></div>
+                                            <div className="stat-icon"><FaMoneyBillAlt /></div>
                                         </div>
                                     </Link>
                                 </Col>
                                 <Col sm={6}>
-                                    <Link to="/orders?filter=today" className="stat-card-link">
-                                        <div className="stat-card bg-r-yellow">
+                                    <Link to="/listings?filter=pending" className="stat-card-link">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.reservation.today)}</div>
-                                                <div className="stat-label">{t('dashboard.orders.today')}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.content?.pendingItems)}</div>
+                                                <div className="stat-label">{t('dashboard.content.pending_items')}</div>
                                             </div>
-                                            <div className="stat-icon"><FaTruck /></div>
+                                            <div className="stat-icon"><FaCheckCircle /></div>
+                                        </div>
+                                    </Link>
+                                </Col>
+                                <Col sm={12}>
+                                    <Link to="/categories" className="stat-card-link">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
+                                            <div className="stat-content">
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.content?.categories)}</div>
+                                                <div className="stat-label">{t('dashboard.content.total_categories')}</div>
+                                            </div>
+                                            <div className="stat-icon"><FaThLarge /></div>
                                         </div>
                                     </Link>
                                 </Col>
@@ -183,7 +197,7 @@ const AdminDashboard = () => {
                             <Row className="g-3 mb-4">
                                 <Col sm={6}>
                                     <Link to="/reports" className="stat-card-link">
-                                        <div className="stat-card bg-r-purple">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' }}>
                                             <div className="stat-content">
                                                 <div className="stat-number">{loading ? '...' : formatPrice(stats.revenue.total)}</div>
                                                 <div className="stat-label">{t('dashboard.revenue.total_income')}</div>
@@ -193,8 +207,19 @@ const AdminDashboard = () => {
                                     </Link>
                                 </Col>
                                 <Col sm={6}>
+                                    <Link to="/reports?filter=today" className="stat-card-link">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #d946ef, #a21caf)' }}>
+                                            <div className="stat-content">
+                                                <div className="stat-number">{loading ? '...' : formatPrice(stats.revenue.today)}</div>
+                                                <div className="stat-label">{t('dashboard.revenue.today_income')}</div>
+                                            </div>
+                                            <div className="stat-icon"><FaMoneyBillAlt /></div>
+                                        </div>
+                                    </Link>
+                                </Col>
+                                <Col sm={6}>
                                     <Link to="/reports" className="stat-card-link">
-                                        <div className="stat-card bg-r-red">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #f43f5e, #be123c)' }}>
                                             <div className="stat-content">
                                                 <div className="stat-number">{loading ? '...' : formatTotal(stats.revenue.count)}</div>
                                                 <div className="stat-label">{t('dashboard.revenue.total_sales')}</div>
@@ -203,28 +228,40 @@ const AdminDashboard = () => {
                                         </div>
                                     </Link>
                                 </Col>
+                                <Col sm={6}>
+                                    <Link to="/reports?filter=today" className="stat-card-link">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)' }}>
+                                            <div className="stat-content">
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.revenue.todayCount)}</div>
+                                                <div className="stat-label">{t('dashboard.revenue.today_sales')}</div>
+                                            </div>
+                                            <div className="stat-icon"><FaShoppingBag /></div>
+                                        </div>
+                                    </Link>
+                                </Col>
                             </Row>
 
-                            <h5 className="fw-bold mb-3 mt-2">{t('dashboard.categories.title')}</h5>
+                            <h5 className="fw-bold mb-3 mt-2">{t('dashboard.orders.title')}</h5>
                             <Row className="g-3 mb-4">
                                 <Col sm={6}>
-                                    <Link to="/categories/main" className="stat-card-link">
-                                        <div className="stat-card bg-r-lightgreen">
+                                    <Link to="/orders" className="stat-card-link">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #10b981, #047857)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.experience.total)}</div>
-                                                <div className="stat-label">{t('dashboard.categories.total')}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.reservation.total)}</div>
+                                                <div className="stat-label">{t('dashboard.orders.total')}</div>
                                             </div>
-                                            <div className="stat-icon"><FaTags /></div>
+                                            <div className="stat-icon"><FaTruck /></div>
                                         </div>
                                     </Link>
                                 </Col>
                                 <Col sm={6}>
-                                    <Link to="/categories/main" className="stat-card-link">
-                                        <div className="stat-card bg-light text-muted border border-2 shadow-none">
+                                    <Link to="/orders?filter=today" className="stat-card-link">
+                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #eab308, #a16207)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number text-muted">—</div>
-                                                <div className="stat-label">N/A</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.reservation.today)}</div>
+                                                <div className="stat-label">{t('dashboard.orders.today')}</div>
                                             </div>
+                                            <div className="stat-icon"><FaTruck /></div>
                                         </div>
                                     </Link>
                                 </Col>

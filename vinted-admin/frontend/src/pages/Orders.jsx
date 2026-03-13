@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Card, Form, InputGroup, Spinner, Badge, Button, Row, Col, Container, ButtonGroup } from 'react-bootstrap';
-import { FaSearch, FaBoxOpen } from 'react-icons/fa';
+import { Card, Form, InputGroup, Spinner, Badge, Button, Row, Col, Container, ButtonGroup, Dropdown } from 'react-bootstrap';
+import { FaSearch, FaBoxOpen, FaDownload, FaFileCsv, FaFilePdf, FaSync } from 'react-icons/fa';
 import Table from '../components/Table';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 import Modal from '../components/Modal';
-import axios from '../utils/axios';
+import axios, { imageBaseURL } from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
 import { useSettings } from '../context/SettingsContext';
 import { showToast, showConfirm } from '../utils/swal';
@@ -59,8 +62,67 @@ const Orders = () => {
         (order.buyer_id?.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (order.seller_id?.username || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
+    const exportToCSV = () => {
+        if (filteredOrders.length === 0) return showToast('info', 'No data to export');
 
+        const headers = ['Order No', 'Item Title', 'Buyer', 'Seller', 'Amount', 'Payment Status', 'Order Status', 'Date'];
+        const csvRows = [
+            headers.join(','),
+            ...filteredOrders.map(t => [
+                t.order_number || '',
+                safeString(t.item_id?.title) || 'Unknown Item',
+                safeString(t.buyer_id?.username) || 'Unknown',
+                safeString(t.seller_id?.username) || 'Unknown',
+                t.total_amount || 0,
+                t.payment_status?.toUpperCase() || '',
+                t.order_status?.toUpperCase() || '',
+                new Date(t.created_at).toLocaleDateString()
+            ].map(v => `"${v}"`).join(','))
+        ];
 
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `orders_export_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const exportToPDF = () => {
+        if (filteredOrders.length === 0) return showToast('info', 'No data to export');
+
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text('Orders Report', 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+
+        const tableColumn = ['Order No', 'Item Title', 'Buyer', 'Seller', 'Amount', 'Payment Status', 'Order Status', 'Date'];
+        const tableRows = filteredOrders.map(t => [
+            t.order_number || '',
+            safeString(t.item_id?.title) || 'Unknown Item',
+            safeString(t.buyer_id?.username) || 'Unknown',
+            safeString(t.seller_id?.username) || 'Unknown',
+            formatPrice(t.total_amount || 0),
+            t.payment_status?.toUpperCase() || '',
+            t.order_status?.toUpperCase() || '',
+            new Date(t.created_at).toLocaleDateString()
+        ]);
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+            styles: { fontSize: 9, cellPadding: 2 },
+            headStyles: { fillColor: [14, 165, 233] },
+        });
+
+        doc.save(`orders_export_${new Date().toISOString().slice(0, 10)}.pdf`);
+    };
 
     const handleEditOrder = (order) => {
         setSelectedOrder(order);
@@ -76,7 +138,7 @@ const Orders = () => {
         setSaving(true);
         try {
             await axios.put(`/api/admin/orders/${selectedOrder._id}`, formData);
-            showToast('success', 'Order updated successfully');
+            showToast('success', t('orders.toast.update_success') || 'Order updated successfully');
             setShowEditModal(false);
             fetchOrders();
         } catch (error) {
@@ -95,7 +157,7 @@ const Orders = () => {
             if (result.isConfirmed) {
                 try {
                     await axios.delete(`/api/admin/orders/${order._id}`);
-                    showToast('success', 'Order deleted');
+                    showToast('success', t('orders.toast.delete_success') || 'Order deleted');
                     fetchOrders();
                 } catch (error) {
                     console.error("Error deleting order", error);
@@ -120,9 +182,10 @@ const Orders = () => {
                     <div className="item-img-placeholder bg-light rounded" style={{ width: '45px', height: '45px', overflow: 'hidden' }}>
                         {order.item_id?.images?.[0] ? (
                             <img
-                                src={`${axios.defaults.baseURL}/${order.item_id.images[0]}`}
+                                src={`${imageBaseURL}/${order.item_id.images[0]}`}
                                 alt={order.item_id.title}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = `${imageBaseURL}/images/site/not_found.png`; }}
                             />
                         ) : (
                             <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted small">
@@ -162,7 +225,7 @@ const Orders = () => {
                     'failed': 'danger',
                     'refunded': 'secondary'
                 };
-                return <Badge bg={config[order.payment_status] || 'secondary'} className="text-capitalize">{t(`orders.status.${order.payment_status}`)}</Badge>;
+                return <Badge bg={config[order.payment_status] || 'secondary'} className="text-capitalize">{t(`orders.status.${order.payment_status?.toLowerCase()}`)}</Badge>;
             }
         },
         {
@@ -176,7 +239,7 @@ const Orders = () => {
                     'delivered': 'success',
                     'cancelled': 'danger'
                 };
-                return <Badge bg={config[order.order_status] || 'secondary'} className="text-capitalize">{t(`orders.status.${order.order_status}`)}</Badge>;
+                return <Badge bg={config[order.order_status] || 'secondary'} className="text-capitalize">{t(`orders.status.${order.order_status?.toLowerCase()}`)}</Badge>;
             }
         },
         {
@@ -190,10 +253,28 @@ const Orders = () => {
         <div className="admin-dashboard p-0">
             <Container fluid className="px-0">
                 <Card className="main-content-card border-0 shadow-sm p-4">
-                    <div className="d-flex justify-content-between align-items-center mb-4">
+                    <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
                         <div>
                             <h1 className="h3 mb-1">{t('orders.title')}</h1>
                             <p className="text-muted small mb-0">{t('orders.subtitle')}</p>
+                        </div>
+                        <div className="d-flex gap-2">
+                            <Button variant="outline-primary" onClick={fetchOrders} className="d-flex align-items-center gap-2 bg-white">
+                                <FaSync /> {t('common.refresh')}
+                            </Button>
+                            <Dropdown>
+                                <Dropdown.Toggle variant="primary" id="dropdown-export" className="d-flex align-items-center gap-2">
+                                    <FaDownload /> {t('common.export')}
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu className="shadow border-0">
+                                    <Dropdown.Item onClick={exportToCSV} className="d-flex align-items-center gap-2 py-2">
+                                        <FaFileCsv className="text-success" /> {t('common.export_csv')}
+                                    </Dropdown.Item>
+                                    <Dropdown.Item onClick={exportToPDF} className="d-flex align-items-center gap-2 py-2">
+                                        <FaFilePdf className="text-danger" /> {t('common.export_pdf')}
+                                    </Dropdown.Item>
+                                </Dropdown.Menu>
+                            </Dropdown>
                         </div>
                     </div>
 
@@ -236,7 +317,7 @@ const Orders = () => {
                             onEdit={handleEditOrder}
                             onDelete={handleDeleteOrder}
                             pagination={true}
-                            emptyMessage="No orders found."
+                            emptyMessage={t('orders.no_orders') || 'No orders found.'}
                         />
                     )}
                 </Card>

@@ -847,15 +847,19 @@ const updateItem = asyncHandler(async (req, res) => {
         throw new Error('Item not found');
     }
 
-    item.title = req.body.title !== undefined ? req.body.title : item.title;
-    item.price = req.body.price !== undefined ? req.body.price : item.price;
-    item.description = req.body.description !== undefined ? req.body.description : item.description;
-    item.brand = req.body.brand !== undefined ? req.body.brand : item.brand;
-    item.condition = req.body.condition !== undefined ? req.body.condition : item.condition;
+    const { 
+        title, price, description, brand, condition, status, is_deleted, 
+        category_id, subcategory_id, item_type_id, existingImages 
+    } = req.body;
 
-    if (req.body.status) {
-        const newStatus = req.body.status.toLowerCase();
+    if (title !== undefined) item.title = title;
+    if (price !== undefined) item.price = price;
+    if (description !== undefined) item.description = description;
+    if (brand !== undefined) item.brand = brand;
+    if (condition !== undefined) item.condition = condition;
 
+    if (status) {
+        const newStatus = status.toLowerCase();
         // If they are trying to activate the item, verify the seller isn't banned
         if (newStatus === 'active') {
             const seller = await User.findById(item.seller_id);
@@ -864,15 +868,44 @@ const updateItem = asyncHandler(async (req, res) => {
                 throw new Error('Cannot activate item. The seller is blocked/inactive.');
             }
         }
-
         item.status = newStatus;
     }
-    if (req.body.is_deleted !== undefined) {
-        item.is_deleted = req.body.is_deleted === 'true' || req.body.is_deleted === true;
+
+    if (is_deleted !== undefined) {
+        item.is_deleted = is_deleted === 'true' || is_deleted === true;
     }
-    if (req.body.category_id) item.category_id = req.body.category_id;
-    if (req.body.subcategory_id) item.subcategory_id = req.body.subcategory_id;
-    if (req.body.item_type_id !== undefined) item.item_type_id = req.body.item_type_id || null;
+
+    if (category_id && category_id !== '') item.category_id = category_id;
+    if (subcategory_id && subcategory_id !== '') item.subcategory_id = subcategory_id;
+    if (item_type_id !== undefined) item.item_type_id = (item_type_id && item_type_id !== '') ? item_type_id : null;
+
+    // Handle Images (Similar to itemController)
+    let updatedImages = [];
+    if (existingImages) {
+        try {
+            const parsedExisting = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages;
+            if (Array.isArray(parsedExisting)) {
+                updatedImages = parsedExisting.map(img => {
+                    if (typeof img !== 'string') return img;
+                    const parts = img.split('/');
+                    const filename = parts[parts.length - 1];
+                    return `images/items/${filename}`;
+                });
+            }
+        } catch (e) {
+            console.error("Error parsing existingImages in Admin:", e);
+        }
+    }
+
+    if (req.files && req.files.length > 0) {
+        const newImages = req.files.map(file => `images/items/${file.filename}`);
+        updatedImages = [...updatedImages, ...newImages];
+    }
+
+    // Only update images if we have something or existingImages was explicitly sent
+    if (existingImages !== undefined || (req.files && req.files.length > 0)) {
+        item.images = updatedImages;
+    }
 
     const updatedItem = await item.save();
     res.json(updatedItem);

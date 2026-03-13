@@ -115,7 +115,14 @@ const DynamicSettings = () => {
                     }
                 } else {
                     // Filter out empty strings for ObjectId fields to prevent 500 error
-                    if (key.includes('_id') && value === '') return;
+                    if (key.includes('_id')) {
+                        if (value === '' || value === null) return;
+                        // If it's an object with _id, use _id
+                        if (typeof value === 'object' && value._id) {
+                            data.append(key, value._id);
+                            return;
+                        }
+                    }
                     data.append(key, value);
                 }
             }
@@ -264,30 +271,98 @@ const DynamicSettings = () => {
                                                     </div>
                                                 </div>
                                                 <Row className="gy-3">
-                                                    {isTestMode ? (
-                                                        <>
-                                                            <Col md={6}>
-                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">TEST PUBLIC KEY</Form.Label>
-                                                                <Form.Control type="text" className="ds-input" name={`${gw.prefix}test_public_key`} value={formData[`${gw.prefix}test_public_key`] || ''} onChange={handleInputChange} autoComplete="off" />
-                                                            </Col>
-                                                            <Col md={6}>
-                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">TEST SECRET KEY</Form.Label>
-                                                                <Form.Control type="password" name={`${gw.prefix}test_secret_key`} value={formData[`${gw.prefix}test_secret_key`] || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
-                                                            </Col>
-                                                        </>
+                                                    {gw.id === 'stripe' ? (
+                                                        isTestMode ? (
+                                                            <>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">TEST PUBLIC KEY</Form.Label>
+                                                                    <Form.Control type="text" className="ds-input" name="stripe_test_public_key" value={formData.stripe_test_public_key || ''} onChange={handleInputChange} autoComplete="off" />
+                                                                </Col>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">TEST SECRET KEY</Form.Label>
+                                                                    <Form.Control type="password" name="stripe_test_secret_key" value={formData.stripe_test_secret_key || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                                </Col>
+                                                                <Col md={12}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">TEST WEBHOOK SECRET</Form.Label>
+                                                                    <Form.Control type="password" name="stripe_test_webhook_secret" value={formData.stripe_test_webhook_secret || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                                </Col>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE PUBLIC KEY</Form.Label>
+                                                                    <Form.Control type="text" className="ds-input" name="stripe_live_public_key" value={formData.stripe_live_public_key || ''} onChange={handleInputChange} autoComplete="off" />
+                                                                </Col>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE SECRET KEY</Form.Label>
+                                                                    <Form.Control type="password" name="stripe_live_secret_key" value={formData.stripe_live_secret_key || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                                </Col>
+                                                                <Col md={12}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE WEBHOOK SECRET</Form.Label>
+                                                                    <Form.Control type="password" name="stripe_live_webhook_secret" value={formData.stripe_live_webhook_secret || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                                </Col>
+                                                            </>
+                                                        )
                                                     ) : (
-                                                        <>
-                                                            <Col md={6}>
-                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE PUBLIC KEY</Form.Label>
-                                                                <Form.Control type="text" className="ds-input" name={`${gw.prefix}live_public_key`} value={formData[`${gw.prefix}live_public_key`] || ''} onChange={handleInputChange} autoComplete="off" />
-                                                            </Col>
-                                                            <Col md={6}>
-                                                                <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE SECRET KEY</Form.Label>
-                                                                <Form.Control type="password" name={`${gw.prefix}live_secret_key`} value={formData[`${gw.prefix}live_secret_key`] || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
-                                                            </Col>
-                                                        </>
+                                                        // PayPal
+                                                        isTestMode ? (
+                                                            <>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">SANDBOX CLIENT ID</Form.Label>
+                                                                    <Form.Control type="text" className="ds-input" name="paypal_test_client_id" value={formData.paypal_test_client_id || ''} onChange={handleInputChange} autoComplete="off" />
+                                                                </Col>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">SANDBOX SECRET KEY</Form.Label>
+                                                                    <Form.Control type="password" name="paypal_test_client_secret" value={formData.paypal_test_client_secret || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                                </Col>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE CLIENT ID</Form.Label>
+                                                                    <Form.Control type="text" className="ds-input" name="paypal_live_client_id" value={formData.paypal_live_client_id || ''} onChange={handleInputChange} autoComplete="off" />
+                                                                </Col>
+                                                                <Col md={6}>
+                                                                    <Form.Label className="xx-small fw-bold text-muted uppercase">LIVE SECRET KEY</Form.Label>
+                                                                    <Form.Control type="password" name="paypal_live_client_secret" value={formData.paypal_live_client_secret || ''} onChange={handleInputChange} className="ds-input" autoComplete="new-password" />
+                                                                </Col>
+                                                            </>
+                                                        )
                                                     )}
                                                 </Row>
+                                                <div className="ds-help-box">
+                                                    <span className="ds-help-title">Configuration Help</span>
+                                                    <div className="mb-3">
+                                                        <span className="ds-help-label">Webhook URL (Copy to {gw.name} Dashboard):</span>
+                                                        <div className="ds-url-code">
+                                                            <code>
+                                                                {formData.site_url ? `${formData.site_url.replace(/\/$/, '')}/api/payments/webhook` : `${window.location.protocol}//${window.location.host}/api/payments/webhook`}
+                                                            </code>
+                                                            <Button
+                                                                variant="outline-primary"
+                                                                size="sm"
+                                                                className="xx-small"
+                                                                onClick={() => {
+                                                                    const url = formData.site_url ? `${formData.site_url.replace(/\/$/, '')}/api/payments/webhook` : `${window.location.protocol}//${window.location.host}/api/payments/webhook`;
+                                                                    navigator.clipboard.writeText(url);
+                                                                    showToast('success', 'URL copied to clipboard');
+                                                                }}
+                                                            >
+                                                                Copy
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                    {gw.id === 'paypal' && (
+                                                        <div>
+                                                            <span className="ds-help-label">Return URL:</span>
+                                                            <div className="ds-url-code">
+                                                                <code>
+                                                                    {formData.site_url ? `${formData.site_url.replace(/\/$/, '')}/checkout/success` : `${window.location.protocol}//${window.location.host}/checkout/success`}
+                                                                </code>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </Col>
                                     </Row>
@@ -429,19 +504,22 @@ const DynamicSettings = () => {
     const getFieldsForType = (type) => {
         const fieldMap = {
             general_settings: [
-                'primary_color', 'secondary_color', 'pagination_limit',
-                'maintenance_mode', 'allow_registration', 'allow_guest_checkout',
+                'primary_color', 'secondary_color', 'body_font_name', 'body_font_url', 'pagination_limit',
+                'maintenance_mode',
                 'support_email', 'timezone', 'admin_commission',
                 'default_language_id', 'default_currency_id'
             ],
             site_settings: [
-                'site_name', 'site_logo', 'site_favicon', 'image_not_found', 'empty_table_image'
+                'site_name', 'site_url', 'site_logo', 'site_favicon', 'image_not_found', 'empty_table_image'
             ],
             cookie_settings: [
                 'cookie_heading', 'cookie_message', 'cookie_button_text', 'cookie_page_id'
             ],
             payment_settings: [
-                'stripe_enabled', 'paypal_enabled' // Only global switches, details in tabs
+                'stripe_enabled', 'stripe_test_mode', 'stripe_test_public_key', 'stripe_test_secret_key', 'stripe_test_webhook_secret',
+                'stripe_live_public_key', 'stripe_live_secret_key', 'stripe_live_webhook_secret',
+                'paypal_enabled', 'paypal_test_mode', 'paypal_test_client_id', 'paypal_test_client_secret',
+                'paypal_live_client_id', 'paypal_live_client_secret'
             ]
         };
         return fieldMap[type] || [];

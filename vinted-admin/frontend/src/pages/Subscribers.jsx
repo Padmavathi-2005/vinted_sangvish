@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Card, Row, Col, Form, Button, Badge } from 'react-bootstrap';
+import { Container, Card, Row, Col, Form, Button, Badge, Dropdown } from 'react-bootstrap';
 import axios from '../utils/axios';
 import Table from '../components/Table';
-import { FaTrash, FaSearch, FaSync, FaEnvelope } from 'react-icons/fa';
+import { FaTrash, FaSearch, FaSync, FaEnvelope, FaDownload, FaFileCsv, FaFilePdf } from 'react-icons/fa';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const Subscribers = () => {
     const [subscribers, setSubscribers] = useState([]);
@@ -62,6 +64,86 @@ const Subscribers = () => {
             console.error('Error updating status:', error);
             alert('Failed to update status');
         }
+    };
+
+    const fetchAllForExport = async () => {
+        try {
+            const { data } = await axios.get('/api/admin/newsletter', {
+                params: {
+                    page: 1,
+                    limit: 100000, // Large number to get all
+                    search: searchTerm,
+                    status: statusFilter
+                }
+            });
+            return data.subscribers || [];
+        } catch (error) {
+            console.error('Error fetching data for export:', error);
+            alert('Failed to fetch data for export.');
+            return [];
+        }
+    };
+
+    const exportToCSV = async () => {
+        const data = await fetchAllForExport();
+        if (data.length === 0) return alert('No data to export');
+
+        const headers = ['Email', 'Source', 'Status', 'Subscribed At'];
+        const csvRows = [
+            headers.join(','), // Header row
+            ...data.map(sub => [
+                sub.email,
+                sub.source || 'footer',
+                sub.status,
+                new Date(sub.created_at).toLocaleDateString()
+            ].map(v => `"${v}"`).join(','))
+        ];
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `subscribers_export_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const exportToPDF = async () => {
+        const data = await fetchAllForExport();
+        if (data.length === 0) return alert('No data to export');
+
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text('Newsletter Subscribers Report', 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+
+        const tableColumn = ["Email", "Source", "Status", "Subscribed At"];
+        const tableRows = [];
+
+        data.forEach(sub => {
+            const subscriberData = [
+                sub.email,
+                sub.source || 'footer',
+                sub.status,
+                new Date(sub.created_at).toLocaleDateString()
+            ];
+            tableRows.push(subscriberData);
+        });
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+            styles: { fontSize: 10, cellPadding: 3 },
+            headStyles: { fillColor: [14, 165, 233] },
+        });
+
+        doc.save(`subscribers_export_${new Date().toISOString().slice(0, 10)}.pdf`);
     };
 
     const columns = [
@@ -126,9 +208,24 @@ const Subscribers = () => {
                     <h2 className="fw-bold text-dark mb-1">Newsletter Subscribers</h2>
                     <p className="text-secondary mb-0">Manage your newsletter list and subscribers</p>
                 </div>
-                <Button variant="primary" onClick={fetchSubscribers} className="d-flex align-items-center gap-2">
-                    <FaSync /> Refresh
-                </Button>
+                <div className="d-flex gap-2">
+                    <Button variant="outline-primary" onClick={fetchSubscribers} className="d-flex align-items-center gap-2 bg-white">
+                        <FaSync /> Refresh
+                    </Button>
+                    <Dropdown>
+                        <Dropdown.Toggle variant="primary" id="dropdown-export" className="d-flex align-items-center gap-2">
+                            <FaDownload /> Export
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu className="shadow border-0">
+                            <Dropdown.Item onClick={exportToCSV} className="d-flex align-items-center gap-2 py-2">
+                                <FaFileCsv className="text-success" /> Export to CSV
+                            </Dropdown.Item>
+                            <Dropdown.Item onClick={exportToPDF} className="d-flex align-items-center gap-2 py-2">
+                                <FaFilePdf className="text-danger" /> Export to PDF
+                            </Dropdown.Item>
+                        </Dropdown.Menu>
+                    </Dropdown>
+                </div>
             </div>
 
             <Card className="border-0 shadow-sm mb-4">

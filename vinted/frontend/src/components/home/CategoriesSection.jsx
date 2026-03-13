@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import {
@@ -13,8 +13,12 @@ const CategoriesSection = () => {
     const { t } = useTranslation();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
+    const scrollRef = useRef(null);
+    const [isMouseDown, setIsMouseDown] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
 
-    // Fallback static categories using original colorful emoji icons
+    // Fallback static categories
     const staticCategories = [
         { _id: '1', slug: 'women', name: 'Women', icon: '👗' },
         { _id: '2', slug: 'men', name: 'Men', icon: '👕' },
@@ -23,17 +27,18 @@ const CategoriesSection = () => {
         { _id: '5', slug: 'home', name: 'Home', icon: '🏠' },
         { _id: '6', slug: 'electronics', name: 'Electronics', icon: '💻' },
         { _id: '7', slug: 'entertainment', name: 'Entertainment', icon: '🎬' },
+        { _id: '8', slug: 'accessories', name: 'Accessories', icon: '👜' },
+        { _id: '9', slug: 'beauty', name: 'Beauty', icon: '💄' },
+        { _id: '10', slug: 'sports', name: 'Sports', icon: '⚽' },
     ];
 
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                // Attempt to fetch from API
                 const res = await axios.get('/api/categories');
                 if (Array.isArray(res.data) && res.data.length > 0) {
-                    setCategories(res.data);
+                    setCategories(res.data.slice(0, 20));
                 } else {
-                    console.log("No categories array received, using fallbacks");
                     setCategories(staticCategories);
                 }
             } catch (err) {
@@ -47,26 +52,61 @@ const CategoriesSection = () => {
         fetchCategories();
     }, []);
 
-    // Determine how many items to show in one row (e.g., 7 items max)
-    const ITEMS_PER_ROW = 7;
-    const displayCategories = categories.length > 0 ? categories.slice(0, ITEMS_PER_ROW) : staticCategories;
+    const handleMouseDown = (e) => {
+        setIsMouseDown(true);
+        setStartX(e.pageX - scrollRef.current.offsetLeft);
+        setScrollLeft(scrollRef.current.scrollLeft);
+    };
+
+    const handleMouseLeave = () => {
+        setIsMouseDown(false);
+    };
+
+    const handleMouseUp = () => {
+        setIsMouseDown(false);
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isMouseDown) return;
+        e.preventDefault();
+        const x = e.pageX - scrollRef.current.offsetLeft;
+        const walk = (x - startX) * 2; // scroll speed
+        scrollRef.current.scrollLeft = scrollLeft - walk;
+    };
+
+    // Create a duplicated list for infinite look
+    const marqueeItems = [...categories, ...categories, ...categories];
 
     return (
-        <section className="categories-section py-5">
+        <section className="categories-section py-4 py-md-5 overflow-hidden">
+            {/* Padded Header */}
             <Container fluid className="px-md-5 px-3">
-                <div className="d-flex justify-content-between align-items-center mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-4 px-2">
                     <h2 className="section-title mb-0">{t('home.browse_categories', 'Browse Items by Category')}</h2>
                     <Link to="/categories" className="view-all-link">{t('home.view_all', 'View all')}</Link>
                 </div>
+            </Container>
 
-                <div className="categories-grid seven-col">
-                    {displayCategories.map((cat, index) => {
-                        return (
-                            <Link
-                                key={cat._id}
-                                to={`/categories/${cat.slug}`}
-                                className="category-card"
-                            >
+            {/* Edge-to-Edge Marquee */}
+            <div 
+                className={`categories-marquee-container ${isMouseDown ? 'dragging' : ''}`}
+                ref={scrollRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+            >
+                <div className="categories-marquee-track">
+                    {marqueeItems.map((cat, index) => (
+                        <Link
+                            key={`${cat._id}-${index}`}
+                            to={`/categories/${cat.slug}`}
+                            className="category-card-marquee"
+                            onClick={(e) => {
+                                if (isMouseDown) e.preventDefault();
+                            }}
+                        >
+                            <div className="category-card h-100">
                                 <div className="category-icon-wrapper">
                                     <div className="category-icon">
                                         {cat.image ? (
@@ -76,8 +116,7 @@ const CategoriesSection = () => {
                                                 className="cat-img"
                                                 onError={(e) => {
                                                     e.target.style.display = 'none';
-                                                    const next = e.target.nextSibling;
-                                                    if (next) next.style.display = 'block';
+                                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'block';
                                                 }}
                                             />
                                         ) : null}
@@ -87,11 +126,11 @@ const CategoriesSection = () => {
                                     </div>
                                 </div>
                                 <span className="category-label">{safeString(cat.name)}</span>
-                            </Link>
-                        );
-                    })}
+                            </div>
+                        </Link>
+                    ))}
                 </div>
-            </Container>
+            </div>
         </section>
     );
 };

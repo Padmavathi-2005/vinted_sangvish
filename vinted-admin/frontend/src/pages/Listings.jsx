@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Container, Button, Card, Form, InputGroup, Spinner, ButtonGroup } from 'react-bootstrap';
-import { FaPlus, FaSearch, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaUpload, FaTimes } from 'react-icons/fa';
 import Table from '../components/Table';
 import Modal from '../components/Modal';
 import Toggle from '../components/Toggle';
 import AdminSearchSelect from '../components/AdminSearchSelect';
-import axios from '../utils/axios';
+import axios, { imageBaseURL } from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
 import { useSettings } from '../context/SettingsContext';
 import { showToast, showConfirm } from '../utils/swal';
@@ -44,9 +44,17 @@ const Listings = () => {
     const [saving, setSaving] = useState(false);
     const [togglingItemId, setTogglingItemId] = useState(null);
     const [categoryError, setCategoryError] = useState(false);
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [existingImages, setExistingImages] = useState([]);
+    const fileInputRef = useRef(null);
 
     // Pagination and global settings
     const { paginationLimit, globalSettings } = useSettings();
+
+    const handleImageError = (e) => {
+        e.target.onerror = null;
+        e.target.src = `${imageBaseURL}/images/site/not_found.png`;
+    };
 
 
 
@@ -118,9 +126,11 @@ const Listings = () => {
             item_type_id: listing.item_type_id?._id || listing.item_type_id || '',
             condition: listing.condition || '',
             status: listing.status || 'active',
-            is_sold: listing.status === 'sold',
+            is_sold: !!listing.is_sold,
             is_blocked: listing.status === 'inactive'
         });
+        setExistingImages(listing.images || []);
+        setSelectedFiles([]);
         setShowEditModal(true);
     };
 
@@ -132,29 +142,43 @@ const Listings = () => {
         }
 
         if (!formData.title || !formData.price) {
-            showToast('warning', 'Please fill in Title and Price');
+            showToast('warning', t('listings.modal.fill_required') || 'Please fill in Title and Price');
             return;
         }
 
         setSaving(true);
         try {
-            let finalStatus = 'active';
-            if (formData.is_sold) finalStatus = 'sold';
-            else if (formData.is_blocked) finalStatus = 'inactive';
+            let finalStatus = formData.is_blocked ? 'inactive' : 'active';
 
-            const payload = { ...formData, status: finalStatus };
+            const data = new FormData();
+            Object.keys(formData).forEach(key => {
+                if (key !== 'is_sold' && key !== 'is_blocked' && key !== 'status') {
+                    data.append(key, formData[key]);
+                }
+            });
+            data.set('status', finalStatus);
+            data.set('is_sold', formData.is_sold);
+            data.append('existing_images', JSON.stringify(existingImages));
+            
+            selectedFiles.forEach(file => {
+                data.append('images', file);
+            });
 
             if (selectedListing) {
-                await axios.put(`/api/admin/items/${selectedListing._id}`, payload);
+                await axios.put(`/api/admin/items/${selectedListing._id}`, data, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
             } else {
-                await axios.post('/api/admin/items', payload);
+                await axios.post('/api/admin/items', data, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
             }
-            showToast('success', `Listing ${selectedListing ? 'updated' : 'created'} successfully!`);
+            showToast('success', selectedListing ? (t('listings.toast.update_success')) : (t('listings.toast.create_success')));
             setShowEditModal(false);
             fetchListings();
         } catch (error) {
             console.error("Error saving listing", error);
-            showToast('error', 'Failed to save listing');
+            showToast('error', t('listings.toast.save_error'));
         } finally {
             setSaving(false);
         }
@@ -168,8 +192,10 @@ const Listings = () => {
             setListings(listings.map(l =>
                 l._id === listing._id ? { ...l, status: newStatus } : l
             ));
+            showToast('success', t('listings.toast.status_update_success'));
         } catch (error) {
             console.error("Error toggling status", error);
+            showToast('error', t('listings.toast.status_update_error'));
         } finally {
             setTogglingItemId(null);
         }
@@ -183,11 +209,13 @@ const Listings = () => {
                 <div className="d-flex align-items-center gap-3">
                     <div className="item-img-placeholder bg-light rounded" style={{ width: '45px', height: '45px', overflow: 'hidden' }}>
                         {row.images?.[0] ?
-                            <img src={`${axios.defaults.baseURL}${row.images[0]}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : (globalSettings?.imageNotFound ?
-                                <img src={`${axios.defaults.baseURL}/${globalSettings.imageNotFound}`} alt="Not Found" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                : <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted small">No Img</div>
-                            )
+                            <img
+                                src={`${imageBaseURL}/${row.images[0]}`}
+                                alt={row.title}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = `${imageBaseURL}/images/site/not_found.png`; }}
+                            />
+                            : <img src={`${imageBaseURL}/images/site/not_found.png`} alt="Not Found" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         }
                     </div>
                     <div>
@@ -213,13 +241,22 @@ const Listings = () => {
             render: (row) => <span className="text-capitalize small">{row.condition?.replace(/-/g, ' ')}</span>
         },
         {
+            header: t('listings.table.availability'),
+            accessor: 'is_sold',
+            render: (row) => (
+                <span className={`badge ${row.is_sold ? 'bg-danger' : 'bg-success'}`}>
+                    {row.is_sold ? t('listings.modal.sold') : t('listings.modal.available')}
+                </span>
+            )
+        },
+        {
             header: t('listings.table.status'),
             accessor: 'status',
             render: (row) => (
                 <Toggle
-                    checked={row.status === 'active'}
+                    checked={row.status.toLowerCase() === 'active'}
                     onChange={(checked) => handleStatusToggle(row, checked)}
-                    label={row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                    label={row.status.toLowerCase() === 'active' ? t('listings.modal.active') : t('listings.modal.blocked')}
                     disabled={togglingItemId === row._id}
                 />
             )
@@ -289,6 +326,7 @@ const Listings = () => {
                             onEdit={handleEdit}
                             onDelete={(row) => { setSelectedListing(row); setShowDeleteModal(true); }}
                             pagination={true}
+                            emptyMessage={t('listings.no_listings')}
                         />
                     )}
                 </Card>
@@ -409,6 +447,52 @@ const Listings = () => {
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 placeholder={t('listings.modal.description_placeholder')}
                             />
+                        </Form.Group>
+
+                        <Form.Group className="mb-4">
+                            <Form.Label>{t('listings.modal.images')}</Form.Label>
+                            <div className="d-flex flex-wrap gap-2 mb-2">
+                                {existingImages.map((img, idx) => (
+                                    <div key={`existing-${idx}`} className="position-relative" style={{ width: '80px', height: '80px' }}>
+                                        <img src={`${imageBaseURL}/${img}`} alt="" className="w-100 h-100 object-fit-cover rounded border" />
+                                        <button 
+                                            type="button"
+                                            className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 d-flex align-items-center justify-content-center rounded-circle"
+                                            style={{ width: '20px', height: '20px', marginTop: '-5px', marginRight: '-5px' }}
+                                            onClick={() => setExistingImages(existingImages.filter((_, i) => i !== idx))}
+                                        >
+                                            <FaTimes size={10} />
+                                        </button>
+                                    </div>
+                                ))}
+                                {selectedFiles.map((file, idx) => (
+                                    <div key={`new-${idx}`} className="position-relative" style={{ width: '80px', height: '80px' }}>
+                                        <img src={URL.createObjectURL(file)} alt="" className="w-100 h-100 object-fit-cover rounded border" />
+                                        <button 
+                                            type="button"
+                                            className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 d-flex align-items-center justify-content-center rounded-circle"
+                                            style={{ width: '20px', height: '20px', marginTop: '-5px', marginRight: '-5px' }}
+                                            onClick={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== idx))}
+                                        >
+                                            <FaTimes size={10} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <div 
+                                    className="d-flex align-items-center justify-content-center border rounded bg-light cursor-pointer image-upload-placeholder"
+                                    style={{ width: '80px', height: '80px', borderStyle: 'dashed' }}
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <FaPlus className="text-muted" />
+                                    <input 
+                                        type="file" 
+                                        multiple 
+                                        hidden 
+                                        ref={fileInputRef} 
+                                        onChange={(e) => setSelectedFiles([...selectedFiles, ...Array.from(e.target.files)])}
+                                    />
+                                </div>
+                            </div>
                         </Form.Group>
 
                         <div className="row">

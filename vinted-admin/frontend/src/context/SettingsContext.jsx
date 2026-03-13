@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from '../utils/axios';
 import { getAdminInfo } from '../utils/auth';
+import { safeString } from '../utils/constants';
 
 const SettingsContext = createContext();
 
@@ -42,8 +43,36 @@ export const SettingsProvider = ({ children }) => {
             }
         }
 
+        // Apply Dynamic Fonts
+        if (settings.body_font_url) {
+            let fontLink = document.getElementById('dynamic-google-font');
+            if (!fontLink) {
+                fontLink = document.createElement('link');
+                fontLink.id = 'dynamic-google-font';
+                fontLink.rel = 'stylesheet';
+                document.head.appendChild(fontLink);
+            }
+            fontLink.href = settings.body_font_url;
+        }
+
+        if (settings.body_font_name) {
+            document.documentElement.style.setProperty('--body-font', settings.body_font_name);
+            document.body.style.fontFamily = `var(--body-font), system-ui, -apple-system, sans-serif`;
+        }
+
         if (settings.site_name) {
-            document.title = `${settings.site_name} Admin`;
+            document.title = `${safeString(settings.site_name)} Admin`;
+        }
+
+        if (settings.favicon) {
+            const faviconString = safeString(settings.favicon);
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.head.appendChild(link);
+            }
+            link.href = faviconString.startsWith('http') ? faviconString : `${axios.defaults.baseURL}/${faviconString}`;
         }
     };
 

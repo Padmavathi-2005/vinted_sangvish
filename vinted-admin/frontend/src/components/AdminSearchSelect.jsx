@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { FaChevronDown, FaSearch, FaCheck } from 'react-icons/fa';
 import { safeString } from '../utils/constants';
 

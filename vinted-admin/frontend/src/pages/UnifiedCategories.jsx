@@ -11,7 +11,7 @@ import '../styles/UnifiedCategories.css';
 const AVATAR = (image, fallback) => (
     <div style={{ width: 40, height: 40, minWidth: 40, borderRadius: 8, overflow: 'hidden', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', flexShrink: 0 }}>
         {image
-            ? <img src={`${imageBaseURL}/${image}`} alt="" style={{ width: 40, height: 40, objectFit: 'cover', display: 'block' }} onError={(e) => { e.target.style.display = 'none'; }} />
+            ? <img src={`${imageBaseURL}/${image}`} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `${imageBaseURL}/images/site/not_found.png`; }} />
             : fallback
         }
     </div>

@@ -14,6 +14,7 @@ import CartContext from '../context/CartContext';
 import { useTranslation } from 'react-i18next';
 import { getImageUrl, safeString } from '../utils/constants';
 import NotificationContext from '../context/NotificationContext';
+import { useSettings } from '../context/SettingsContext';
 
 const Header = () => {
     const { user, logout, mode, toggleMode } = useContext(AuthContext);
@@ -22,18 +23,13 @@ const Header = () => {
     const { languages, currentLanguage, setLanguage } = useContext(LanguageContext);
     const { unreadCount, notifications: notifState } = useContext(NotificationContext);
     const { cartCount } = useContext(CartContext);
+    const { settings } = useSettings();
     const { t } = useTranslation();
     const navigate = useNavigate();
     const menuRef = useRef(null);
     const searchRef = useRef(null);
     const fileInputRef = useRef(null);
 
-    // Settings State
-    const [settings, setSettings] = useState({
-        site_name: 'Marketplace',
-        site_logo: '',
-        primary_color: '#0ea5e9',
-    });
 
     // User Dropdown State
     const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -100,29 +96,19 @@ const Header = () => {
     const [searchHistory, setSearchHistory] = useState([]);
     const [showSearchHistory, setShowSearchHistory] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
-    // Fetch Settings and Categories
+    // Fetch Categories
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [settingsRes, categoriesRes] = await Promise.all([
-                    axios.get('/api/settings').catch(() => ({ data: null })),
-                    axios.get('/api/categories/full').catch(() => ({ data: [] }))
-                ]);
-
-                if (settingsRes.data) {
-                    setSettings(prev => ({ ...prev, ...settingsRes.data }));
-                    document.documentElement.style.setProperty('--primary-color', settingsRes.data.primary_color || '#0ea5e9');
-                    if (settingsRes.data.image_not_found) {
-                        sessionStorage.setItem('imageNotFound', settingsRes.data.image_not_found);
-                    }
-                }
+                const categoriesRes = await axios.get('/api/categories/full').catch(() => ({ data: [] }));
 
                 if (Array.isArray(categoriesRes.data) && categoriesRes.data.length > 0) {
                     setCategories(categoriesRes.data);
                 }
             } catch (error) {
-                console.error('Failed to fetch header data:', error);
+                console.error('Failed to fetch categories:', error);
             } finally {
                 setLoading(false);
             }
@@ -237,10 +223,12 @@ const Header = () => {
             navigate(`/products?search=${encodeURIComponent(term)}`);
             closeAllDropdowns();
             setSearchTerm(term);
+            setIsMobileSearchOpen(false); // Close mobile search overlay on submit
         }
     };
 
     const [isImageSearching, setIsImageSearching] = useState(false);
+    const [searchingImage, setSearchingImage] = useState(null);
 
     const handleImageSearchClick = () => {
         if (fileInputRef.current) {
@@ -251,6 +239,12 @@ const Header = () => {
     const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Clean up previous search URL
+        if (searchingImage) URL.revokeObjectURL(searchingImage);
+        
+        const previewUrl = URL.createObjectURL(file);
+        setSearchingImage(previewUrl);
 
         try {
             setIsImageSearching(true);
@@ -273,6 +267,8 @@ const Header = () => {
         } finally {
             setIsImageSearching(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
+            // Delay clear to allow user to see it briefly
+            setTimeout(() => setSearchingImage(null), 3000);
         }
     };
 
@@ -338,8 +334,22 @@ const Header = () => {
                     </Link>
                 </div>
 
-                {/* Middle: Desktop Navigation (Primary) */}
-                <div className="middle-section">
+                {/* Mobile Icons (Visible on mobile & tablet < 1200px) */}
+                <div className="mobile-actions d-xl-none d-flex align-items-center gap-3 ms-auto">
+                    <button 
+                        className="mobile-search-toggle" 
+                        onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                        style={{ background: 'none', border: 'none', color: '#495057', padding: '8px' }}
+                    >
+                        {isMobileSearchOpen ? <FaTimes size={22} /> : <FaSearch size={22} />}
+                    </button>
+                    <button onClick={openMobileMenu} className="hamburger-btn" style={{ background: 'none', border: 'none', color: '#495057', padding: '8px' }}>
+                        <FaBars size={24} />
+                    </button>
+                </div>
+
+                {/* Middle: Desktop Navigation (Primary) - Hidden on < 1200px */}
+                <div className="middle-section d-none d-xl-flex">
                     <nav className="desktop-nav">
                         <div
                             className="nav-item categories-toggle"
@@ -362,8 +372,8 @@ const Header = () => {
                     </nav>
                 </div>
 
-                {/* Search Bar - Expanded */}
-                <div className="search-bar-container" style={{ flex: 1, margin: '0 30px', maxWidth: '800px', display: 'flex', justifyContent: 'center' }} ref={searchRef}>
+                {/* Search Bar - Expanded (Desktop) - Hidden on < 1200px */}
+                <div className="search-bar-container d-none d-xl-flex" style={{ flex: 1, margin: '0 30px', maxWidth: '800px' }} ref={searchRef}>
                     <div
                         className="search-bar"
                         style={{
@@ -463,6 +473,29 @@ const Header = () => {
                                 </button>
                             </div>
 
+                            {searchingImage && (
+                                <div style={{
+                                    position: 'absolute',
+                                    right: searchTerm.trim() ? '145px' : '55px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    overflow: 'hidden',
+                                    border: `2px solid ${settings.primary_color}`,
+                                    zIndex: 102,
+                                    animation: 'fadeIn 0.3s ease'
+                                }}>
+                                    <img src={searchingImage} alt="Search" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    {isImageSearching && (
+                                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <div className="spinner-border spinner-border-sm" style={{ width: '0.8rem', height: '0.8rem', color: settings.primary_color }} />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {searchTerm.trim() && (
                                 <button
                                     onClick={() => handleSearchSubmit(searchTerm)}
@@ -508,12 +541,17 @@ const Header = () => {
                                     color: '#adb5bd',
                                     letterSpacing: '0.05em',
                                 }}>
-                                    {searchHistory.length > 0 ? 'RECENT SEARCHES' : 'POPULAR CATEGORIES'}
+                                    {searchHistory.length > 0 ? 'RECENT SEARCHES' : 'TRENDING CATEGORIES'}
                                 </div>
-                                <div style={{ paddingBottom: '8px' }}>
+                                <div style={{ 
+                                    padding: '0 16px 16px 16px', 
+                                    display: 'flex', 
+                                    flexWrap: 'wrap', 
+                                    gap: '8px' 
+                                }}>
                                     {(searchHistory.length > 0
                                         ? searchHistory
-                                        : categories.reduce((acc, c) => acc.concat(c.subcategories || []), []).slice(0, 5)
+                                        : categories.reduce((acc, c) => acc.concat(c.subcategories || []), []).slice(0, 10)
                                     ).map((item, idx) => {
                                         const query = (typeof item === 'string') ? item : (item.name || item.query);
                                         const id = item._id || `cat-${idx}`;
@@ -521,26 +559,9 @@ const Header = () => {
                                             <div
                                                 key={id}
                                                 onClick={() => handleSearchSubmit(query)}
-                                                style={{
-                                                    padding: '10px 16px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '14px',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s',
-                                                    color: '#495057'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.background = '#f8f9fa';
-                                                    e.currentTarget.style.color = settings.primary_color;
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.background = 'transparent';
-                                                    e.currentTarget.style.color = '#495057';
-                                                }}
+                                                className="search-trending-tag"
                                             >
-                                                <FaSearch style={{ color: '#adb5bd', fontSize: '0.8rem', opacity: 0.6 }} />
-                                                <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>{query}</span>
+                                                {query}
                                             </div>
                                         );
                                     })}
@@ -549,8 +570,8 @@ const Header = () => {
                         )}
                     </div>
                 </div>
-                {/* Right Section: Actions */}
-                <div className="right-section">
+                {/* Right Section: Actions - Hidden on < 1200px */}
+                <div className="right-section d-none d-xl-flex">
                     <Link to="/sell" className="sell-btn" style={{ backgroundColor: settings.primary_color }}>
                         <FaPlus /> {t('header.sell_button')}
                     </Link>
@@ -1101,15 +1122,70 @@ const Header = () => {
                             </div>
                         )}
 
-                        {/* Mobile Toggle */}
-                        <div className="mobile-toggle">
-                            <button onClick={openMobileMenu} className="hamburger-btn">
-                                <FaBars size={24} />
-                            </button>
-                        </div>
+                        {/* Mobile Toggle removed from here, moved to mobile-actions */}
                     </div>
                 </div>
             </div>
+
+            {/* Mobile Search Bar (Expanded below header) */}
+            {isMobileSearchOpen && (
+                <div className="mobile-search-expanded d-xl-none px-3 py-2 bg-white border-bottom shadow-sm text-center">
+                    <div className="search-bar" style={{ position: 'relative', width: '100%', maxWidth: '1000px', margin: '0 auto' }}>
+                        <div className="search-input-wrapper" style={{
+                            background: '#f8f9fa',
+                            borderRadius: '25px',
+                            border: '1px solid #e9ecef',
+                            height: '46px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                            position: 'relative',
+                            width: '100%'
+                        }}>
+                            <div style={{ paddingLeft: '18px' }}>
+                                <FaSearch style={{ color: '#adb5bd', fontSize: '0.9rem' }} />
+                            </div>
+                            <input
+                                type="text"
+                                autoFocus
+                                placeholder={t('header.search_placeholder')}
+                                style={{ flex: 1, padding: '0 100px 0 16px', border: 'none', background: 'transparent', fontSize: '0.95rem', outline: 'none' }}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchTerm)}
+                            />
+                            
+                            {/* Visual Search in Mobile Bar */}
+                            <div style={{ position: 'absolute', right: searchTerm.trim() ? '105px' : '15px', display: 'flex', alignItems: 'center' }}>
+                                <button
+                                    onClick={handleImageSearchClick}
+                                    style={{ background: 'transparent', border: 'none', color: isImageSearching ? settings.primary_color : '#adb5bd', fontSize: '1.1rem', cursor: 'pointer' }}
+                                    disabled={isImageSearching}
+                                >
+                                    {isImageSearching ? <div className="spinner-border spinner-border-sm" /> : <FaCamera />}
+                                </button>
+                            </div>
+
+                            {searchingImage && (
+                                <div style={{ position: 'absolute', right: searchTerm.trim() ? '145px' : '55px', top: '50%', transform: 'translateY(-50%)', width: '32px', height: '32px', borderRadius: '6px', overflow: 'hidden', border: `2px solid ${settings.primary_color}` }}>
+                                    <img src={searchingImage} alt="Search" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                            )}
+
+                            {searchTerm.trim() && (
+                                <button
+                                    onClick={() => handleSearchSubmit(searchTerm)}
+                                    style={{
+                                        position: 'absolute', right: '6px', border: 'none', background: settings.primary_color, color: 'white', borderRadius: '20px', padding: '0 15px', height: '34px', fontWeight: '600'
+                                    }}
+                                >
+                                    {t('header.search_button')}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Horizontal Category Bar */}
             {
@@ -1294,8 +1370,25 @@ const Header = () => {
                             <div style={{ padding: '20px', borderTop: '1px solid #f1f3f5', marginTop: 'auto' }}>
                                 {user ? (
                                     <>
-                                        <Link to="/profile" className="mobile-link" onClick={closeMobileMenu}>My Profile</Link>
-                                        <button onClick={handleLogout} className="mobile-link" style={{ border: 'none', background: 'none', width: '100%', textAlign: 'left' }}>Logout</button>
+                                        <div style={{ padding: '0 0 10px 0', fontSize: '0.8rem', fontWeight: '700', color: '#868e96', textTransform: 'uppercase' }}>Account</div>
+                                        <Link to="/profile" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <FaUser size={16} /> My Profile
+                                        </Link>
+                                        <Link to="/profile?tab=orders" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <FaShoppingCart size={16} /> My Orders
+                                        </Link>
+                                        <Link to="/profile?tab=favorites" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <FaHeart size={16} /> Favorites
+                                        </Link>
+                                        <Link to="/profile?tab=messages" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <FaBell size={16} /> Messages
+                                        </Link>
+                                        <Link to="/cart" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <FaShoppingCart size={16} /> Cart
+                                        </Link>
+                                        <button onClick={handleLogout} className="mobile-link" style={{ border: 'none', background: 'none', width: '100%', textAlign: 'left', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <FaSignOutAlt size={16} /> Logout
+                                        </button>
                                     </>
                                 ) : (
                                     <>
@@ -1303,7 +1396,9 @@ const Header = () => {
                                         <Link to="/register" className="mobile-link" onClick={closeMobileMenu}>Sign Up</Link>
                                     </>
                                 )}
-                                <Link to="/sell" className="mobile-btn" style={{ backgroundColor: settings.primary_color }} onClick={closeMobileMenu}>Sell Now</Link>
+                                <Link to="/sell" className="mobile-btn" style={{ backgroundColor: settings.primary_color, marginTop: '20px' }} onClick={closeMobileMenu}>
+                                    <FaPlus /> Sell Now
+                                </Link>
                             </div>
                         </>
                     )}

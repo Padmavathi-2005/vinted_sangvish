@@ -50,8 +50,8 @@ const AdminSidebar = () => {
 
     const menuItems = [
         { path: '/dashboard', icon: <FaTachometerAlt />, label: t('sidebar.dashboard') },
-        { path: '/notifications', icon: <FaBell />, label: 'Notifications' },
-        { path: '/messages', icon: <FaEnvelope />, label: 'Messages' },
+        { path: '/notifications', icon: <FaBell />, label: t('sidebar.notifications') },
+        { path: '/messages', icon: <FaEnvelope />, label: t('sidebar.messages') },
         { path: '/users', icon: <FaUsers />, label: t('sidebar.users') },
         { path: '/listings', icon: <FaShoppingBag />, label: t('sidebar.listings') },
         { path: '/orders', icon: <FaBoxOpen />, label: t('sidebar.orders') },
@@ -66,8 +66,8 @@ const AdminSidebar = () => {
             ]
         },
         { path: '/categories/main', icon: <FaTags />, label: t('sidebar.categories.title') },
-        { path: '/newsletter', icon: <FaEnvelope />, label: 'Newsletter' },
-        { path: '/pages', icon: <FaFileAlt />, label: 'Static Pages' },
+        { path: '/newsletter', icon: <FaEnvelope />, label: t('sidebar.newsletter') },
+        { path: '/pages', icon: <FaFileAlt />, label: t('sidebar.static_pages') },
         { path: '/reports', icon: <FaChartBar />, label: t('sidebar.reports') },
         {
             id: 'settings',
@@ -87,7 +87,7 @@ const AdminSidebar = () => {
                         icon: <FaCogs size={12} />
                     };
                 }),
-                { path: '/frontend/content', label: 'Frontend Content', icon: <FaLanguage size={12} /> },
+                { path: '/frontend/content', label: t('sidebar.frontend_content'), icon: <FaLanguage size={12} /> },
             ]
         },
         { path: '/settings/languages', label: t('sidebar.settings.languages'), icon: <FaGlobe /> },

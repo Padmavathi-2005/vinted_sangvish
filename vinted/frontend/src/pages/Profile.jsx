@@ -3,14 +3,16 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from '../utils/axios';
 import AuthContext from '../context/AuthContext';
 import CurrencyContext from '../context/CurrencyContext';
-import { FaListAlt, FaBoxOpen, FaHeart, FaWallet, FaCheckCircle, FaUserEdit, FaAngleLeft, FaAngleRight, FaEnvelope, FaBell, FaTruck, FaClock, FaCreditCard, FaMoneyBillWave, FaBars, FaTimes, FaStar } from 'react-icons/fa';
+import { FaListAlt, FaBoxOpen, FaHeart, FaWallet, FaCheckCircle, FaUserEdit, FaAngleLeft, FaAngleRight, FaEnvelope, FaBell, FaTruck, FaClock, FaCreditCard, FaMoneyBillWave, FaBars, FaTimes, FaStar, FaTag, FaLightbulb } from 'react-icons/fa';
 import '../styles/Profile.css';
 import EditProfileModal from '../components/common/EditProfileModal';
+import EditItemModal from '../components/common/EditItemModal';
 import ItemCard from '../components/common/ItemCard';
 import MessagesContent from '../components/profile/MessagesContent';
 import NotificationsContent from '../components/profile/NotificationsContent';
 import WalletContent from '../components/profile/WalletContent';
 import { useTranslation } from 'react-i18next';
+import Meta from '../components/common/Meta';
 import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 
 const Profile = () => {
@@ -105,6 +107,8 @@ const Profile = () => {
             if (tab === 'listings' && mode !== 'seller') {
                 toggleMode();
             }
+        } else {
+            setActiveTab('dashboard'); // Reset to dashboard if no tab in URL
         }
     }, [location.search]);
 
@@ -133,6 +137,18 @@ const Profile = () => {
         }
         return () => document.body.classList.remove('modal-open');
     }, [showOrderModal]);
+
+    // Force scroll mode on mobile
+    useEffect(() => {
+        const checkMobile = () => {
+            if (window.innerWidth <= 768 && paginationMode !== 'scroll') {
+                setPaginationMode('scroll');
+            }
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, [paginationMode]);
 
     // Fetch Listings
     const fetchMyListings = useCallback(async (pageNum, isAppend = false) => {
@@ -403,6 +419,7 @@ const Profile = () => {
 
     return (
         <div className="profile-dashboard">
+            <Meta title={`${getTabLabel(activeTab)} | My Account`} description="Manage your profile, orders, and listings on Vinted Marketplace." />
             {/* ─── Mobile Header ─── */}
             <div className="pd-mobile-header">
                 <button className="pd-mobile-hamburger" onClick={() => setMobileMenuOpen(true)}>
@@ -442,7 +459,7 @@ const Profile = () => {
                 </div>
             </div>
 
-            <div className={`pd-container ${['listings', 'favorites', 'profile_settings', 'messages', 'notifications'].includes(activeTab) ? 'full-width' : ''}`}>
+            <div className="pd-container">
                 {/* ─── Top Navigation ─── */}
                 <div className="pd-nav">
                     <div className="pd-nav-items">
@@ -481,8 +498,7 @@ const Profile = () => {
                 </div>
 
                 {/* ─── Sidebar ─── */}
-                {(activeTab === 'dashboard' || activeTab === 'orders' || activeTab === 'payments') && (
-                    <div className="pd-sidebar">
+                <div className="pd-sidebar">
                         <div className="pd-card pd-profile-card">
                             <div className="pd-avatar-wrapper">
                                 {user.profile_image ? (
@@ -544,9 +560,58 @@ const Profile = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {activeTab === 'listings' && (
+                                <div className="mt-3 pt-3 border-top text-start">
+                                    <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>Listings Summary</p>
+                                    <div className="d-flex flex-column gap-2">
+                                        <div className="small d-flex justify-content-between">
+                                            <span>Total Items</span>
+                                            <span className="fw-bold">{listingsTotalCount}</span>
+                                        </div>
+                                        <div className="small d-flex justify-content-between">
+                                            <span>Sold Items</span>
+                                            <span className="fw-bold text-success">{user.sold_count || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'bundle_settings' && (
+                                <div className="mt-3 pt-3 border-top text-start">
+                                    <p className="extra-small mb-3 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>Bundle Tips</p>
+                                    <div className="pd-bundle-help-sidebar-card p-3 rounded-3 mb-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <div className="d-flex align-items-center gap-2 mb-2">
+                                            <FaLightbulb className="text-warning" />
+                                            <span className="fw-bold small">Seller Tips</span>
+                                        </div>
+                                        <ul className="ps-3 mb-0 small text-muted" style={{ fontSize: '0.75rem' }}>
+                                            <li>Items with discounts get a special badge in search results.</li>
+                                            <li className="mt-1">Sellers with bundles enabled sell 3x faster on average.</li>
+                                            <li className="mt-1">All bundle items are shipped in a single package.</li>
+                                        </ul>
+                                    </div>
+                                    <div className="pd-bundle-preview-mini p-3 rounded-3" style={{ background: '#eff6ff', border: '1px solid #dbeafe' }}>
+                                        <div className="d-flex align-items-center gap-2">
+                                            <FaCheckCircle className="text-primary" />
+                                            <span className="fw-bold small text-primary">Live Now</span>
+                                        </div>
+                                        <p className="mb-0 mt-1 text-primary" style={{ fontSize: '0.7rem' }}>Discounts are applied automatically at checkout.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'favorites' && (
+                                <div className="mt-3 pt-3 border-top text-start">
+                                    <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>FAVORITES SCORE</p>
+                                    <div className="small d-flex justify-content-between">
+                                        <span>Items Saved</span>
+                                        <span className="fw-bold text-primary">{favoritesTotalCount}</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
-                )}
 
                 {/* ─── Main Content ─── */}
                 <div className="pd-main">
@@ -606,114 +671,109 @@ const Profile = () => {
                         </div>
                     )}
 
-                    {activeTab === 'bundle_settings' && mode === 'seller' && (
+                    {activeTab === 'bundle_settings' && mode === 'seller' ? (
                         <div className="pd-section-card">
-                            <h3 className="pd-section-title d-flex align-items-center gap-2">
-                                <FaTag style={{ color: '#F97316' }} /> Bundle Discount Settings
-                            </h3>
-                            <p className="text-muted small mb-4">
-                                Attract more buyers by offering discounts when they purchase multiple items from you in one go!
-                            </p>
-
-                            <div className="pd-bundle-settings-form">
-                                <div className="form-check form-switch pd-bundle-toggle mb-4">
-                                    <input
-                                        className="form-check-input"
-                                        type="checkbox"
-                                        id="bundleEnabled"
-                                        checked={user.bundle_discounts?.enabled || false}
-                                        onChange={(e) => {
-                                            const updated = { ...user.bundle_discounts, enabled: e.target.checked };
-                                            updateUser({ bundle_discounts: updated });
-                                        }}
-                                    />
-                                    <label className="form-check-label fw-bold" htmlFor="bundleEnabled">
-                                        Enable Bundle Discounts
-                                    </label>
+                            <div className="pd-bundle-page-header mb-4">
+                                <div className="pd-bundle-icon-main">
+                                    <FaTag />
                                 </div>
+                                <div className="pd-bundle-header-text">
+                                    <h3 className="m-0 fw-bold">Bundle Discounts</h3>
+                                    <p className="text-muted small m-0">Increase your sales by offering bulk purchase incentives.</p>
+                                </div>
+                            </div>
 
-                                <div className={`pd-bundle-inputs ${!(user.bundle_discounts?.enabled) ? 'disabled-logic' : ''}`} style={{ opacity: user.bundle_discounts?.enabled ? 1 : 0.5, pointerEvents: user.bundle_discounts?.enabled ? 'auto' : 'none' }}>
-                                    <div className="row g-3">
-                                        <div className="col-12 col-md-4">
-                                            <div className="pd-input-group">
-                                                <label className="pd-input-label">2 Items</label>
-                                                <div className="input-with-pct">
+                            <div className="pd-bundle-dashboard-layout single-column">
+                                <div className="pd-bundle-main-settings">
+                                    <div className="pd-bundle-intro-card">
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h4 className="h6 fw-bold mb-1">Status</h4>
+                                                <p className="text-muted xsmall mb-0">Discounts are currently {user.bundle_discounts?.enabled ? 'active' : 'paused'} for your closet.</p>
+                                            </div>
+                                            <div className="form-check form-switch pd-mode-toggle-custom">
+                                                <input
+                                                    className="form-check-input"
+                                                    type="checkbox"
+                                                    id="bundleEnabled"
+                                                    checked={user.bundle_discounts?.enabled || false}
+                                                    onChange={(e) => {
+                                                        const updated = { ...user.bundle_discounts, enabled: e.target.checked };
+                                                        updateUser({ bundle_discounts: updated });
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className={`pd-bundle-config-section ${!(user.bundle_discounts?.enabled) ? 'is-disabled' : ''}`}>
+                                        <h5 className="pd-config-title">Set Your Discounts</h5>
+                                        <div className="pd-discount-grid">
+                                            <div className="pd-discount-item">
+                                                <div className="pd-di-label">2 Items</div>
+                                                <div className="pd-di-input-wrap">
                                                     <input
                                                         type="number"
-                                                        className="form-control"
-                                                        placeholder="0"
                                                         value={user.bundle_discounts?.two_items || 0}
                                                         onChange={(e) => {
                                                             const updated = { ...user.bundle_discounts, two_items: Number(e.target.value) };
                                                             updateUser({ bundle_discounts: updated });
                                                         }}
                                                     />
-                                                    <span className="pct-unit">% OFF</span>
+                                                    <span className="unit">%</span>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="col-12 col-md-4">
-                                            <div className="pd-input-group">
-                                                <label className="pd-input-label">3 Items</label>
-                                                <div className="input-with-pct">
+                                            <div className="pd-discount-item">
+                                                <div className="pd-di-label">3 Items</div>
+                                                <div className="pd-di-input-wrap">
                                                     <input
                                                         type="number"
-                                                        className="form-control"
-                                                        placeholder="0"
                                                         value={user.bundle_discounts?.three_items || 0}
                                                         onChange={(e) => {
                                                             const updated = { ...user.bundle_discounts, three_items: Number(e.target.value) };
                                                             updateUser({ bundle_discounts: updated });
                                                         }}
                                                     />
-                                                    <span className="pct-unit">% OFF</span>
+                                                    <span className="unit">%</span>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="col-12 col-md-4">
-                                            <div className="pd-input-group">
-                                                <label className="pd-input-label">5 Items</label>
-                                                <div className="input-with-pct">
+                                            <div className="pd-discount-item">
+                                                <div className="pd-di-label">5+ Items</div>
+                                                <div className="pd-di-input-wrap">
                                                     <input
                                                         type="number"
-                                                        className="form-control"
-                                                        placeholder="0"
                                                         value={user.bundle_discounts?.five_items || 0}
                                                         onChange={(e) => {
                                                             const updated = { ...user.bundle_discounts, five_items: Number(e.target.value) };
                                                             updateUser({ bundle_discounts: updated });
                                                         }}
                                                     />
-                                                    <span className="pct-unit">% OFF</span>
+                                                    <span className="unit">%</span>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="pd-bundle-preview-box mt-4">
-                                        <div className="small fw-bold text-uppercase mb-2 text-primary" style={{ letterSpacing: '0.05em' }}>Bundle Preview</div>
-                                        <div className="pd-preview-text">
-                                            Buyers will automatically see these discounts in their cart when they select multiple items from your closet.
+                                        <div className="mt-5 pt-3 border-top d-flex justify-content-end">
+                                            <button
+                                                className="btn btn-primary px-5 py-2 fw-bold"
+                                                style={{ borderRadius: '12px' }}
+                                                onClick={async () => {
+                                                    try {
+                                                        await axios.put('/api/users/profile', { bundle_discounts: user.bundle_discounts });
+                                                        alert('Settings updated successfully!');
+                                                    } catch (err) {
+                                                        alert('Failed to save settings');
+                                                    }
+                                                }}
+                                            >
+                                                Update closet settings
+                                            </button>
                                         </div>
                                     </div>
-
-                                    <button
-                                        className="btn btn-primary mt-4 px-4 rounded-pill"
-                                        onClick={async () => {
-                                            try {
-                                                await axios.put('/api/users/profile', { bundle_discounts: user.bundle_discounts });
-                                                alert('Bundle settings saved successfully!');
-                                            } catch (err) {
-                                                alert('Failed to save settings');
-                                            }
-                                        }}
-                                    >
-                                        Save Bundle Settings
-                                    </button>
                                 </div>
                             </div>
                         </div>
-                    ) || null}
+                    ) : null}
 
                     {activeTab === 'listings' && mode === 'seller' && (
                         <div className="pd-listings-container">
@@ -732,8 +792,11 @@ const Profile = () => {
                             <div className="row g-4">
                                 {myListings.length > 0 ? (
                                     myListings.map(item => (
-                                        <div key={item._id} className="col-12 col-sm-6 col-lg-4">
-                                            <ItemCard item={item} />
+                                        <div key={item._id} className="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
+                                            <ItemCard 
+                                                item={item} 
+                                                onEdit={(it) => setEditingItem(it)}
+                                            />
                                         </div>
                                     ))
                                 ) : !listingsLoading && (
@@ -777,7 +840,7 @@ const Profile = () => {
                             <div className="row g-4">
                                 {favorites.length > 0 ? (
                                     favorites.map(item => (
-                                        <div key={item._id} className="col-12 col-sm-6 col-lg-4">
+                                        <div key={item._id} className="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
                                             <ItemCard item={item} />
                                         </div>
                                     ))
@@ -1214,6 +1277,18 @@ const Profile = () => {
                         <div className="p-0">
                             <WalletContent activeSubTab={paymentSubTab} />
                         </div>
+                    )}
+
+                    {/* Edit Item Modal */}
+                    {editingItem && (
+                        <EditItemModal 
+                            item={editingItem} 
+                            onClose={() => setEditingItem(null)} 
+                            onUpdate={(updatedItem) => {
+                                setMyListings(prev => prev.map(it => it._id === updatedItem._id ? updatedItem : it));
+                                setEditingItem(null); // Close the modal after successful update
+                            }} 
+                        />
                     )}
                 </div>
             </div>

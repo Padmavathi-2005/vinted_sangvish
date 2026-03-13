@@ -150,13 +150,30 @@ const FrontendContent = () => {
     return (
         <div className="admin-dashboard">
             <div className="frontend-content-management">
-                <header className="fc-header">
-                    <div className="fc-title-group">
-                        <h2 className="mb-0">Frontend Content</h2>
-                        <p className="mb-0 opacity-75">Customize localized text and visuals for your website.</p>
+                <header className="fc-header d-flex flex-column align-items-stretch gap-3">
+                    <div className="d-flex justify-content-between align-items-center w-100 flex-wrap gap-3">
+                        <div className="fc-title-group">
+                            <h2 className="mb-0">Frontend Content</h2>
+                            <p className="mb-0 opacity-75">Customize localized text and visuals for your website.</p>
+                        </div>
+                        <button
+                            className="fc-btn-save shadow-sm py-2 px-4"
+                            onClick={handleSave}
+                            disabled={saving}
+                            style={{ borderRadius: '10px' }}
+                        >
+                            {saving ? (
+                                <Spinner animation="border" size="sm" />
+                            ) : (
+                                <>
+                                    <FaSave className="me-2" />
+                                    <span>Save Page</span>
+                                </>
+                            )}
+                        </button>
                     </div>
 
-                    <div className="d-flex gap-3 align-items-center">
+                    <div className="d-flex gap-3 justify-content-end align-items-center flex-wrap pt-2">
                         {/* Language Selector Dropdown */}
                         <div className="ds-lang-selector-wrapper" style={{ width: '220px' }}>
                             <AdminSearchSelect
@@ -207,22 +224,6 @@ const FrontendContent = () => {
                                 </div>
                             </div>
                         </div>
-
-                        <button
-                            className="fc-btn-save shadow-sm py-2 px-4"
-                            onClick={handleSave}
-                            disabled={saving}
-                            style={{ borderRadius: '10px' }}
-                        >
-                            {saving ? (
-                                <Spinner animation="border" size="sm" />
-                            ) : (
-                                <>
-                                    <FaSave className="me-2" />
-                                    <span>Save Page</span>
-                                </>
-                            )}
-                        </button>
                     </div>
                 </header>
 

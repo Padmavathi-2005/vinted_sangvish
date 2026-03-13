@@ -1,27 +1,26 @@
-const mongoose = require('mongoose');
-const User = require('./models/User');
-const Admin = require('./models/Admin');
-const Permission = require('./models/Permission');
-const AdminPermission = require('./models/AdminPermission');
-const Category = require('./models/Category');
-const Subcategory = require('./models/Subcategory');
-const Item = require('./models/Item');
-const Order = require('./models/Order');
-const Conversation = require('./models/Conversation');
-const Message = require('./models/Message');
-const Review = require('./models/Review');
-const Favorite = require('./models/Favorite');
-const Follow = require('./models/Follow');
-const Setting = require('./models/Setting');
-const Language = require('./models/Language');
-const Currency = require('./models/Currency');
-const bcrypt = require('bcryptjs');
-const dotenv = require('dotenv').config();
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
+
+import Item from './models/Item.js';
+import Category from './models/Category.js';
+import Subcategory from './models/Subcategory.js';
+import Currency from './models/Currency.js';
+import User from './models/User.js';
+import Admin from './models/Admin.js';
+import Language from './models/Language.js';
+import Setting from './models/Setting.js';
+import ItemType from './models/ItemType.js';
+import bcrypt from 'bcryptjs';
 
 const seedDB = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('✅ Connected to MongoDB for seeding...');
+        const isLocal = process.env.NODE_ENV !== 'production';
+        const dbUriToUse = isLocal ? (process.env.LOCAL_MONGO_URI || process.env.MONGO_URI) : process.env.MONGO_URI;
+        
+        console.log(`\n🔗 SEEDING: Connecting to ${isLocal ? 'LOCAL' : 'LIVE'} database...`);
+        await mongoose.connect(dbUriToUse);
+        console.log('✅ Connected successfully.');
 
         // 1. Clear existing data EXCEPT Categories (managed by seedCategories.js)
         const models = [

@@ -6,7 +6,7 @@ import Table from '../components/Table';
 import Modal from '../components/Modal';
 import Toggle from '../components/Toggle';
 import AdminSearchSelect from '../components/AdminSearchSelect';
-import axios from '../utils/axios';
+import axios, { imageBaseURL } from '../utils/axios';
 import { useSettings } from '../context/SettingsContext';
 import { useLocalization } from '../context/LocalizationContext';
 import { showToast, showConfirm } from '../utils/swal';
@@ -45,6 +45,11 @@ const Users = () => {
         following_count: 0,
         profile_image: null
     });
+
+    const handleImageError = (e) => {
+        e.target.onerror = null;
+        e.target.src = `${imageBaseURL}/images/site/not_found.png`;
+    };
 
     const [saving, setSaving] = useState(false);
     const [togglingUserId, setTogglingUserId] = useState(null);
@@ -213,7 +218,7 @@ const Users = () => {
                 <div className="d-flex align-items-center gap-3">
                     {row.profile_image ? (
                         <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle overflow-hidden border shadow-sm" style={{ width: '40px', height: '40px' }}>
-                            <img src={`${axios.defaults.baseURL}/${row.profile_image}`} alt={safeString(row.username)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={`${imageBaseURL}/${row.profile_image}`} alt={safeString(row.username)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageError} />
                         </div>
                     ) : (
                         <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle shadow-sm" style={{ width: '40px', height: '40px' }}>
@@ -359,10 +364,10 @@ const Users = () => {
                                 onChange={(e) => setUserTypeFilter(e.target.value)}
                                 className="admin-filter-select"
                             >
-                                <option value="all">All Users</option>
-                                <option value="buyer">Buyers Only</option>
-                                <option value="seller">Sellers Only</option>
-                                <option value="today">Today's Signups</option>
+                                <option value="all">{t('users.filter_all')}</option>
+                                <option value="buyer">{t('dashboard.users.buyers')}</option>
+                                <option value="seller">{t('dashboard.users.sellers')}</option>
+                                <option value="today">{t('users.filter_today')}</option>
                             </Form.Select>
                         </div>
                     </div>
@@ -370,7 +375,7 @@ const Users = () => {
                     {loading ? (
                         <div className="text-center py-5">
                             <Spinner animation="border" variant="primary" />
-                            <p className="mt-2 text-muted">Fetching users...</p>
+                            <p className="mt-2 text-muted">{t('common.loading')}</p>
                         </div>
                     ) : (
                         <Table
@@ -380,7 +385,7 @@ const Users = () => {
                             onEdit={handleEdit}
                             onDelete={handleDeleteClick}
                             pagination={true}
-                            emptyMessage="No users found."
+                            emptyMessage={t('common.no_data')}
                         />
                     )}
                 </Card>
@@ -418,7 +423,7 @@ const Users = () => {
                                         </div>
                                     ) : selectedUser?.profile_image ? (
                                         <div className="rounded-circle border overflow-hidden shadow-sm" style={{ width: '80px', height: '80px' }}>
-                                            <img src={`${axios.defaults.baseURL}/${selectedUser.profile_image}`} alt="Current" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            <img src={`${imageBaseURL}/${selectedUser.profile_image}`} alt="Current" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageError} />
                                         </div>
                                     ) : (
                                         <div className="rounded-circle border bg-light d-flex align-items-center justify-content-center shadow-sm" style={{ width: '80px', height: '80px' }}>

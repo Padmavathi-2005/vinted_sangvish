@@ -4,6 +4,7 @@ import Item from '../models/Item.js';
 import Notification from '../models/Notification.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
+import Admin from '../models/Admin.js';
 import { processOrderPaymentSplit, reverseOrderPayment, processRefundSplit } from './walletController.js';
 
 // @desc    Create new order
@@ -114,6 +115,7 @@ const createOrder = asyncHandler(async (req, res) => {
         // 1. Notify Seller
         await Notification.create({
             user_id: sellerId,
+            on_model: 'User',
             title: groupItems.length > 1 ? 'New Bundle Order!' : 'New Order Received!',
             message: groupItems.length > 1
                 ? `You sold a bundle of ${groupItems.length} items to ${req.user.username}. Order ID: #${orderNumber}`
@@ -125,6 +127,7 @@ const createOrder = asyncHandler(async (req, res) => {
         // 2. Notify Buyer
         await Notification.create({
             user_id: req.user._id,
+            on_model: 'User',
             title: 'Order Confirmed!',
             message: groupItems.length > 1
                 ? `Your bundle order (#${orderNumber}) from ${seller.username} has been placed successfully.`
@@ -133,16 +136,37 @@ const createOrder = asyncHandler(async (req, res) => {
             link: `/profile?tab=orders`
         });
 
+        // 3. Notify Admin
+        const admins = await Admin.find({ is_active: true });
+        for (const admin of admins) {
+            await Notification.create({
+                user_id: admin._id,
+                on_model: 'Admin',
+                title: 'New Transaction',
+                message: `New order #${orderNumber} placed. Platform fee generated.`,
+                type: 'success',
+                link: `/orders`
+            });
+        }
+
         // 3. Send System Message in Conversation
         try {
             let conversation = await Conversation.findOne({
-                participants: { $all: [req.user._id, sellerId] },
+                participants: { 
+                    $all: [
+                        { $elemMatch: { user: req.user._id, on_model: 'User' } },
+                        { $elemMatch: { user: sellerId, on_model: 'User' } }
+                    ]
+                },
                 item_id: groupItems[0]._id
             });
 
             if (!conversation) {
                 conversation = await Conversation.create({
-                    participants: [req.user._id, sellerId],
+                    participants: [
+                        { user: req.user._id, on_model: 'User' },
+                        { user: sellerId, on_model: 'User' }
+                    ],
                     item_id: groupItems[0]._id,
                     initiator_id: req.user._id,
                     status: 'accepted'
@@ -274,6 +298,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     if (status === 'dispatched') {
         await Notification.create({
             user_id: order.buyer_id,
+            on_model: 'User',
             title: 'Order Dispatched!',
             message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) has been dispatched by the seller.`,
             type: 'order',
@@ -282,6 +307,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     } else if (status === 'on_the_way') {
         await Notification.create({
             user_id: order.buyer_id,
+            on_model: 'User',
             title: 'Order On The Way!',
             message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) is on its way to you.`,
             type: 'order',
@@ -290,6 +316,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     } else if (status === 'delivered') {
         await Notification.create({
             user_id: order.buyer_id,
+            on_model: 'User',
             title: 'Order Delivered! ⭐',
             message: `Your order "${populatedOrder.item_id?.title}" has been delivered! Please rate the seller and share your experience.`,
             type: 'order',
@@ -304,7 +331,12 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         // Also send system message in conversation
         try {
             const conversation = await Conversation.findOne({
-                participants: { $all: [order.buyer_id, order.seller_id] },
+                participants: { 
+                    $all: [
+                        { $elemMatch: { user: order.buyer_id, on_model: 'User' } },
+                        { $elemMatch: { user: order.seller_id, on_model: 'User' } }
+                    ]
+                },
             });
             if (conversation) {
                 const deliveryMeta = JSON.stringify({
@@ -336,12 +368,22 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         }
     }
 
-    // If order is cancelled, trigger wallet reversal
+    // If order is cancelled, trigger wallet reversal and notify buyer
     if (status === 'cancelled' && prevStatus !== 'cancelled') {
         await reverseOrderPayment(order._id);
 
         // Also mark item as available again
         await Item.findByIdAndUpdate(order.item_id, { status: 'available', is_sold: false });
+
+        // Notify Buyer
+        await Notification.create({
+            user_id: order.buyer_id,
+            on_model: 'User',
+            title: 'Order Cancelled',
+            message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) has been cancelled by the seller. A refund has been processed to your wallet.`,
+            type: 'error',
+            link: '/profile?tab=orders'
+        });
     }
 
     res.json(updatedOrder);
@@ -381,11 +423,25 @@ const cancelOrder = asyncHandler(async (req, res) => {
     // Notify Seller
     await Notification.create({
         user_id: order.seller_id,
+        on_model: 'User',
         title: 'Order Cancelled',
         message: `Order #${order.order_number} has been cancelled by the buyer.`,
         type: 'info',
         link: `/profile?tab=orders`
     });
+
+    // Notify Admin
+    const adminsList = await Admin.find({ is_active: true });
+    for (const admin of adminsList) {
+        await Notification.create({
+            user_id: admin._id,
+            on_model: 'Admin',
+            title: 'Order Cancelled',
+            message: `Order #${order.order_number} was cancelled. Refund processed.`,
+            type: 'info',
+            link: `/orders`
+        });
+    }
 
     res.json({ message: 'Order cancelled successfully and refund processed' });
 });
@@ -438,11 +494,25 @@ const requestReturn = asyncHandler(async (req, res) => {
     // Notify Seller
     await Notification.create({
         user_id: order.seller_id,
+        on_model: 'User',
         title: 'Return Requested',
         message: `Buyer requested a return for order #${order.order_number}. Reason: ${reason}`,
         type: 'alert',
         link: `/profile?tab=orders`
     });
+
+    // Notify Admin
+    const activeAdmins = await Admin.find({ is_active: true });
+    for (const admin of activeAdmins) {
+        await Notification.create({
+            user_id: admin._id,
+            on_model: 'Admin',
+            title: 'Return Request',
+            message: `Order #${order.order_number} return was requested by the buyer.`,
+            type: 'warning',
+            link: `/orders`
+        });
+    }
 
     res.json({ message: 'Return requested successfully', order });
 });
@@ -487,6 +557,7 @@ const processReturn = asyncHandler(async (req, res) => {
     // Notify Buyer
     await Notification.create({
         user_id: order.buyer_id,
+        on_model: 'User',
         title: `Return Processed (${refundType === 'full' ? 'Full' : 'Partial'} Refund)`,
         message: `Your return for order #${order.order_number} has been processed.`,
         type: 'info',

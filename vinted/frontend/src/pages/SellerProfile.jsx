@@ -12,6 +12,7 @@ import ItemCard from '../components/common/ItemCard';
 import { getImageUrl, safeString } from '../utils/constants';
 import '../styles/SellerProfile.css';
 import { useTranslation } from 'react-i18next';
+import Meta from '../components/common/Meta';
 
 const SellerProfile = () => {
     const { id } = useParams();
@@ -167,6 +168,12 @@ const SellerProfile = () => {
 
     return (
         <div className="sp-page">
+            <Meta 
+                title={safeString(seller.username)}
+                description={seller.bio || `Check out ${safeString(seller.username)}'s profile on Vinted Marketplace.`}
+                image={seller.profile_image ? getImageUrl(seller.profile_image) : undefined}
+                type="profile"
+            />
             <div className="sp-layout">
                 {/* ── Left Sidebar ── */}
                 <aside className="sp-sidebar">

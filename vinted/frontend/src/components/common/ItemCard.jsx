@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaHeart, FaRegHeart, FaStar, FaRegStar, FaStarHalfAlt, FaArrowRight, FaMapMarkerAlt, FaClock, FaTag } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaStar, FaRegStar, FaStarHalfAlt, FaArrowRight, FaMapMarkerAlt, FaClock, FaTag, FaUserEdit } from 'react-icons/fa';
 import '../../styles/ItemCard.css';
 import AuthContext from '../../context/AuthContext';
 import WishlistContext from '../../context/WishlistContext';
@@ -8,7 +8,7 @@ import CurrencyContext from '../../context/CurrencyContext';
 
 import { getImageUrl, getItemImageUrl, safeString } from '../../utils/constants';
 
-const ItemCard = ({ item }) => {
+const ItemCard = ({ item, onEdit }) => {
     const navigate = useNavigate();
     const { user, mode } = useContext(AuthContext);
     const { isWishlisted, addToWishlist, removeFromWishlist } = useContext(WishlistContext);
@@ -65,6 +65,10 @@ const ItemCard = ({ item }) => {
     // "New" Logic: Posted within last 48 hours
     const isNew = diffInHours < 48;
 
+    // Discount Logic
+    const hasDiscount = item.original_price > 0 && item.original_price > item.price;
+    const percentOff = hasDiscount ? Math.round(((item.original_price - item.price) / item.original_price) * 100) : 0;
+
     // Wishlist Logic
     const isFav = isWishlisted(item._id);
 
@@ -85,6 +89,14 @@ const ItemCard = ({ item }) => {
         } else {
             addToWishlist(item._id);
             setLocalLikes(prev => prev + 1);
+        }
+    };
+
+    const handleCardClick = (e) => {
+        if (onEdit) {
+            e.preventDefault();
+            e.stopPropagation();
+            onEdit(item);
         }
     };
 
@@ -110,9 +122,17 @@ const ItemCard = ({ item }) => {
     }
 
     return (
-        <Link to={`/items/${item._id}`} className={`listing-card ${isFav ? 'is-favorited' : ''}`} style={{ textDecoration: 'none', display: 'block', width: '100%', height: '100%', position: 'relative' }}>
+        <Link to={`/items/${item._id}`} onClick={handleCardClick} className={`listing-card ${isFav ? 'is-favorited' : ''} ${onEdit ? 'editable' : ''}`} style={{ textDecoration: 'none', display: 'block', width: '100%', height: '100%', position: 'relative' }}>
             <div className="listing-image-wrapper" style={{ position: 'relative' }}>
-                <img src={imageUrl} alt={safeString(item.title || item.name)} className="listing-image" />
+                <img 
+                    src={imageUrl} 
+                    alt={safeString(item.title || item.name)} 
+                    className="listing-image" 
+                    onError={(e) => {
+                        e.target.onerror = null; 
+                        e.target.src = getImageUrl('images/site/not_found.png');
+                    }}
+                />
 
                 {/* Favorites Button - ONLY SHOW IN BUYER MODE */}
                 {mode === 'buyer' && (
@@ -146,6 +166,12 @@ const ItemCard = ({ item }) => {
                     </button>
                 )}
 
+                {onEdit && (
+                    <div className="edit-overlay">
+                        <FaUserEdit /> Edit
+                    </div>
+                )}
+
                 {/* Top Rated Badge (Bottom Left) */}
                 {item.isTopRated && <span className="badge-top-rated">TOP RATED</span>}
 
@@ -154,6 +180,17 @@ const ItemCard = ({ item }) => {
                     <span className="condition-badge">
                         <FaTag style={{ fontSize: '0.6rem' }} />
                         {safeString(item.condition)}
+                    </span>
+                )}
+
+                {/* Discount Badge */}
+                {hasDiscount && (
+                    <span style={{
+                        position: 'absolute', bottom: '12px', left: '12px', background: '#ef4444',
+                        color: 'white', fontSize: '0.7rem', fontWeight: '700', padding: '3px 8px',
+                        borderRadius: '6px', zIndex: 5, letterSpacing: '0.5px'
+                    }}>
+                        -{percentOff}% OFF
                     </span>
                 )}
 
@@ -173,8 +210,17 @@ const ItemCard = ({ item }) => {
 
                 {/* Row 2: Price & Time Ago in same row */}
                 <div className="d-flex justify-content-between align-items-end mt-auto">
-                    <div className="listing-price">
-                        <strong>{formatPrice(item.price, item.currency_id)}</strong>
+                    <div className="listing-price d-flex align-items-center gap-1 flex-wrap">
+                        {/* Discounted price first — prominent */}
+                        <strong style={hasDiscount ? { color: '#ef4444' } : {}}>
+                            {formatPrice(item.price, item.currency_id)}
+                        </strong>
+                        {/* Crossed-out original price to the right */}
+                        {hasDiscount && (
+                            <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '0.75rem', fontWeight: '400' }}>
+                                {formatPrice(item.original_price, item.currency_id)}
+                            </span>
+                        )}
                     </div>
                     <span style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
                         <FaClock style={{ fontSize: '0.6rem', marginRight: '4px' }} />

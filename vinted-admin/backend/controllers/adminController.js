@@ -14,8 +14,8 @@ import PaymentMethod from '../models/PaymentMethod.js';
 import Transaction from '../models/Transaction.js';
 import WithdrawalRequest from '../models/WithdrawalRequest.js';
 import Notification from '../models/Notification.js';
-
-
+import Wallet from '../models/Wallet.js';
+import Delivery from '../models/Delivery.js';
 
 
 
@@ -83,7 +83,7 @@ const updateCategory = asyncHandler(async (req, res) => {
 const deleteCategory = asyncHandler(async (req, res) => {
     const category = await Category.findById(req.params.id);
     if (category) {
-        await category.remove();
+        await category.deleteOne();
         res.json({ message: 'Category removed' });
     } else {
         res.status(404);
@@ -140,7 +140,7 @@ const updateSubcategory = asyncHandler(async (req, res) => {
 const deleteSubcategory = asyncHandler(async (req, res) => {
     const subcategory = await Subcategory.findById(req.params.id);
     if (subcategory) {
-        await subcategory.remove();
+        await subcategory.deleteOne();
         res.json({ message: 'Subcategory removed' });
     } else {
         res.status(404);
@@ -186,7 +186,7 @@ const updateItemType = asyncHandler(async (req, res) => {
 const deleteItemType = asyncHandler(async (req, res) => {
     const itemType = await ItemType.findById(req.params.id);
     if (itemType) {
-        await itemType.remove();
+        await itemType.deleteOne();
         res.json({ message: 'Item type removed' });
     } else {
         res.status(404);
@@ -242,7 +242,7 @@ const updateLanguage = asyncHandler(async (req, res) => {
 const deleteLanguage = asyncHandler(async (req, res) => {
     const language = await Language.findById(req.params.id);
     if (language) {
-        await language.remove();
+        await language.deleteOne();
         res.json({ message: 'Language removed' });
     } else {
         res.status(404);
@@ -287,7 +287,7 @@ const updateCurrency = asyncHandler(async (req, res) => {
 const deleteCurrency = asyncHandler(async (req, res) => {
     const currency = await Currency.findById(req.params.id);
     if (currency) {
-        await currency.remove();
+        await currency.deleteOne();
         res.json({ message: 'Currency removed' });
     } else {
         res.status(404);
@@ -338,6 +338,13 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const revenueAggr = await Order.aggregate([{ $group: { _id: null, total: { $sum: "$total_amount" } } }]);
     const totalRevenue = revenueAggr.length > 0 ? revenueAggr[0].total : 0;
 
+    const todayRevenueAggr = await Order.aggregate([
+        { $match: { created_at: { $gte: today } } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } }
+    ]);
+    const todayRevenue = todayRevenueAggr.length > 0 ? todayRevenueAggr[0].total : 0;
+
+
     const totalOrders = await Order.countDocuments();
     const todayOrders = await Order.countDocuments({ created_at: { $gte: today } });
 
@@ -345,6 +352,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const todayListings = await Item.countDocuments({ created_at: { $gte: today } });
 
     const totalCategories = await Category.countDocuments();
+    
+    const pendingWithdrawalsCount = await WithdrawalRequest.countDocuments({ status: 'pending' });
+    const pendingItemsCount = await Item.countDocuments({ status: 'pending' });
 
     // Commission transactions
     const commissionAggr = await Transaction.aggregate([
@@ -460,9 +470,14 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     res.json({
         users: { total: totalUsers, today: todayUsers, buyers: buyersArray.length, sellers: sellersArray.length },
-        revenue: { total: totalRevenue, count: totalOrders },
+        revenue: { total: totalRevenue, count: totalOrders, today: todayRevenue, todayCount: todayOrders },
         property: { total: totalListings, today: todayListings },
         experience: { total: totalCategories, today: 0 },
+        content: {
+            categories: totalCategories,
+            pendingWithdrawals: pendingWithdrawalsCount,
+            pendingItems: pendingItemsCount
+        },
         reservation: { total: totalOrders, today: todayOrders },
         commission: { total: totalCommission },
         latestBookings: latestOrders,
@@ -779,7 +794,7 @@ const deleteUser = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    await user.remove();
+    await user.deleteOne();
     res.json({ message: 'User deleted' });
 });
 
@@ -846,17 +861,27 @@ const getItemOptions = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/items
 // @access  Private (Admin)
 const createItem = asyncHandler(async (req, res) => {
-    // For now allow simple creation with placeholders if empty
+    const { title, price, status, seller_id, category_id, subcategory_id, item_type_id, condition, description, brand, currency_id } = req.body;
+
+    let images = [];
+    if (req.files && req.files.length > 0) {
+        images = req.files.map(file => `images/items/${file.filename}`);
+    }
+
     const item = await Item.create({
-        title: req.body.title,
-        price: req.body.price || 0,
-        status: req.body.status || 'active',
-        seller_id: req.body.seller_id || req.user._id, // fallback to admin ID if needed, though they shouldn't sell
-        category_id: req.body.category_id || null, // Will fail if required, just basic handling
-        subcategory_id: req.body.subcategory_id || null,
-        currency_id: req.body.currency_id || null,
-        condition: 'New',
-        description: 'Created by Admin',
+        title,
+        price: parseFloat(price) || 0,
+        status: status || 'active',
+        seller_id: seller_id || req.user._id,
+        category_id,
+        subcategory_id,
+        item_type_id,
+        condition: condition || 'New',
+        description: description || '',
+        brand: brand || '',
+        currency_id,
+        images,
+        is_sold: req.body.is_sold === 'true' || req.body.is_sold === true
     });
     res.status(201).json(item);
 });
@@ -871,16 +896,32 @@ const updateItem = asyncHandler(async (req, res) => {
         throw new Error('Item not found');
     }
 
+    // Handle images
+    let updatedImages = [...(item.images || [])];
+    if (req.body.existing_images) {
+        try {
+            updatedImages = typeof req.body.existing_images === 'string' ? JSON.parse(req.body.existing_images) : req.body.existing_images;
+        } catch (e) { }
+    }
+
+    if (req.files && req.files.length > 0) {
+        const newImages = req.files.map(file => `images/items/${file.filename}`);
+        updatedImages = [...updatedImages, ...newImages];
+    }
+
     item.title = req.body.title !== undefined ? req.body.title : item.title;
-    item.price = req.body.price !== undefined ? req.body.price : item.price;
+    item.price = req.body.price !== undefined ? parseFloat(req.body.price) || 0 : item.price;
     item.description = req.body.description !== undefined ? req.body.description : item.description;
     item.brand = req.body.brand !== undefined ? req.body.brand : item.brand;
     item.condition = req.body.condition !== undefined ? req.body.condition : item.condition;
+    item.images = updatedImages;
+
+    if (req.body.is_sold !== undefined) {
+        item.is_sold = req.body.is_sold === 'true' || req.body.is_sold === true;
+    }
 
     if (req.body.status) {
         const newStatus = req.body.status.toLowerCase();
-
-        // If they are trying to activate the item, verify the seller isn't banned
         if (newStatus === 'active') {
             const seller = await User.findById(item.seller_id);
             if (seller && seller.is_blocked) {
@@ -888,15 +929,16 @@ const updateItem = asyncHandler(async (req, res) => {
                 throw new Error('Cannot activate item. The seller is blocked/inactive.');
             }
         }
-
         item.status = newStatus;
     }
+
     if (req.body.is_deleted !== undefined) {
         item.is_deleted = req.body.is_deleted === 'true' || req.body.is_deleted === true;
     }
     if (req.body.category_id) item.category_id = req.body.category_id;
     if (req.body.subcategory_id) item.subcategory_id = req.body.subcategory_id;
     if (req.body.item_type_id !== undefined) item.item_type_id = req.body.item_type_id || null;
+    if (req.body.currency_id) item.currency_id = req.body.currency_id;
 
     const updatedItem = await item.save();
     res.json(updatedItem);
@@ -911,7 +953,7 @@ const deleteItem = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Item not found');
     }
-    await item.remove();
+    await item.deleteOne();
     res.json({ message: 'Item removed' });
 });
 
@@ -956,6 +998,7 @@ const updateOrderAdmin = asyncHandler(async (req, res) => {
         throw new Error('Order not found');
     }
 
+    const prevStatus = order.order_status;
     if (req.body.order_status) {
         order.order_status = req.body.order_status;
     }
@@ -967,6 +1010,44 @@ const updateOrderAdmin = asyncHandler(async (req, res) => {
     }
 
     const updatedOrder = await order.save();
+    
+    // Notify users of status change
+    if (req.body.order_status && req.body.order_status !== prevStatus) {
+        const item = await Item.findById(order.item_id);
+        const title = item ? item.title : 'Item';
+        
+        // Notify Buyer
+        await Notification.create({
+            user_id: order.buyer_id,
+            on_model: 'User',
+            title: 'Order Status Updated',
+            message: `Admin has updated your order #${order.order_number} status to ${req.body.order_status}.`,
+            type: 'info',
+            link: '/profile?tab=orders'
+        });
+
+        // Notify Seller
+        await Notification.create({
+            user_id: order.seller_id,
+            on_model: 'User',
+            title: 'Order Status Updated',
+            message: `Admin has updated order #${order.order_number} status to ${req.body.order_status}.`,
+            type: 'info',
+            link: '/profile?tab=orders'
+        });
+
+        // Special handling for cancellation
+        if (req.body.order_status === 'cancelled' && prevStatus !== 'cancelled') {
+             if (item) {
+                 item.status = 'available';
+                 item.is_sold = false;
+                 await item.save();
+             }
+             // Manual refund note
+             console.log(`Order ${order._id} cancelled by admin. Manual wallet refund may be required if not automated.`);
+        }
+    }
+
     res.json(updatedOrder);
 });
 
@@ -1021,10 +1102,15 @@ const deletePaymentMethod = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/transactions
 // @access  Private (Admin)
 const getTransactions = asyncHandler(async (req, res) => {
-    const transactions = await Transaction.find({})
-        .populate('user_id', 'username email')
-        .sort({ created_at: -1 });
-    res.json(transactions);
+    try {
+        const transactions = await Transaction.find({})
+            .populate('user_id', 'username email')
+            .sort({ created_at: -1 });
+        res.json(transactions);
+    } catch (e) {
+        console.error("GET TRANSACTIONS ERROR:", e.message);
+        res.status(500).json({ message: "Transaction Error", detail: e.message });
+    }
 });
 
 // @desc    Get all withdrawal requests
@@ -1053,13 +1139,15 @@ const getNotifications = asyncHandler(async (req, res) => {
     const { limit = 20 } = req.query;
     const notifications = [];
 
-    // 1. Fetch from Notification Collection
-    const dbNotifs = await Notification.find({})
+    // 1. Fetch from Notification Collection (Specifically for this Admin)
+    const dbNotifs = await Notification.find({ 
+        user_id: req.user._id, 
+        on_model: 'Admin' 
+    })
         .sort({ created_at: -1 })
         .limit(Number(limit));
 
     dbNotifs.forEach(n => {
-        // Ensure it's a plain object so we can add properties if needed
         const obj = n.toObject ? n.toObject() : n;
         notifications.push(obj);
     });
@@ -1110,7 +1198,11 @@ const getNotifications = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/notifications/count
 // @access  Private (Admin)
 const getNotificationCount = asyncHandler(async (req, res) => {
-    const dbCount = await Notification.countDocuments({ is_read: false });
+    const dbCount = await Notification.countDocuments({ 
+        user_id: req.user._id, 
+        on_model: 'Admin',
+        is_read: false 
+    });
     const withdrawalCount = await WithdrawalRequest.countDocuments({ status: 'pending' });
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const userCount = await User.countDocuments({ created_at: { $gte: twentyFourHoursAgo } });

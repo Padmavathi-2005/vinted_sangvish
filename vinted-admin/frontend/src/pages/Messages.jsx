@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Spinner, Form, Button, Modal } from 'react-bootstrap';
 import { FaUser, FaSearch, FaPaperPlane, FaEllipsisV, FaImage, FaSmile, FaCheckDouble, FaEnvelope, FaExclamationCircle, FaPlus } from 'react-icons/fa';
 import axios from '../utils/axios';
@@ -7,6 +8,7 @@ import { safeString } from '../utils/constants';
 import '../styles/AdminMessages.css';
 
 const Messages = () => {
+    const navigate = useNavigate();
     const adminInfo = getAdminInfo();
     const adminId = adminInfo?._id || adminInfo?.id;
 
@@ -14,6 +16,11 @@ const Messages = () => {
     const getImageUrl = (path) => {
         if (!path) return '';
         return path.startsWith('http') ? path : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/${path}`;
+    };
+
+    const handleImageError = (e) => {
+        e.target.onerror = null;
+        e.target.src = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/images/site/default_avatar.png`;
     };
 
     const [conversations, setConversations] = useState([]);
@@ -103,7 +110,7 @@ const Messages = () => {
         if (!messageInput.trim() || !selectedConv) return;
 
         const otherParticipant = getOtherParticipant(selectedConv);
-        const targetId = otherParticipant?.id?._id || otherParticipant?.id;
+        const targetId = otherParticipant?.user?._id || otherParticipant?.user;
         const targetModel = otherParticipant?.on_model || 'User';
 
         if (!targetId) return;
@@ -115,7 +122,11 @@ const Messages = () => {
                 message: messageInput
             });
 
-            // Optimistic update
+            // Update conversation state
+            if (selectedConv._id === 'new') {
+                setSelectedConv(res.data.conversation);
+            }
+            
             setMessages(prev => [...prev, res.data.message]);
             setMessageInput('');
             fetchConversations(true);
@@ -126,12 +137,15 @@ const Messages = () => {
 
     const getOtherParticipant = (conv) => {
         if (!conv || !conv.participants) return null;
-        return conv.participants.find(p => (p.id?._id || p.id || p._id).toString() !== (adminId || '').toString());
+        return conv.participants.find(p => {
+            const userId = p.user?._id || p.user || p._id;
+            return userId && userId.toString() !== (adminId || '').toString();
+        });
     };
 
     const filteredConversations = conversations.filter(c => {
         const other = getOtherParticipant(c);
-        const name = safeString(other?.id?.username || other?.id?.name) || 'User';
+        const name = safeString(other?.user?.username || other?.user?.name) || 'User';
         return name.toLowerCase().includes(search.toLowerCase());
     });
 
@@ -144,7 +158,8 @@ const Messages = () => {
         // Check if conversation already exists
         const existing = conversations.find(c => {
             const other = getOtherParticipant(c);
-            return (other?.id?._id || other?.id).toString() === user._id.toString();
+            const otherId = other?.user?._id || other?.user;
+            return otherId && user._id && otherId.toString() === user._id.toString();
         });
 
         if (existing) {
@@ -154,8 +169,8 @@ const Messages = () => {
             setSelectedConv({
                 _id: 'new',
                 participants: [
-                    { id: adminId, on_model: 'Admin' },
-                    { id: user, on_model: 'User' }
+                    { user: adminId, on_model: 'Admin' },
+                    { user: user, on_model: 'User' }
                 ],
                 status: 'accepted'
             });
@@ -202,7 +217,7 @@ const Messages = () => {
                 <div className="conversations-list scroll-premium">
                     {filteredConversations.map((c) => {
                         const otherParticipant = getOtherParticipant(c);
-                        const other = otherParticipant?.id;
+                        const other = otherParticipant?.user;
                         const isOnline = other?.last_login && (new Date() - new Date(other.last_login)) < 5 * 60000;
                         const isActive = selectedConv?._id === c._id;
 
@@ -214,7 +229,7 @@ const Messages = () => {
                             >
                                 <div className="conv-avatar-wrapper">
                                     {other?.profile_image ? (
-                                        <img src={getImageUrl(other.profile_image)} className="conv-avatar" alt={other.name} />
+                                        <img src={getImageUrl(other.profile_image)} className="conv-avatar" alt={other.name} onError={handleImageError} />
                                     ) : (
                                         <div className="conv-avatar-placeholder">
                                             <FaUser />
@@ -252,14 +267,14 @@ const Messages = () => {
                         <header className="chat-header">
                             {(() => {
                                 const otherData = getOtherParticipant(selectedConv);
-                                const other = otherData?.id || {};
+                                const other = otherData?.user || {};
                                 const isOnline = other?.last_login && (new Date() - new Date(other.last_login)) < 5 * 60000;
                                 return (
                                     <>
                                         <div className="chat-header-info">
                                             <div className="conv-avatar-wrapper">
                                                 {other?.profile_image ? (
-                                                    <img src={getImageUrl(other.profile_image)} className="conv-avatar" style={{ width: '40px', height: '40px' }} alt="" />
+                                                    <img src={getImageUrl(other.profile_image)} className="conv-avatar" style={{ width: '40px', height: '40px' }} alt="" onError={handleImageError} />
                                                 ) : (
                                                     <div className="conv-avatar-placeholder" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
                                                         <FaUser />
@@ -277,8 +292,39 @@ const Messages = () => {
                                     </>
                                 );
                             })()}
-                            <button className="input-action-btn"><FaEllipsisV /></button>
+                            <div className="chat-header-actions">
+                                {selectedConv?.item_id && (
+                                    <div className="chat-item-context-mini">
+                                        <div className="text-muted small text-end">Regarding item:</div>
+                                        <div className="fw-bold small">{safeString(selectedConv.item_id?.title)}</div>
+                                    </div>
+                                )}
+                                <button className="input-action-btn ms-2"><FaEllipsisV /></button>
+                            </div>
                         </header>
+
+                        {selectedConv?.item_id && (
+                            <div className="chat-item-banner">
+                                <div className="d-flex align-items-center gap-3">
+                                    <img 
+                                        src={getImageUrl(selectedConv.item_id.images?.[0])} 
+                                        className="item-banner-img" 
+                                        alt="" 
+                                        onError={(e) => { e.target.src = '/images/placeholder.png'; }}
+                                    />
+                                    <div className="flex-grow-1">
+                                        <div className="item-banner-title">{safeString(selectedConv.item_id.title)}</div>
+                                        <div className="item-banner-price">Price: ₹{(selectedConv.item_id.price || 0).toLocaleString()}</div>
+                                    </div>
+                                    <button 
+                                        className="btn btn-sm btn-outline-primary rounded-pill"
+                                        onClick={() => navigate('/listings')}
+                                    >
+                                        View Item
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="chat-messages-area scroll-premium">
                             {msgLoading ? (
@@ -375,7 +421,7 @@ const Messages = () => {
                             <div key={u._id} className="user-picker-item" onClick={() => startNewChat(u)}>
                                 <div className="conv-avatar-wrapper">
                                     {u.profile_image ? (
-                                        <img src={getImageUrl(u.profile_image)} className="conv-avatar" style={{ width: '40px', height: '40px' }} alt="" />
+                                        <img src={getImageUrl(u.profile_image)} className="conv-avatar" style={{ width: '40px', height: '40px' }} alt="" onError={handleImageError} />
                                     ) : (
                                         <div className="conv-avatar-placeholder" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
                                             <FaUser />

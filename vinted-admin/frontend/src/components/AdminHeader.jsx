@@ -163,12 +163,12 @@ const AdminHeader = ({ toggleSidebar }) => {
                             <FaChevronDown className="ms-auto opacity-50 chevron-icon" />
                         </button>
                         <div className="localization-menu">
-                            <div className="dropdown-header">Select Language</div>
+                            <div className="dropdown-header">{t('header.select_language')}</div>
                             <div className="dropdown-search">
                                 <FaSearch className="search-icon" />
                                 <input
                                     type="text"
-                                    placeholder="Search language..."
+                                    placeholder={t('header.search_language')}
                                     value={langSearch}
                                     onChange={(e) => setLangSearch(e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
@@ -200,12 +200,12 @@ const AdminHeader = ({ toggleSidebar }) => {
                             <FaChevronDown className="ms-auto opacity-50 chevron-icon" />
                         </button>
                         <div className="localization-menu">
-                            <div className="dropdown-header">Select Currency</div>
+                            <div className="dropdown-header">{t('header.select_currency')}</div>
                             <div className="dropdown-search">
                                 <FaSearch className="search-icon" />
                                 <input
                                     type="text"
-                                    placeholder="Search currency..."
+                                    placeholder={t('header.search_currency')}
                                     value={currSearch}
                                     onChange={(e) => setCurrSearch(e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
@@ -242,8 +242,8 @@ const AdminHeader = ({ toggleSidebar }) => {
                         </button>
                         <div className="notification-dropdown-menu">
                             <div className="dropdown-header d-flex justify-content-between align-items-center">
-                                <span>Recent Messages</span>
-                                <span className="view-all-link" onClick={() => navigate('/messages')}>View All</span>
+                                <span>{t('header.recent_messages')}</span>
+                                <span className="view-all-link" onClick={() => navigate('/messages')}>{t('header.view_all')}</span>
                             </div>
                             <div className="dropdown-list scroll-area">
                                 {latestMessages.length > 0 ? (
@@ -265,7 +265,7 @@ const AdminHeader = ({ toggleSidebar }) => {
                                         <div className="empty-icon-pulse">
                                             <FaEnvelope className="opacity-50" />
                                         </div>
-                                        <p>No messages yet</p>
+                                        <p>{t('header.no_messages')}</p>
                                     </div>
                                 )}
                             </div>
@@ -280,8 +280,8 @@ const AdminHeader = ({ toggleSidebar }) => {
                         </button>
                         <div className="notification-dropdown-menu">
                             <div className="dropdown-header d-flex justify-content-between align-items-center">
-                                <span>Recent Notifications</span>
-                                <span className="view-all-link" onClick={() => navigate('/notifications')}>View All</span>
+                                <span>{t('header.recent_notifications')}</span>
+                                <span className="view-all-link" onClick={() => navigate('/notifications')}>{t('header.view_all')}</span>
                             </div>
                             <div className="dropdown-list scroll-area">
                                 {latestNotifications.length > 0 ? (
@@ -305,7 +305,7 @@ const AdminHeader = ({ toggleSidebar }) => {
                                         <div className="empty-icon-pulse">
                                             <FaBell className="opacity-50" />
                                         </div>
-                                        <p>No notifications yet</p>
+                                        <p>{t('header.no_notifications')}</p>
                                     </div>
                                 )}
                             </div>

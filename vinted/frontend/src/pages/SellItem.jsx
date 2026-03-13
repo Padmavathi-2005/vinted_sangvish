@@ -367,9 +367,11 @@ const SellItem = () => {
                             <div className="si-field">
                                 <div className="si-label-row d-flex justify-content-between">
                                     <label className="si-label">{t('sell_item.category')}</label>
-                                    <button type="button" className="btn btn-outline-primary btn-sm py-0 px-2" onClick={() => openAddModal('category')}>
-                                        {t('sell_item.add_category', '+ Add Category')}
-                                    </button>
+                                    {user?.role === 'admin' && (
+                                        <button type="button" className="btn btn-outline-primary btn-sm py-0 px-2" onClick={() => openAddModal('category')}>
+                                            {t('sell_item.add_category', '+ Add Category')}
+                                        </button>
+                                    )}
                                 </div>
                                 <CustomSelect
                                     placeholder={t('sell_item.select_category')}

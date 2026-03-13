@@ -3,6 +3,7 @@ import { Container } from 'react-bootstrap';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import axios from '../utils/axios';
+import Meta from '../components/common/Meta';
 import { getImageUrl, safeString } from '../utils/constants';
 
 const CategoryPage = () => {
@@ -209,6 +210,11 @@ const CategoryPage = () => {
 
     return (
         <div style={{ minHeight: '100vh', background: '#f8fafc', paddingBottom: '60px' }}>
+            <Meta 
+                title={safeString(category.name)}
+                description={`Browse ${safeString(category.name)} items on Vinted Marketplace. Find the best deals on pre-loved fashion.`}
+                image={category.image ? getImageUrl(category.image) : undefined}
+            />
             {/* Page Header */}
             <div style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '32px 0 24px', marginBottom: '40px' }}>
                 <Container fluid className="px-md-5 px-3">

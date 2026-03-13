@@ -1,4 +1,15 @@
 {
+    "header": {
+        "select_language": "Select Language",
+        "search_language": "Search language...",
+        "select_currency": "Select Currency",
+        "search_currency": "Search currency...",
+        "recent_messages": "Recent Messages",
+        "recent_notifications": "Recent Notifications",
+        "view_all": "View All",
+        "no_messages": "No messages yet",
+        "no_notifications": "No notifications yet"
+    },
     "common": {
         "save": "Save",
         "saving": "Saving...",
@@ -17,7 +28,11 @@
             "inactive": "Inactive",
             "pending": "Pending",
             "blocked": "Blocked"
-        }
+        },
+        "refresh": "Refresh",
+        "export": "Export",
+        "export_csv": "Export to CSV",
+        "export_pdf": "Export to PDF"
     },
     "dashboard": {
         "overview": "Dashboard Overview",
@@ -42,11 +57,19 @@
         "revenue": {
             "title": "Revenue",
             "total_income": "Total Income",
-            "total_sales": "Total Sales"
+            "today_income": "Today Income",
+            "total_sales": "Total Sales",
+            "today_sales": "Today Sales"
         },
         "categories": {
             "title": "Categories",
             "total": "Total Categories"
+        },
+        "content": {
+            "title": "Content & Operations",
+            "pending_withdrawals": "Pending Withdrawals",
+            "pending_items": "Pending Item Approvals",
+            "total_categories": "Total Categories"
         },
         "commission": {
             "title": "Admin Commission Income",
@@ -86,22 +109,29 @@
         "filter_all": "All Users",
         "filter_today": "Today's Registrations",
         "table": {
-            "user": "User",
+            "user": "User Details",
             "email": "Email",
-            "balance": "Balance",
+            "balance": "Wallet Balance",
             "status": "Status",
-            "verified": "Verified"
+            "verified": "Verified",
+            "ratings": "Ratings & Reviews",
+            "network": "User Network",
+            "followers": "Followers",
+            "following": "Following",
+            "joined": "Joined Date",
+            "updated": "Last Activity"
         },
         "modal": {
-            "edit_title": "Edit User",
+            "edit_title": "Edit User Profile",
             "add_title": "Add New User",
             "username": "Username",
             "password": "Password",
-            "email": "Email",
+            "email": "Email Address",
+            "bio": "Bio / Description",
             "verification": "Verification Status",
-            "is_verified": "Is Verified",
+            "is_verified": "Verified Account",
             "not_verified": "Not Verified",
-            "profile_image": "Profile image"
+            "profile_image": "Profile Image"
         }
     },
     "listings": {
@@ -112,12 +142,19 @@
         "filter_all": "All Listings",
         "filter_today": "Today's Listings",
         "loading": "Loading listings...",
+        "no_listings": "No listings found.",
+        "toast": {
+            "create_success": "Listing created successfully",
+            "update_success": "Listing updated successfully",
+            "delete_success": "Listing deleted successfully"
+        },
         "table": {
             "item": "Item",
             "price": "Price",
             "category": "Category",
             "condition": "Condition",
-            "status": "Status"
+            "status": "Status",
+            "availability": "Availability"
         },
         "modal": {
             "edit_title": "Edit Listing",
@@ -133,10 +170,16 @@
             "subcategory_placeholder": "Select Subcategory...",
             "description": "Description",
             "description_placeholder": "Tell us more about the item...",
+            "fill_required": "Please fill in Title and Price",
             "is_sold": "Is Sold?",
             "is_blocked": "Is Blocked?",
             "sold": "Sold",
-            "available": "Available"
+            "available": "Available",
+            "blocked": "Blocked",
+            "active": "Active",
+            "images": "Images",
+            "save": "Save",
+            "cancel": "Cancel"
         }
     },
     "orders": {
@@ -146,6 +189,11 @@
         "filter_all": "All Orders",
         "filter_today": "Today's Orders",
         "loading": "Loading orders...",
+        "no_orders": "No orders found.",
+        "toast": {
+            "update_success": "Order updated successfully",
+            "delete_success": "Order deleted"
+        },
         "table": {
             "order_no": "Order #",
             "item": "Item",
@@ -155,6 +203,29 @@
             "payment_status": "Payment Status",
             "order_status": "Order Status",
             "date": "Date"
+        },
+        "status": {
+            "placed": "Placed",
+            "dispatched": "Dispatched",
+            "on_the_way": "On the Way",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled",
+            "pending": "Pending",
+            "paid": "Paid",
+            "failed": "Failed",
+            "refunded": "Refunded"
+        },
+        "modal": {
+            "edit_title": "Edit Order",
+            "order_summary": "Order Summary",
+            "order_status": "Order Status",
+            "payment_status": "Payment Status",
+            "tracking_code": "Tracking Code",
+            "tracking_code_placeholder": "Enter tracking number...",
+            "tracking_help": "Updating the tracking code will notify the buyer.",
+            "save": "Update Order",
+            "cancel": "Cancel",
+            "saving": "Updating..."
         }
     },
     "sidebar": {
@@ -185,6 +256,11 @@
             "payment_settings": "Payment Settings",
             "social_settings": "Social Settings",
             "notification_settings": "Notification Settings"
-        }
+        },
+        "notifications": "Notifications",
+        "messages": "Messages",
+        "newsletter": "Newsletter",
+        "static_pages": "Static Pages",
+        "frontend_content": "Frontend Content"
     }
 }

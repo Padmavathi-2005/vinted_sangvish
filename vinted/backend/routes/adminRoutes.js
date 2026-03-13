@@ -76,7 +76,7 @@ router.delete('/users/:id', deleteUser);
 router.get('/items/options', getItemOptions);
 router.get('/items', getItems);
 router.post('/items', createItem);
-router.put('/items/:id', updateItem);
+router.put('/items/:id', upload.array('images', 20), updateItem);
 router.delete('/items/:id', deleteItem);
 
 // Category Management

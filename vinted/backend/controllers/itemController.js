@@ -1,3 +1,4 @@
+import fs from 'fs';
 import asyncHandler from 'express-async-handler';
 import Item from '../models/Item.js';
 import Category from '../models/Category.js';
@@ -5,6 +6,7 @@ import Subcategory from '../models/Subcategory.js';
 import Currency from '../models/Currency.js';
 import ItemType from '../models/ItemType.js';
 import ItemView from '../models/ItemView.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Get single item by ID
 // @route   GET /api/items/:id
@@ -88,77 +90,104 @@ const getSimilarItems = asyncHandler(async (req, res) => {
 // @access  Public
 const getItems = asyncHandler(async (req, res) => {
     try {
-        const { sort, limit, page, search } = req.query;
+        const { sort, limit, page, search, category, subcategory, itemType, brand, size, color, condition, minPrice, maxPrice, material, user_exchange_rate } = req.query;
         const pageNum = parseInt(page) || 1;
         const limitNum = parseInt(limit) || 12;
         const skip = (pageNum - 1) * limitNum;
+        const userRate = parseFloat(user_exchange_rate) || 1;
 
-        let queryObj = { status: 'active', is_deleted: false, is_sold: false };
+        let queryObj = { 
+            status: { $in: ['active', 'available'] }, 
+            is_deleted: false, 
+            is_sold: false 
+        };
 
-        // Advanced Search functionality
+        // --- Category/Subcategory Slugs ---
+        if (category) {
+            const cat = await Category.findOne({ slug: category });
+            if (cat) queryObj.category_id = cat._id;
+        }
+        if (subcategory) {
+            const sub = await Subcategory.findOne({ slug: subcategory });
+            if (sub) queryObj.subcategory_id = sub._id;
+        }
+        if (itemType) {
+            const iType = await ItemType.findOne({ slug: itemType });
+            if (iType) queryObj.item_type_id = iType._id;
+        }
+
+        // --- Basic Filters ---
+        if (brand) queryObj.brand = { $regex: new RegExp(brand, 'i') };
+        if (size) queryObj.size = size;
+        if (color) queryObj.color = color;
+        if (condition) queryObj.condition = condition;
+        if (material) {
+            queryObj.attributes = {
+                $elemMatch: {
+                    key: { $regex: /material/i },
+                    value: { $regex: new RegExp(material, 'i') }
+                }
+            };
+        }
+
+        // --- Search Keywords ---
         if (search) {
             let cleanSearch = search;
-            let priceQuery = null;
-
-            // Extract price filter (e.g. "price 300", "300 dollar")
-            const priceRegex = /(?:price|cost|val)\s*:?\s*(\d+)|(\d+)\s*(?:dollar|usd|eur|inr|rs|€|\$)/i;
-            const priceMatch = search.match(priceRegex);
-
-            if (priceMatch) {
-                const priceVal = parseInt(priceMatch[1] || priceMatch[2]);
-                if (!isNaN(priceVal)) {
-                    // +/- 10% range for "fuzzy" price matching
-                    priceQuery = { $gte: Math.floor(priceVal * 0.9), $lte: Math.ceil(priceVal * 1.1) };
-                    cleanSearch = search.replace(priceMatch[0], '').trim();
-                }
+            const isDiscountSearch = /\b(discount|sale|offer|cheap|deal|reduced|promo)\b/i.test(search);
+            if (isDiscountSearch) {
+                queryObj.original_price = { $gt: 0 };
+                queryObj.$expr = { $lt: ['$price', '$original_price'] };
+                cleanSearch = search.replace(/\b(discount|sale|offer|cheap|deal|reduced|promo)\b/gi, '').trim();
             }
 
-            // Apply Price Filter
-            if (priceQuery) {
-                queryObj.price = priceQuery;
-            }
-
-            // Apply Text/Category Filter
             if (cleanSearch) {
                 const searchRegex = new RegExp(cleanSearch, 'i');
-                const orConditions = [];
-
-                // 1. Title & Description
-                orConditions.push({ title: searchRegex });
-                orConditions.push({ description: searchRegex });
-
-                // 2. Related Models (Category, Subcategory, ItemType)
-                // Fetch IDs for matched names
-                const [matchedCategories, matchedSubcategories, matchedItemTypes] = await Promise.all([
-                    Category.find({ name: searchRegex }).select('_id'),
-                    Subcategory.find({ name: searchRegex }).select('_id'),
-                    ItemType.find({ name: searchRegex }).select('_id')
+                const catRegex = new RegExp(`\\b${cleanSearch}\\b`, 'i');
+                const [mCat, mSub, mType] = await Promise.all([
+                    Category.find({ name: catRegex }).select('_id'),
+                    Subcategory.find({ name: catRegex }).select('_id'),
+                    ItemType.find({ name: catRegex }).select('_id')
                 ]);
 
-                if (matchedCategories.length) orConditions.push({ category_id: { $in: matchedCategories.map(c => c._id) } });
-                if (matchedSubcategories.length) orConditions.push({ subcategory_id: { $in: matchedSubcategories.map(c => c._id) } });
-                if (matchedItemTypes.length) orConditions.push({ item_type_id: { $in: matchedItemTypes.map(c => c._id) } });
-
-                queryObj.$or = orConditions;
+                const or = [{ title: searchRegex }, { description: searchRegex }];
+                if (mCat.length) or.push({ category_id: { $in: mCat.map(c => c._id) } });
+                if (mSub.length) or.push({ subcategory_id: { $in: mSub.map(s => s._id) } });
+                if (mType.length) or.push({ item_type_id: { $in: mType.map(t => t._id) } });
+                queryObj.$or = or;
             }
         }
 
-        let query;
-        let totalCount;
-        let items;
+        // --- Aggregation Pipeline ---
+        let pipeline = [{ $match: queryObj }];
 
-        if (sort === 'popular') {
-            // Use Aggregation for complex popularity scoring
-            const pipeline = [
-                { $match: queryObj },
-                {
-                    $lookup: {
-                        from: 'users',
-                        localField: 'seller_id',
-                        foreignField: '_id',
-                        as: 'seller'
+        // Join currency for conversion
+        pipeline.push(
+            { $lookup: { from: 'currencies', localField: 'currency_id', foreignField: '_id', as: 'curr' } },
+            { $unwind: '$curr' },
+            {
+                $addFields: {
+                    convertedPrice: {
+                        $multiply: [
+                            { $divide: ['$price', { $ifNull: ['$curr.exchange_rate', 1] }] },
+                            userRate
+                        ]
                     }
-                },
+                }
+            }
+        );
+
+        // Accurate Price Range Filtering
+        if (minPrice || maxPrice) {
+            const range = {};
+            if (minPrice) range.$gte = Math.max(0, parseFloat(minPrice));
+            if (maxPrice) range.$lte = Math.max(0, parseFloat(maxPrice));
+            pipeline.push({ $match: { convertedPrice: range } });
+        }
+
+        // --- Sorting ---
+        if (sort === 'popular') {
+            pipeline.push(
+                { $lookup: { from: 'users', localField: 'seller_id', foreignField: '_id', as: 'seller' } },
                 { $unwind: '$seller' },
                 {
                     $addFields: {
@@ -179,12 +208,7 @@ const getItems = asyncHandler(async (req, res) => {
                                 },
                                 {
                                     $multiply: [
-                                        {
-                                            $divide: [
-                                                { $subtract: [new Date(), '$created_at'] },
-                                                1000 * 60 * 60 * 24 // 1 day in ms
-                                            ]
-                                        },
+                                        { $divide: [{ $subtract: [new Date(), '$created_at'] }, 86400000] },
                                         -2
                                     ]
                                 }
@@ -192,45 +216,45 @@ const getItems = asyncHandler(async (req, res) => {
                         }
                     }
                 },
-                { $sort: { popularityScore: -1 } },
-                { $skip: skip },
-                { $limit: limitNum }
-            ];
-
-            items = await Item.aggregate(pipeline);
-            totalCount = await Item.countDocuments(queryObj);
-
-            items = await Item.populate(items, [
-                { path: 'category_id', select: 'name' },
-                { path: 'currency_id', select: 'code symbol' }
-            ]);
-
-            items = items.map(item => ({
-                ...item,
-                seller_id: item.seller
-            }));
-
+                { $sort: { popularityScore: -1 } }
+            );
         } else {
-            query = Item.find(queryObj);
-
-            if (sort === 'newest') {
-                query = query.sort({ created_at: -1 });
-            } else if (sort === 'oldest') {
-                query = query.sort({ created_at: 1 });
-            } else if (sort === 'price_asc') {
-                query = query.sort({ price: 1 });
-            } else if (sort === 'price_desc') {
-                query = query.sort({ price: -1 });
-            } else {
-                query = query.sort({ created_at: -1 });
-            }
-
-            totalCount = await Item.countDocuments(queryObj);
-            items = await query.skip(skip).limit(limitNum)
-                .populate('seller_id', 'username email profile_image rating_avg rating_count')
-                .populate('category_id', 'name')
-                .populate('currency_id', 'code symbol');
+            let sOrder = { created_at: -1 };
+            if (sort === 'price_asc') sOrder = { convertedPrice: 1 };
+            else if (sort === 'price_desc') sOrder = { convertedPrice: -1 };
+            else if (sort === 'oldest') sOrder = { created_at: 1 };
+            else if (sort === 'discounted') sOrder = { original_price: -1, created_at: -1 };
+            pipeline.push({ $sort: sOrder });
         }
+
+        // --- Execute ---
+        const totalResult = await Item.aggregate([...pipeline, { $count: 'total' }]);
+        const totalCount = totalResult[0]?.total || 0;
+
+        const results = await Item.aggregate([
+            ...pipeline,
+            { $skip: skip },
+            { $limit: limitNum }
+        ]);
+
+        // Manually apply prefix normalization because aggregation bypasses model hooks
+        const normalizedResults = results.map(item => {
+            if (item.images && Array.isArray(item.images)) {
+                item.images = item.images.map(img => {
+                    if (img && !img.startsWith('http') && !img.startsWith('images/')) {
+                        return `images/items/${img}`;
+                    }
+                    return img;
+                });
+            }
+            return item;
+        });
+
+        const items = await Item.populate(normalizedResults, [
+            { path: 'seller_id', select: 'username profile_image rating_avg rating_count' },
+            { path: 'category_id', select: 'name' },
+            { path: 'currency_id', select: 'code symbol' }
+        ]);
 
         res.status(200).json({
             items,
@@ -329,7 +353,11 @@ const setItem = asyncHandler(async (req, res) => {
     // Handle Images
     let images = [];
     if (req.files) {
-        images = req.files.map(file => `images/items/${file.filename}`);
+        images = req.files.map(file => {
+            // Store only the path relative to base: images/items/file.jpg
+            const filename = file.filename;
+            return `images/items/${filename}`;
+        });
     }
 
     const item = await Item.create({
@@ -356,6 +384,11 @@ const setItem = asyncHandler(async (req, res) => {
 });
 
 const updateItem = asyncHandler(async (req, res) => {
+    const logPath = 'update_debug.log';
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] UPDATE ATTEMPT ID=${req.params.id} User=${req.user.id}\n`);
+    fs.appendFileSync(logPath, `Body Keys: ${Object.keys(req.body).join(',')}\n`);
+    fs.appendFileSync(logPath, `Files: ${req.files ? req.files.length : 0}\n`);
+
     const item = await Item.findById(req.params.id);
 
     if (!item) {
@@ -364,7 +397,8 @@ const updateItem = asyncHandler(async (req, res) => {
     }
 
     // Ensure logged in user matches the item seller
-    if (item.seller_id.toString() !== req.user.id) {
+    const sellerId = item.seller_id._id ? item.seller_id._id.toString() : item.seller_id.toString();
+    if (sellerId !== req.user.id) {
         res.status(401);
         throw new Error('User not authorized');
     }
@@ -392,8 +426,17 @@ const updateItem = asyncHandler(async (req, res) => {
     // 1. Keep images that were already in the DB and not removed in the frontend
     if (existingImages) {
         try {
-            const parsedExisting = JSON.parse(existingImages);
-            updatedImages = Array.isArray(parsedExisting) ? parsedExisting : [];
+            const parsedExisting = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages;
+            if (Array.isArray(parsedExisting)) {
+                updatedImages = parsedExisting.map(img => {
+                    if (typeof img !== 'string') return img;
+                    // Strip any full URL or repeated prefixes
+                    // We only want images/items/filename
+                    const parts = img.split('/');
+                    const filename = parts[parts.length - 1];
+                    return `images/items/${filename}`;
+                });
+            }
         } catch (e) {
             console.error("Error parsing existingImages:", e);
         }
@@ -405,28 +448,53 @@ const updateItem = asyncHandler(async (req, res) => {
         updatedImages = [...updatedImages, ...newImages];
     }
 
-    const updateData = {
-        title,
-        description,
-        brand,
-        size,
-        color,
-        condition,
-        price: parseFloat(price) || 0,
-        negotiable: negotiable === 'true' || negotiable === true,
-        shipping_included: shipping_included === 'true' || shipping_included === true,
-        category_id,
-        subcategory_id,
-        item_type_id: item_type_id || item.item_type_id,
-        images: updatedImages,
-        attributes: attributes ? (typeof attributes === 'string' ? JSON.parse(attributes) : attributes) : item.attributes
-    };
+    // Build update object dynamically to only update provided fields
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (brand !== undefined) updateData.brand = brand;
+    if (size !== undefined) updateData.size = size;
+    if (color !== undefined) updateData.color = color;
+    if (condition !== undefined) updateData.condition = condition;
+    if (price !== undefined) updateData.price = parseFloat(price) || 0;
+    if (negotiable !== undefined) updateData.negotiable = negotiable === 'true' || negotiable === true;
+    if (shipping_included !== undefined) updateData.shipping_included = shipping_included === 'true' || shipping_included === true;
+    if (category_id) updateData.category_id = category_id;
+    if (subcategory_id) updateData.subcategory_id = subcategory_id;
+    if (item_type_id) updateData.item_type_id = item_type_id;
+    else if (item_type_id === null || item_type_id === '') updateData.item_type_id = null;
+    
+    // Always update images if we processed them
+    updateData.images = updatedImages;
 
-    const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, {
-        new: true,
-    });
+    if (attributes !== undefined) {
+        try {
+            updateData.attributes = typeof attributes === 'string' ? JSON.parse(attributes) : attributes;
+        } catch (e) {
+            console.error("Error parsing attributes:", e);
+        }
+    }
 
-    res.status(200).json(updatedItem);
+    console.log('Update Data going to DB:', updateData);
+
+    fs.appendFileSync(logPath, `Update Data: ${JSON.stringify(updateData)}\n`);
+
+    try {
+        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, {
+            new: true,
+            runValidators: true
+        }).populate('category_id', 'name')
+          .populate('subcategory_id', 'name')
+          .populate('item_type_id', 'name')
+          .populate('seller_id', 'username email profile_image rating_avg rating_count is_deleted status')
+          .populate('currency_id', 'code symbol');
+        
+        fs.appendFileSync(logPath, `SUCCESS: Result Images Count=${updatedItem.images?.length}\n`);
+        res.status(200).json(updatedItem);
+    } catch (error) {
+        fs.appendFileSync(logPath, `ERROR: ${error.message}\n`);
+        throw error;
+    }
 });
 
 // @desc    Delete item
@@ -457,6 +525,98 @@ const deleteItem = asyncHandler(async (req, res) => {
     res.status(200).json({ id: req.params.id });
 });
 
+// @desc    Apply a discount to an item (seller only)
+// @route   PUT /api/items/:id/discount
+// @access  Private
+const applyDiscount = asyncHandler(async (req, res) => {
+    const item = await Item.findById(req.params.id).populate('seller_id', 'username');
+
+    if (!item) {
+        res.status(404);
+        throw new Error('Item not found');
+    }
+
+    if (item.seller_id._id.toString() !== req.user.id) {
+        res.status(401);
+        throw new Error('Not authorized to modify this item');
+    }
+
+    const { discounted_price } = req.body;
+    const newPrice = parseFloat(discounted_price);
+
+    if (isNaN(newPrice) || newPrice <= 0) {
+        res.status(400);
+        throw new Error('Invalid discounted price');
+    }
+
+    // The discounted price must be lower than the current price
+    const basePrice = item.original_price > 0 ? item.original_price : item.price;
+
+    if (newPrice >= basePrice) {
+        res.status(400);
+        throw new Error(`Discounted price must be lower than the original price (${basePrice})`);
+    }
+
+    // Save original_price if this is the first time applying a discount
+    const originalPrice = item.original_price > 0 ? item.original_price : item.price;
+
+    const updatedItem = await Item.findByIdAndUpdate(
+        req.params.id,
+        {
+            price: newPrice,
+            original_price: originalPrice,
+            discount_prompt_sent: true // mark so cron doesn't send again
+        },
+        { new: true }
+    );
+
+    // Notify users who liked/favourited the item
+    try {
+        const Favorite = (await import('../models/Favorite.js')).default;
+        const likers = await Favorite.find({ item_id: item._id }).select('user_id');
+        const percentOff = Math.round(((originalPrice - newPrice) / originalPrice) * 100);
+
+        for (const fav of likers) {
+            await Notification.create({
+                user_id: fav.user_id,
+                title: `💸 Price drop on an item you liked!`,
+                message: `"${item.title}" just dropped from ${originalPrice} to ${newPrice} — that's ${percentOff}% off!`,
+                type: 'info',
+                link: `/items/${item._id}`
+            });
+        }
+    } catch (err) {
+        console.error('Could not notify likers:', err.message);
+    }
+
+    res.status(200).json(updatedItem);
+});
+
+// @desc    Remove a discount from an item (restore original price)
+// @route   DELETE /api/items/:id/discount
+// @access  Private
+const removeDiscount = asyncHandler(async (req, res) => {
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+        res.status(404);
+        throw new Error('Item not found');
+    }
+
+    if (item.seller_id.toString() !== req.user.id) {
+        res.status(401);
+        throw new Error('Not authorized');
+    }
+
+    const updatedItem = await Item.findByIdAndUpdate(
+        req.params.id,
+        { price: item.original_price > 0 ? item.original_price : item.price, original_price: 0 },
+        { new: true }
+    );
+
+    res.status(200).json(updatedItem);
+});
+
 export {
     getItems,
     getItemById,
@@ -465,4 +625,7 @@ export {
     setItem,
     updateItem,
     deleteItem,
+    applyDiscount,
+    removeDiscount,
 };
+

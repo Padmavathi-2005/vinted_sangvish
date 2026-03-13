@@ -53,21 +53,27 @@ const ListingsSection = () => {
     const [lineStyle, setLineStyle] = useState({});
 
     useEffect(() => {
-        if (tabsRef.current) {
-            const activeElement = tabsRef.current.querySelector(`.tab-item[data-tab="${activeTab}"]`);
-            if (activeElement) {
-                const { offsetLeft, offsetWidth } = activeElement;
-                // 80% width, centered
-                const lineWidth = offsetWidth * 0.8;
-                const lineLeft = offsetLeft + (offsetWidth - lineWidth) / 2;
+        const updateLine = () => {
+            if (tabsRef.current) {
+                const activeElement = tabsRef.current.querySelector(`.tab-item[data-tab="${activeTab}"]`);
+                if (activeElement) {
+                    const { offsetLeft, offsetWidth } = activeElement;
+                    // Slightly shorter than text (70%) and centered
+                    const lineWidth = offsetWidth * 0.7;
+                    const lineLeft = offsetLeft + (offsetWidth - lineWidth) / 2;
 
-                setLineStyle({
-                    left: `${lineLeft}px`,
-                    width: `${lineWidth}px`,
-                    backgroundColor: primaryColor
-                });
+                    setLineStyle({
+                        left: `${lineLeft}px`,
+                        width: `${lineWidth}px`,
+                        backgroundColor: primaryColor
+                    });
+                }
             }
-        }
+        };
+
+        updateLine();
+        window.addEventListener('resize', updateLine);
+        return () => window.removeEventListener('resize', updateLine);
     }, [activeTab, primaryColor]);
 
     if (!loading && popularItems.length === 0 && newestItems.length === 0) {
@@ -77,18 +83,18 @@ const ListingsSection = () => {
     const displayItems = activeTab === 'popular' ? popularItems : newestItems;
 
     return (
-        <section className="listings-section py-5" style={{ backgroundColor: '#f8fafc', minHeight: '600px' }}>
+        <section className="listings-section py-4 py-md-5" style={{ backgroundColor: '#f8fafc', minHeight: '600px' }}>
             <Container fluid className="px-md-5 px-3">
                 {/* Tabs */}
-                <div className="section-tabs-container mb-4 position-relative" style={{ borderBottom: '2px solid #e2e8f0', display: 'inline-block', width: '100%' }}>
-                    <div ref={tabsRef} className="d-flex gap-5" style={{ position: 'relative', paddingBottom: '12px' }}>
+                <div className="section-tabs-container mb-3 mb-md-4 position-relative" style={{ borderBottom: '2px solid #e2e8f0', display: 'inline-block', width: '100%' }}>
+                    <div ref={tabsRef} className="d-flex gap-3 gap-md-5" style={{ position: 'relative', paddingBottom: '12px' }}>
                         <span
                             className="tab-item"
                             data-tab="popular"
                             onMouseEnter={() => setActiveTab('popular')}
                             onClick={() => setActiveTab('popular')}
                             style={{
-                                fontSize: '1.5rem',
+                                fontSize: 'clamp(1.1rem, 4vw, 1.5rem)',
                                 fontWeight: '700',
                                 cursor: 'pointer',
                                 color: activeTab === 'popular' ? primaryColor : '#94a3b8',
@@ -103,7 +109,7 @@ const ListingsSection = () => {
                             onMouseEnter={() => setActiveTab('newest')}
                             onClick={() => setActiveTab('newest')}
                             style={{
-                                fontSize: '1.5rem',
+                                fontSize: 'clamp(1.1rem, 4vw, 1.5rem)',
                                 fontWeight: '700',
                                 cursor: 'pointer',
                                 color: activeTab === 'newest' ? primaryColor : '#94a3b8',

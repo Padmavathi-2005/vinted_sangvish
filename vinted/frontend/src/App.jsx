@@ -18,20 +18,29 @@ import DynamicPage from './pages/DynamicPage';
 import CategoriesPage from './pages/CategoriesPage';
 import CategoryPage from './pages/CategoryPage';
 import SubcategoryItemsPage from './pages/SubcategoryItemsPage';
-// Admin imports removed - now a separate project
+import Maintenance from './pages/Maintenance';
+import { useSettings } from './context/SettingsContext';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { CartProvider } from './context/CartContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { SettingsProvider } from './context/SettingsContext';
 import ScrollToTop from './components/common/ScrollToTop';
 import CookieConsent from './components/common/CookieConsent';
 
 // Layout wrapper to conditionally show Header/Footer
 const Layout = ({ children }) => {
+  const { settings } = useSettings();
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // If maintenance mode is ON and we're not explicitly trying to access admin (which is now separate anyway)
+  // Show maintenance page instead of the site
+  if (settings?.maintenance_mode) {
+    return <Maintenance />;
+  }
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -48,41 +57,43 @@ const Layout = ({ children }) => {
 
 const App = () => {
   return (
-    <AuthProvider>
-      <WishlistProvider>
-        <CartProvider>
-          <CurrencyProvider>
-            <LanguageProvider>
-              <NotificationProvider>
-                <Router>
-                  <Layout>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/products" element={<Products />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/register" element={<Register />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="/sell" element={<SellItem />} />
-                      <Route path="/items/:id" element={<ItemDetail />} />
-                      <Route path="/seller/:id" element={<SellerProfile />} />
-                      <Route path="/profile/:id" element={<SellerProfile />} />
-                      <Route path="/notifications" element={<Notifications />} />
-                      <Route path="/cart" element={<Cart />} />
-                      <Route path="/checkout" element={<Checkout />} />
-                      <Route path="/categories" element={<CategoriesPage />} />
-                      <Route path="/categories/:slug" element={<CategoryPage />} />
-                      <Route path="/categories/:slug/:subSlug" element={<SubcategoryItemsPage />} />
-                      <Route path="/pages/:slug" element={<DynamicPage />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Layout>
-                </Router>
-              </NotificationProvider>
-            </LanguageProvider>
-          </CurrencyProvider>
-        </CartProvider>
-      </WishlistProvider>
-    </AuthProvider>
+    <SettingsProvider>
+      <AuthProvider>
+        <WishlistProvider>
+          <CartProvider>
+            <CurrencyProvider>
+              <LanguageProvider>
+                <NotificationProvider>
+                  <Router>
+                    <Layout>
+                      <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/products" element={<Products />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="/sell" element={<SellItem />} />
+                        <Route path="/items/:id" element={<ItemDetail />} />
+                        <Route path="/seller/:id" element={<SellerProfile />} />
+                        <Route path="/profile/:id" element={<SellerProfile />} />
+                        <Route path="/notifications" element={<Notifications />} />
+                        <Route path="/cart" element={<Cart />} />
+                        <Route path="/checkout" element={<Checkout />} />
+                        <Route path="/categories" element={<CategoriesPage />} />
+                        <Route path="/categories/:slug" element={<CategoryPage />} />
+                        <Route path="/categories/:slug/:subSlug" element={<SubcategoryItemsPage />} />
+                        <Route path="/pages/:slug" element={<DynamicPage />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </Layout>
+                  </Router>
+                </NotificationProvider>
+              </LanguageProvider>
+            </CurrencyProvider>
+          </CartProvider>
+        </WishlistProvider>
+      </AuthProvider>
+    </SettingsProvider>
   );
 };
 

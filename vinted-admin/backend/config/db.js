@@ -9,10 +9,9 @@ const connectDB = async () => {
     // isLocal = true only when explicitly NOT in production
     // NOTE: Do NOT use port number - live server also uses port 5001 for admin!
     const isLocal = process.env.NODE_ENV !== 'production';
-    const liveUri = process.env.MONGO_URI || "mongodb+srv://support_db_uuser:gyhkuN-jammy8-voxqub@vinted.ek5p4it.mongodb.net/vinted_db?appName=vinted";
-    const localUri = process.env.LOCAL_MONGO_URI || "mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted";
-
-    const dbUriToUse = isLocal ? localUri : liveUri;
+    // Use Abinayashri's Atlas URI as the primary connection
+    // The user specifically requested this over any local MongoDB instance
+    const dbUriToUse = process.env.LOCAL_MONGO_URI || "mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted";
 
     const conn = await mongooseInstance.connect(dbUriToUse, {
       serverSelectionTimeoutMS: 10000,

@@ -6,11 +6,23 @@ const connectDB = async () => {
 
     // isLocal = true only when explicitly NOT in production
     // NOTE: Do NOT use PORT number — live server also runs on port 5000!
+    // Environment-based URI selection
     const isLocal = process.env.NODE_ENV !== 'production';
-    const liveUri = process.env.MONGO_URI || "mongodb+srv://support_db_uuser:gyhkuN-jammy8-voxqub@vinted.ek5p4it.mongodb.net/vinted_db?appName=vinted";
-    const localUri = process.env.LOCAL_MONGO_URI || "mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted";
-
-    const dbUriToUse = isLocal ? localUri : liveUri;
+    
+    let dbUriToUse;
+    if (isLocal) {
+        // Local environment: Prioritize LOCAL_MONGO_URI
+        dbUriToUse = process.env.LOCAL_MONGO_URI || process.env.MONGO_URI;
+        console.log('Mode: LOCAL - Connecting to Local/Dev Database');
+    } else {
+        // Production/Live environment: Use MONGO_URI
+        dbUriToUse = process.env.MONGO_URI;
+        console.log('Mode: LIVE - Connecting to Production Database');
+    }
+    
+    if (!dbUriToUse) {
+        throw new Error('MongoDB URI not found in environment variables');
+    }
 
     const conn = await mongoose.connect(dbUriToUse, {
       serverSelectionTimeoutMS: 10000,

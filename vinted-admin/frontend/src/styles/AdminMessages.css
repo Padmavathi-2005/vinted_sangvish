@@ -2,7 +2,7 @@
 
 .admin-messages-container {
     height: calc(100vh - 120px);
-    margin: 20px;
+    /* margin: 20px; */
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border-radius: 20px;
@@ -567,3 +567,42 @@
         padding: 20px 0;
     }
 }
+
+/* Chat Item Banner */
+.chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chat-item-context-mini {
+    text-align: right;
+    line-height: 1.2;
+}
+
+.chat-item-banner {
+    padding: 12px 24px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.item-banner-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.item-banner-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.item-banner-price {
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    font-weight: 600;
+}

@@ -26,8 +26,6 @@ const getSettingsByType = asyncHandler(async (req, res) => {
             pagination_limit: 12,
             pagination_mode: 'paginate',
             maintenance_mode: false,
-            allow_registration: true,
-            allow_guest_checkout: false,
             timezone: 'UTC',
             admin_commission: 2
         });
@@ -103,23 +101,20 @@ const getSettingsByType = asyncHandler(async (req, res) => {
 // @access  Private (Admin)
 const updateSettingsByType = asyncHandler(async (req, res) => {
     const { type } = req.params;
-    console.log(`\n[SETTINGS UPDATE] Type: ${type}`);
-    console.log('[BODY]:', req.body);
-
     let setting = await Setting.findOne({ type });
-
     const updateData = { ...req.body };
 
-    // Explicitly delete problematic or metadata fields
-    const blacklist = ['_id', '__v', 'created_at', 'updated_at', 'type', 'general_settings'];
+    console.log(`[Settings] Updating ${type}. Data:`, JSON.stringify(updateData, null, 2));
+
+    const blacklist = ['_id', '__v', 'created_at', 'updated_at', 'type'];
     blacklist.forEach(field => delete updateData[field]);
 
-    // Handle file uploads specifically
+    // Handle any files uploaded
     if (req.files) {
-        ['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image', 'stripe_logo', 'paypal_logo'].forEach(field => {
-            if (req.files[field]) {
-                updateData[field] = `images/site/${req.files[field][0].filename}`;
-                console.log(`-> New ${field}:`, updateData[field]);
+        Object.keys(req.files).forEach(fieldName => {
+            const files = req.files[fieldName];
+            if (files && files.length > 0) {
+                updateData[fieldName] = `images/site/${files[0].filename}`;
             }
         });
     }
@@ -135,7 +130,6 @@ const updateSettingsByType = asyncHandler(async (req, res) => {
         if (typeof val === 'string' && (val.startsWith('{') || val.startsWith('['))) {
             try {
                 updateData[key] = JSON.parse(val);
-                console.log(`   Parsed JSON for ${key}`);
             } catch (e) {
                 // Not valid JSON, keep as string
             }
@@ -144,34 +138,44 @@ const updateSettingsByType = asyncHandler(async (req, res) => {
 
     try {
         if (setting) {
-            console.log('-> Found existing settings. Merging updates...');
+            console.log(`[Settings] Found existing setting for ${type}. Updating fields...`);
             Object.keys(updateData).forEach(key => {
+                const val = updateData[key];
                 // Skip invalid data
-                if (updateData[key] === undefined || updateData[key] === 'undefined') return;
+                if (val === undefined || val === 'undefined') return;
 
                 // Force null for empty ObjectId fields to prevent casting errors
-                if (key.endsWith('_id') && updateData[key] === '') {
-                    console.log(`   Setting ${key} = NULL (cleared)`);
-                    setting.set(key, null);
-                } else {
-                    console.log(`   Setting ${key} =`, updateData[key]);
-                    setting.set(key, updateData[key]);
+                if (key.endsWith('_id')) {
+                    if (val === '' || val === null || val === 'null' || val === 'undefined') {
+                        setting.set(key, null);
+                    } else {
+                        setting.set(key, val);
+                    }
+                    return;
                 }
-            });
 
+                // Explicit casting for known numeric fields
+                if (['pagination_limit', 'admin_commission'].includes(key)) {
+                    const numVal = parseFloat(val);
+                    setting.set(key, isNaN(numVal) ? null : numVal);
+                    return;
+                }
+
+                setting.set(key, val);
+            });
             const updatedSetting = await setting.save();
-            console.log(`[SUCCESS] Saved ${type}`);
             res.json(updatedSetting);
         } else {
-            console.log(`-> No settings found for ${type}. Creating new...`);
             const newSetting = await Setting.create({ ...updateData, type });
-            console.log(`[SUCCESS] Created ${type}`);
             res.status(201).json(newSetting);
         }
     } catch (error) {
         console.error(`[Settings] ERROR updating ${type}:`, error);
-        res.status(500);
-        throw new Error(`Failed to update settings: ${error.message}`);
+        if (!res.headersSent) {
+            res.status(500).json({
+                message: `Failed to update settings: ${error.message}`
+            });
+        }
     }
 });
 

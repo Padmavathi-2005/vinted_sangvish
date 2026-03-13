@@ -223,12 +223,14 @@
 }
 
 .nav-label {
-    font-size: 0.95rem;
-    font-weight: 500;
+    font-size: 0.98rem;
+    font-weight: 600;
+    font-family: var(--body-font, 'Outfit'), sans-serif;
     white-space: normal;
     /* Allow wrapping */
-    line-height: 1.3;
+    line-height: 1.4;
     flex: 1;
+    letter-spacing: 0.015em;
 }
 
 .admin-sidebar.collapsed:not(.hover-expanded) .nav-label {

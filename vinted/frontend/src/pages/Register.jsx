@@ -4,6 +4,7 @@ import axios from '../utils/axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGoogle, FaApple, FaFacebookSquare, FaTwitter } from 'react-icons/fa';
 import AuthContext from '../context/AuthContext';
+import Meta from '../components/common/Meta';
 import '../styles/Auth.css';
 
 const Register = () => {
@@ -48,6 +49,7 @@ const Register = () => {
 
     return (
         <div className="auth-page">
+            <Meta title="Register" description="Join our marketplace community and start buying or selling fashion today." />
             <div className="auth-card">
                 <h2 className="text-center">Create Account</h2>
                 <p className="subtitle text-center">Join our marketplace community today</p>

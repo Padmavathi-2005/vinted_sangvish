@@ -185,7 +185,7 @@
     "negotiable_title": "I am open to offers / Negotiable",
     "shipping_title": "Shipping included in price",
     "specifications": "Specifications",
-    "add_detail": "+ Add Detail",
+    "add_detail": "Add Detail",
     "spec_hint": "Add any specific details (RAM, Storage, Material, Warranty) based on your product.",
     "spec_label_placeholder": "Label (e.g. RAM)",
     "spec_value_placeholder": "Value (e.g. 16GB)",

@@ -12,7 +12,7 @@ const storage = multer.diskStorage({
 
         if (file.fieldname === 'profile_image') {
             dest += 'profile';
-        } else if (['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image', 'image'].includes(file.fieldname)) {
+        } else if (['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image', 'image', 'stripe_logo', 'paypal_logo'].includes(file.fieldname)) {
             dest += 'site';
         } else if (file.fieldname === 'category_image') {
             dest += 'categories';

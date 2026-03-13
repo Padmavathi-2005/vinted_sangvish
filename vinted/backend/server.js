@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+
 import express from 'express';
 import colors from 'colors';
 import { errorHandler } from './middleware/errorMiddleware.js';
@@ -33,6 +34,9 @@ import frontendContentRoutes from './routes/frontendContentRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import { applyDiscount, removeDiscount } from './controllers/itemController.js';
+import { protect } from './middleware/authMiddleware.js';
+import startDiscountReminderJob from './jobs/discountReminderJob.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,7 +58,13 @@ const startServer = async () => {
             }
         });
 
-        app.use(cors());
+        // CORS — allow all origins with proper headers
+        app.use(cors({
+            origin: '*',
+            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+            exposedHeaders: ['Content-Length', 'Content-Type'],
+        }));
 
         // Stripe webhook needs raw body, must come before express.json()
         app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
@@ -80,12 +90,21 @@ const startServer = async () => {
             next();
         });
 
-        // Serve static images from shared folders
-        app.use('/images/profile', express.static(path.join(__dirname, 'images/profile')));
-        app.use('/images/items', express.static(path.join(__dirname, 'images/items')));
-        app.use('/images/site', express.static(path.join(__dirname, 'images/site')));
-        app.use('/images/categories', express.static(path.join(__dirname, 'images/categories')));
-        app.use('/images/category', express.static(path.join(__dirname, 'images/categories'))); // Fallback for old path
+        // Static options: add CORS headers to every image response
+        const imageStaticOptions = {
+            setHeaders: (res) => {
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+                res.setHeader('Cache-Control', 'public, max-age=86400');
+            }
+        };
+
+        // Unified static images serving - serves any file under /images/**
+        app.use('/images', express.static(path.join(__dirname, 'images'), imageStaticOptions));
+        
+        // Aliases for legacy support (if any old code still hits /images/items directly and expects it to root there)
+        app.use('/images/items', express.static(path.join(__dirname, 'images/items'), imageStaticOptions));
+        app.use('/images/profile', express.static(path.join(__dirname, 'images/profile'), imageStaticOptions));
 
         app.use('/api/items', itemRoutes);
         app.use('/api/settings', settingRoutes);
@@ -107,6 +126,9 @@ const startServer = async () => {
         app.use('/api/newsletter', newsletterRoutes);
         app.use('/api/auth', authRoutes);
         app.use('/api/ai', aiRoutes);
+
+        // Start scheduled jobs
+        startDiscountReminderJob();
 
 
         app.use(errorHandler);

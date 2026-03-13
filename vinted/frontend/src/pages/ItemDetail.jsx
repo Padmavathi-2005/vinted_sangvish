@@ -10,7 +10,7 @@ import {
     FaShoppingBag, FaTimes, FaClock, FaStarHalfAlt, FaRegStar,
     FaShareAlt, FaSearchPlus, FaShoppingCart, FaEdit, FaEnvelope,
     FaTag, FaRuler, FaPalette, FaBoxes, FaList, FaBolt,
-    FaEyeSlash, FaCheckCircle
+    FaEyeSlash, FaCheckCircle, FaPercent, FaTrash
 } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import AuthContext from '../context/AuthContext';
@@ -18,6 +18,7 @@ import WishlistContext from '../context/WishlistContext';
 import CurrencyContext from '../context/CurrencyContext';
 import CartContext from '../context/CartContext';
 import ItemCard from '../components/common/ItemCard';
+import Meta from '../components/common/Meta';
 import { usePopup } from '../components/common/Popup';
 import '../styles/ItemDetail.css';
 import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
@@ -76,6 +77,12 @@ const ItemDetail = () => {
     const [offerSending, setOfferSending] = useState(false);
     const [hoveredSide, setHoveredSide] = useState(null);
     const [shareModal, setShareModal] = useState(false);
+
+    // Discount state (for own items)
+    const [discountInput, setDiscountInput] = useState('');
+    const [discountApplying, setDiscountApplying] = useState(false);
+    const [discountError, setDiscountError] = useState('');
+    const [discountSuccess, setDiscountSuccess] = useState('');
 
     // Login popup state
     const [loginPopup, setLoginPopup] = useState(false);
@@ -187,7 +194,7 @@ const ItemDetail = () => {
         if (!requireLogin('message')) return;
         const sellerId = item.seller_id?._id;
         if (!sellerId) return;
-        if ((user.id || user._id) === sellerId) {
+        if ((user.id || user._id)?.toString() === sellerId?.toString()) {
             showPopup({ type: 'warning', title: 'Own Item', message: 'You cannot message yourself about your own item.' });
             return;
         }
@@ -221,6 +228,52 @@ const ItemDetail = () => {
             alert(err.response?.data?.message || 'Failed to send offer.');
         } finally {
             setOfferSending(false);
+        }
+    };
+
+    const handleApplyDiscount = async () => {
+        setDiscountError('');
+        setDiscountSuccess('');
+        const newPrice = parseFloat(discountInput);
+        if (isNaN(newPrice) || newPrice <= 0) {
+            setDiscountError('Please enter a valid price.');
+            return;
+        }
+        const basePrice = item.original_price > 0 ? item.original_price : item.price;
+        if (newPrice >= basePrice) {
+            setDiscountError(`New price must be lower than the original price (${formatPrice(basePrice, item.currency_id)}).`);
+            return;
+        }
+        setDiscountApplying(true);
+        try {
+            await axios.put(`/api/items/${id}/discount`, { discounted_price: newPrice });
+            // Re-fetch complete item so seller_id stays populated & isOwnItem stays true
+            const res = await axios.get(`/api/items/${id}`);
+            setItem(res.data);
+            setDiscountInput('');
+            const pct = Math.round(((basePrice - newPrice) / basePrice) * 100);
+            setDiscountSuccess(`✅ Discount applied! ${pct}% off — new price: ${formatPrice(newPrice, item.currency_id)}`);
+        } catch (err) {
+            setDiscountError(err.response?.data?.message || 'Failed to apply discount.');
+        } finally {
+            setDiscountApplying(false);
+        }
+    };
+
+    const handleRemoveDiscount = async () => {
+        setDiscountError('');
+        setDiscountSuccess('');
+        setDiscountApplying(true);
+        try {
+            await axios.delete(`/api/items/${id}/discount`);
+            // Re-fetch complete item so seller_id stays populated
+            const res = await axios.get(`/api/items/${id}`);
+            setItem(res.data);
+            setDiscountSuccess('✅ Discount removed. Original price restored.');
+        } catch (err) {
+            setDiscountError(err.response?.data?.message || 'Failed to remove discount.');
+        } finally {
+            setDiscountApplying(false);
         }
     };
 
@@ -309,7 +362,9 @@ const ItemDetail = () => {
     const condCfg = conditionConfig[item.condition] || { label: item.condition, color: '#6b7280', bg: '#f8fafc' };
     const condLabel = item.condition ? t(`sell_item.condition_options.${item.condition.replace(/ /g, '')}`, { defaultValue: condCfg.label }) : condCfg.label;
     const memberSinceYear = seller?.created_at ? new Date(seller.created_at).getFullYear() : 'N/A';
-    const isOwnItem = user && (user.id === seller?._id || user._id === seller?._id);
+    const isOwnItem = user && seller && (
+        (user.id || user._id)?.toString() === seller?._id?.toString()
+    );
     const sideImages = images.length > 1 ? images : [];
 
     // Build details rows
@@ -341,6 +396,12 @@ const ItemDetail = () => {
 
     return (
         <div className="id-page">
+            <Meta 
+                title={item.title}
+                description={item.description || `Buy ${item.title} on Vinted Marketplace.`}
+                image={getImageSrc(images[0])}
+                type="product"
+            />
             <div className="id-container">
                 {/* Breadcrumb */}
                 <div className="id-breadcrumb" style={{ gridColumn: '1 / -1' }}>
@@ -431,7 +492,23 @@ const ItemDetail = () => {
                         <div className="id-price-card">
                             <h1 className="id-item-title">{safeString(item.title)}</h1>
                             <div className="id-price-row">
-                                <div className="id-price">{formatPrice(item.price, item.currency_id)}</div>
+                                <div>
+                                    {/* Discounted price — large, red, on top */}
+                                    <div className="id-price" style={item.original_price > 0 && item.original_price > item.price ? { color: '#ef4444' } : {}}>
+                                        {formatPrice(item.price, item.currency_id)}
+                                        {item.original_price > 0 && item.original_price > item.price && (
+                                            <span style={{ fontSize: '0.78rem', background: '#ef4444', color: 'white', borderRadius: '6px', padding: '2px 8px', marginLeft: '10px', fontWeight: '700' }}>
+                                                -{Math.round(((item.original_price - item.price) / item.original_price) * 100)}% OFF
+                                            </span>
+                                        )}
+                                    </div>
+                                    {/* Original price crossed out — below the discounted price */}
+                                    {item.original_price > 0 && item.original_price > item.price && (
+                                        <div style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '0.95rem', marginTop: '2px' }}>
+                                            {formatPrice(item.original_price, item.currency_id)}
+                                        </div>
+                                    )}
+                                </div>
                                 {item.negotiable && (
                                     <span className="id-negotiable-badge">
                                         <FaHandshake /> {t('item_detail.negotiable')}
@@ -477,9 +554,95 @@ const ItemDetail = () => {
                         )}
 
                         {isOwnItem ? (
+                            <>
                             <Link to={`/profile?tab=listings`} className="id-btn-edit-item">
                                 <FaEdit /> {t('item_detail.manage_listing')}
                             </Link>
+
+                            {/* ── Seller Discount Panel ── */}
+                            {!item.is_sold && item.status !== 'sold' && (
+                                <div style={{
+                                    marginTop: '16px', padding: '16px', borderRadius: '12px',
+                                    border: '1.5px dashed #e2e8f0', background: '#fafafa'
+                                }}>
+                                    <div style={{ fontWeight: '700', fontSize: '0.95rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <FaPercent style={{ color: '#ef4444' }} /> Apply a Discount
+                                    </div>
+
+                                    {/* Current discount status */}
+                                    {item.original_price > 0 && item.original_price > item.price ? (
+                                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '12px', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                                            Currently discounted: <strong style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{formatPrice(item.original_price, item.currency_id)}</strong>
+                                            {' → '}<strong style={{ color: '#ef4444' }}>{formatPrice(item.price, item.currency_id)}</strong>
+                                            <span style={{ background: '#ef4444', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', marginLeft: '6px' }}>
+                                                -{Math.round(((item.original_price - item.price) / item.original_price) * 100)}% OFF
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '10px' }}>
+                                            Current price: <strong>{formatPrice(item.price, item.currency_id)}</strong> — Enter a lower price below to apply a discount.
+                                        </div>
+                                    )}
+
+                                    {/* Live preview */}
+                                    {discountInput && !isNaN(parseFloat(discountInput)) && parseFloat(discountInput) > 0 && (() => {
+                                        const base = item.original_price > 0 ? item.original_price : item.price;
+                                        const newP = parseFloat(parseFloat(discountInput).toFixed(2));
+                                        if (newP > 0 && newP < base) {
+                                            const pct = Math.round(((base - newP) / base) * 100);
+                                            return (
+                                                <div style={{ fontSize: '0.82rem', marginBottom: '8px', color: '#16a34a', fontWeight: '600' }}>
+                                                    Preview: <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{formatPrice(base, item.currency_id)}</span> → <span style={{ color: '#ef4444' }}>{formatPrice(newP, item.currency_id)}</span> <span style={{ background: '#ef4444', color: 'white', borderRadius: '4px', padding: '1px 5px', fontSize: '0.72rem' }}>-{pct}% OFF</span>
+                                            </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <input
+                                            type="number"
+                                            min="0.01"
+                                            step="0.01"
+                                            value={discountInput}
+                                            onChange={e => { setDiscountInput(e.target.value); setDiscountError(''); setDiscountSuccess(''); }}
+                                            placeholder={`New selling price (below ${formatPrice(item.original_price > 0 ? item.original_price : item.price, item.currency_id)})`}
+                                            style={{
+                                                border: '1.5px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px',
+                                                fontSize: '0.9rem', flex: 1, minWidth: '180px', outline: 'none'
+                                            }}
+                                        />
+                                        <button
+                                            onClick={handleApplyDiscount}
+                                            disabled={discountApplying || !discountInput}
+                                            style={{
+                                                background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px',
+                                                padding: '8px 16px', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap'
+                                            }}
+                                        >
+                                            {discountApplying ? 'Applying...' : '🏷️ Apply'}
+                                        </button>
+                                        {item.original_price > 0 && item.original_price > item.price && (
+                                            <button
+                                                onClick={handleRemoveDiscount}
+                                                disabled={discountApplying}
+                                                style={{
+                                                    background: 'white', color: '#64748b', border: '1.5px solid #e2e8f0',
+                                                    borderRadius: '8px', padding: '8px 12px', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem'
+                                                }}
+                                            >
+                                                <FaTrash style={{ marginRight: '4px', fontSize: '0.75rem' }} /> Remove
+                                            </button>
+                                        )}
+                                    </div>
+                                    {discountError && <div style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '8px' }}>{discountError}</div>}
+                                    {discountSuccess && <div style={{ color: '#16a34a', fontSize: '0.82rem', marginTop: '8px' }}>{discountSuccess}</div>}
+                                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '8px' }}>
+                                        💡 Buyers who liked this item will get a price-drop notification!
+                                    </div>
+                                </div>
+                            )}
+                            </>
                         ) : (
                             <div className={`id-cta-group${!item.negotiable ? ' no-offer' : ''}`}>
                                 {/* Row 1: Buy Now */}

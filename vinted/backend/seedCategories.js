@@ -6,13 +6,13 @@
  * Run with: node backend/seedCategories.js
  */
 
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 dotenv.config();
 
-const Category = require('./models/Category');
-const Subcategory = require('./models/Subcategory');
-const ItemType = require('./models/ItemType');
+import Category from './models/Category.js';
+import Subcategory from './models/Subcategory.js';
+import ItemType from './models/ItemType.js';
 
 // ─── Helper ────────────────────────────────────────────────
 const slug = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -424,8 +424,12 @@ const CATEGORY_TREE = [
 // ─── Seed Function ─────────────────────────────────────────
 const seedCategories = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('✅ Connected to MongoDB');
+        const isLocal = process.env.NODE_ENV !== 'production';
+        const dbUriToUse = isLocal ? (process.env.LOCAL_MONGO_URI || process.env.MONGO_URI) : process.env.MONGO_URI;
+
+        console.log(`\n🔗 CATEGORY SEED: Connecting to ${isLocal ? 'LOCAL' : 'LIVE'} database...`);
+        await mongoose.connect(dbUriToUse);
+        console.log('✅ Connected successfully.');
 
         // Clear existing category data
         await ItemType.deleteMany({});

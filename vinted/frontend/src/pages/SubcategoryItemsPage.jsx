@@ -220,10 +220,11 @@ const SubcategoryItemsPage = () => {
                                 }}
                             >
                                 <option value="newest">Newest First</option>
-                                <option value="oldest">Oldest First</option>
+                                <option value="popular">Relevance</option>
                                 <option value="price_asc">Price: Low to High</option>
                                 <option value="price_desc">Price: High to Low</option>
-                                <option value="popular">Most Popular</option>
+                                <option value="discounted">Sale Items</option>
+                                <option value="oldest">Oldest First</option>
                             </Form.Select>
                         </div>
 

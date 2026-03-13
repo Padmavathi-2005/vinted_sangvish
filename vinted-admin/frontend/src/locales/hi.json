@@ -1,4 +1,15 @@
 {
+  "header": {
+    "select_language": "भाषा चुनें",
+    "search_language": "भाषा खोजें...",
+    "select_currency": "मुद्रा चुनें",
+    "search_currency": "मुद्रा खोजें...",
+    "recent_messages": "हाल के संदेश",
+    "recent_notifications": "हाल की सूचनाएं",
+    "view_all": "सभी देखें",
+    "no_messages": "अभी तक कोई संदेश नहीं",
+    "no_notifications": "अभी तक कोई सूचना नहीं"
+  },
   "common": {
     "save": "बचाना",
     "saving": "सहेजा जा रहा है...",
@@ -86,21 +97,28 @@
     "filter_all": "सभी उपयोगकर्ता",
     "filter_today": "आज के पंजीकरण",
     "table": {
-      "user": "उपयोगकर्ता",
+      "user": "उपयोगकर्ता विवरण",
       "email": "ईमेल",
-      "balance": "संतुलन",
+      "balance": "वॉलेट बैलेंस",
       "status": "स्थिति",
-      "verified": "सत्यापित"
+      "verified": "सत्यापित",
+      "ratings": "रेटिंग और समीक्षाएं",
+      "network": "उपयोगकर्ता नेटवर्क",
+      "followers": "अनुयायी",
+      "following": "फ़ॉलो कर रहे हैं",
+      "joined": "शामिल होने की तिथि",
+      "updated": "पिछली गतिविधि"
     },
     "modal": {
-      "edit_title": "यूजर को संपादित करो",
-      "add_title": "नई उपयोगकर्ता को जोड़ना",
+      "edit_title": "उपयोगकर्ता प्रोफ़ाइल संपादित करें",
+      "add_title": "नया उपयोगकर्ता जोड़ें",
       "username": "उपयोगकर्ता नाम",
       "password": "पासवर्ड",
-      "email": "ईमेल",
+      "email": "ईमेल पता",
+      "bio": "बायो / विवरण",
       "verification": "सत्यापन स्थिति",
-      "is_verified": "सत्यापित है",
-      "not_verified": "सत्यापित नहीं है",
+      "is_verified": "सत्यापित खाता",
+      "not_verified": "सत्यापित नहीं",
       "profile_image": "प्रोफ़ाइल छवि"
     }
   },
@@ -117,7 +135,8 @@
       "price": "कीमत",
       "category": "वर्ग",
       "condition": "स्थिति",
-      "status": "स्थिति"
+      "status": "स्थिति",
+      "availability": "उपलब्धता"
     },
     "modal": {
       "edit_title": "एडिट लिस्टिंग",
@@ -136,7 +155,12 @@
       "is_sold": "बेचा जाता है?",
       "is_blocked": "अवरुद्ध है?",
       "sold": "बिका हुआ",
-      "available": "उपलब्ध"
+      "available": "उपलब्ध",
+      "blocked": "अवरुद्ध",
+      "active": "सक्रिय",
+      "images": "छवियां",
+      "save": "सहेजें",
+      "cancel": "रद्द करें"
     }
   },
   "orders": {
@@ -155,6 +179,29 @@
       "payment_status": "भुगतान की स्थिति",
       "order_status": "आदेश की स्थिति",
       "date": "तारीख"
+    },
+    "status": {
+      "placed": "रखा गया",
+      "dispatched": "भेज दिया",
+      "on_the_way": "रास्ते में",
+      "delivered": "पहुंचा दिया",
+      "cancelled": "रद्द",
+      "pending": "लंबित",
+      "paid": "भुगतान किया गया",
+      "failed": "विफल",
+      "refunded": "धनवापसी"
+    },
+    "modal": {
+      "edit_title": "ऑर्डर संपादित करें",
+      "order_summary": "ऑर्डर सारांश",
+      "order_status": "ऑर्डर की स्थिति",
+      "payment_status": "भुगतान की स्थिति",
+      "tracking_code": "ट्रैकिंग कोड",
+      "tracking_code_placeholder": "ट्रैकिंग नंबर लिखें...",
+      "tracking_help": "ट्रैकिंग कोड अपडेट करने पर खरीदार को सूचित किया जाएगा।",
+      "save": "ऑर्डर अपडेट करें",
+      "cancel": "रद्द करें",
+      "saving": "अपडेट हो रहा है..."
     }
   },
   "sidebar": {

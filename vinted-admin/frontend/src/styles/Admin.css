@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+
 * {
     margin: 0;
     padding: 0;
@@ -5,12 +7,16 @@
 }
 
 body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--body-font, 'Outfit'), 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    color: #1a2332;
+    background-color: #f8fafc;
+    overflow-x: hidden;
 }
 
 :root {
+    --body-font: 'Outfit';
     --primary-color: #0ea5e9;
     --primary-rgb: 14, 165, 233;
     --primary-dark: #0284c7;
@@ -24,6 +30,8 @@ body {
 .admin-layout {
     display: flex;
     min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
     background: #f8fafc;
     transition: background 0.3s ease;
 }
@@ -39,10 +47,13 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    max-width: calc(100% - 260px);
+    overflow-x: hidden;
 }
 
 .admin-sidebar.collapsed~.admin-content {
     margin-left: 80px;
+    max-width: calc(100% - 80px);
 }
 
 /* Admin Login Page */
@@ -537,6 +548,7 @@ body {
     padding: 10px 16px;
     border: 1px solid #e2e8f0;
     background-color: #f8fafc !important;
+    font-family: 'Inter', sans-serif;
     font-size: 0.95rem;
     transition: all 0.2s ease;
 }
@@ -561,10 +573,11 @@ body {
 }
 
 .admin-dashboard .form-label {
-    font-weight: 600;
+    font-weight: 700;
     color: #475569;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     font-size: 0.9rem;
+    letter-spacing: 0.01em;
 }
 
 [data-admin-theme="dark"] .admin-dashboard .form-label {
