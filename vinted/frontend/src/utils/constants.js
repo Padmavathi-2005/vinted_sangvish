@@ -20,7 +20,8 @@ export const getImageUrl = (path) => {
     const cleanBase = IMAGE_BASE_URL.replace(/\/+$/, '');
     // Ensure we have a leading slash if the base is relative
     const prefix = cleanBase.startsWith('http') ? cleanBase : `/${cleanBase.replace(/^\/+/, '')}`;
-    return `${prefix}/${clean}`.replace(/\/+/g, '/'); // Final check to prevent double slashes
+    const url = `${prefix}/${clean}`;
+    return url.replace(/([^:]\/)\/+/g, "$1"); // Final check to prevent double slashes but preserve protocol
 };
 
 export const getItemImageUrl = (path) => {

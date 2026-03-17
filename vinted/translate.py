@@ -5,6 +5,12 @@ import pymongo
 from deep_translator import GoogleTranslator
 from time import sleep
 
+# Ensure UTF-8 for console output on Windows
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 # Configuration
 MONGO_URI = "mongodb+srv://support_db_uuser:gyhkuN-jammy8-voxqub@vinted.ek5p4it.mongodb.net/vinted_db?appName=vinted"
 DB_NAME = "vinted_db"
@@ -43,8 +49,9 @@ def translate_dict(d, target_lang):
             translated[key] = translate_dict(value, target_lang)
         else:
             try:
-                print(f"  Translating: {value[:30]}...")
-                translated[key] = GoogleTranslator(source='en', target=target_lang).translate(value)
+                val_str = str(value)
+                print(f"  Translating: {val_str[:30]}...")
+                translated[key] = GoogleTranslator(source='en', target=target_lang).translate(val_str)
                 sleep(0.1)
             except Exception as e:
                 print(f"  Failed to translate '{key}': {e}")
@@ -60,9 +67,10 @@ def merge_translations(base, target, target_lang):
                 print(f"  Adding new category: {key}")
                 updated[key] = translate_dict(value, target_lang)
             else:
-                print(f"  Translating missing key: {key} ({value[:20]}...)")
+                val_str = str(value)
+                print(f"  Translating missing key: {key} ({val_str[:20]}...)")
                 try:
-                    updated[key] = GoogleTranslator(source='en', target=target_lang).translate(value)
+                    updated[key] = GoogleTranslator(source='en', target=target_lang).translate(val_str)
                     sleep(0.1)
                 except Exception:
                     updated[key] = value

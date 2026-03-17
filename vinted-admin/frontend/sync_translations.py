@@ -6,7 +6,7 @@ from time import sleep
 
 # Configuration
 # Read MONGO_URI from .env if possible, otherwise hardcoded from your provided context
-MONGO_URI = "mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted"
+MONGO_URI = "mongodb+srv://support_db_uuser:gyhkuN-jammy8-voxqub@vinted.ek5p4it.mongodb.net/vinted_db?appName=vinted"
 DB_NAME = "vinted_db"
 LOCALES_DIR = "src/locales"
 BASE_LANG_FILE = f"{LOCALES_DIR}/en.json"

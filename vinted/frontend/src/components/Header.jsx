@@ -398,10 +398,10 @@ const Header = () => {
                                 position: 'relative',
                                 display: 'flex',
                                 alignItems: 'center',
-                                background: '#f8f9fa', // Keep neutral gray background
+                                background: '#ffffff', 
                                 borderRadius: (showSearchHistory && (searchHistory.length > 0 || categories.length > 0)) ? '24px 24px 0 0' : '24px',
-                                border: `1.5px solid ${isSearchFocused ? settings.primary_color : (settings.primary_color + '30')}`,
-                                boxShadow: isSearchFocused ? `0 0 0 4px ${settings.primary_color}15` : '0 2px 10px rgba(0,0,0,0.06)',
+                                border: `2px solid ${settings.primary_color}`,
+                                boxShadow: `0 4px 12px ${settings.primary_color}20`,
                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 zIndex: 101,
                                 height: '46px',
@@ -410,7 +410,7 @@ const Header = () => {
                             }}
                         >
                             <div style={{ paddingLeft: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <FaSearch className="search-icon-svg" style={{ color: isSearchFocused ? settings.primary_color : '#adb5bd', fontSize: '0.95rem', opacity: 0.8, transition: 'color 0.3s' }} />
+                                <FaSearch className="search-icon-svg" style={{ color: settings.primary_color, fontSize: '0.95rem', opacity: 1, transition: 'color 0.3s' }} />
                             </div>
                             <input
                                 type="text"
@@ -681,7 +681,7 @@ const Header = () => {
                                                         /* Language Section */
                                                         <div>
                                                             <div style={{ position: 'relative', marginBottom: '8px' }}>
-                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#adb5bd', fontSize: '0.75rem' }} />
+                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: settings.primary_color, fontSize: '0.75rem' }} />
                                                                 <input
                                                                     type="text"
                                                                     placeholder={t('header.search_languages')}
@@ -689,7 +689,7 @@ const Header = () => {
                                                                     onChange={(e) => setLanguageSearchTerm(e.target.value)}
                                                                     onClick={(e) => e.stopPropagation()}
                                                                     style={{
-                                                                        width: '100%', padding: '7px 10px 7px 30px', border: '1px solid #f1f5f9', borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#f8fafc'
+                                                                        width: '100%', padding: '7px 10px 7px 30px', border: `1px solid ${settings.primary_color}`, borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#ffffff', boxShadow: `0 2px 8px ${settings.primary_color}15`
                                                                     }}
                                                                 />
                                                             </div>
@@ -712,7 +712,7 @@ const Header = () => {
                                                         /* Currency Section */
                                                         <div>
                                                             <div style={{ position: 'relative', marginBottom: '8px' }}>
-                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#adb5bd', fontSize: '0.75rem' }} />
+                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: settings.primary_color, fontSize: '0.75rem' }} />
                                                                 <input
                                                                     type="text"
                                                                     placeholder={t('header.search_currencies')}
@@ -720,7 +720,7 @@ const Header = () => {
                                                                     onChange={(e) => setCurrencySearchTerm(e.target.value)}
                                                                     onClick={(e) => e.stopPropagation()}
                                                                     style={{
-                                                                        width: '100%', padding: '7px 10px 7px 30px', border: '1px solid #f1f5f9', borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#f8fafc'
+                                                                        width: '100%', padding: '7px 10px 7px 30px', border: `1px solid ${settings.primary_color}`, borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#ffffff', boxShadow: `0 2px 8px ${settings.primary_color}15`
                                                                     }}
                                                                 />
                                                             </div>
@@ -1092,9 +1092,10 @@ const Header = () => {
                 <div className="mobile-search-expanded d-xl-none px-3 py-2 bg-white border-bottom shadow-sm text-center">
                     <div className="search-bar" style={{ position: 'relative', width: '100%', maxWidth: '1000px', margin: '0 auto' }}>
                         <div className="search-input-wrapper" style={{
-                            background: '#f8f9fa',
+                            background: '#ffffff',
                             borderRadius: '25px',
-                            border: '1px solid #e9ecef',
+                            border: `2px solid ${settings.primary_color}`,
+                            boxShadow: `0 4px 12px ${settings.primary_color}20`,
                             height: '46px',
                             display: 'flex',
                             alignItems: 'center',
@@ -1103,7 +1104,7 @@ const Header = () => {
                             width: '100%'
                         }}>
                             <div style={{ paddingLeft: '18px' }}>
-                                <FaSearch style={{ color: '#adb5bd', fontSize: '0.9rem' }} />
+                                <FaSearch style={{ color: settings.primary_color, fontSize: '0.9rem' }} />
                             </div>
                             <input
                                 type="text"
@@ -1504,7 +1505,7 @@ const Header = () => {
 
                                 {/* Input Area */}
                                 <div style={{ padding: '15px', background: 'white', borderTop: '1px solid #f1f3f5' }}>
-                                    <div style={{ display: 'flex', background: '#f8f9fa', borderRadius: '20px', padding: '4px 4px 4px 15px', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', background: '#ffffff', borderRadius: '20px', padding: '4px 4px 4px 15px', alignItems: 'center', border: `1.5px solid ${settings.primary_color}`, boxShadow: `0 2px 8px ${settings.primary_color}15` }}>
                                         <input
                                             type="text"
                                             placeholder="Type a message..."

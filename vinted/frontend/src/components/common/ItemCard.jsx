@@ -206,7 +206,7 @@ const ItemCard = ({ item, onEdit }) => {
 
             <div className="listing-details">
                 {/* Row 1: Title Full Line */}
-                <h3 className="listing-title mb-2" style={{ fontSize: '0.9rem', fontWeight: '600', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }} title={safeString(item.title || item.name, 'Untitled')}>
+                <h3 className="listing-title mb-2" title={safeString(item.title || item.name, 'Untitled')}>
                     {safeString(item.title || item.name, 'Untitled')}
                 </h3>
 

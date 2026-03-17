@@ -9,6 +9,7 @@ import EditProfileModal from '../components/common/EditProfileModal';
 import EditItemModal from '../components/common/EditItemModal';
 import ItemCard from '../components/common/ItemCard';
 import SkeletonCard from '../components/common/SkeletonCard';
+import Pagination from '../components/common/Pagination';
 import MessagesContent from '../components/profile/MessagesContent';
 import NotificationsContent from '../components/profile/NotificationsContent';
 import WalletContent from '../components/profile/WalletContent';
@@ -1076,11 +1077,11 @@ const Profile = () => {
                             )}
 
                             {paginationMode === 'number' && listingsTotalPages > 1 && (
-                                <div className="d-flex justify-content-center align-items-center gap-3 mt-5">
-                                    <button className="btn btn-outline-secondary btn-sm rounded-circle p-2" onClick={handlePrevPage} disabled={listingsPage === 1}><FaAngleLeft /></button>
-                                    <span className="small text-muted fw-500">Page {listingsPage} of {listingsTotalPages}</span>
-                                    <button className="btn btn-outline-secondary btn-sm rounded-circle p-2" onClick={handleNextPage} disabled={listingsPage === listingsTotalPages}><FaAngleRight /></button>
-                                </div>
+                                <Pagination 
+                                    currentPage={listingsPage} 
+                                    totalPages={listingsTotalPages} 
+                                    onPageChange={setListingsPage} 
+                                />
                             )}
                         </div>
                     )}
@@ -1130,11 +1131,11 @@ const Profile = () => {
                             )}
 
                             {paginationMode === 'number' && favoritesTotalPages > 1 && (
-                                <div className="d-flex justify-content-center align-items-center gap-3 mt-5">
-                                    <button className="btn btn-outline-secondary btn-sm rounded-circle p-2" onClick={handlePrevPage} disabled={favoritesPage === 1}><FaAngleLeft /></button>
-                                    <span className="small text-muted fw-500">Page {favoritesPage} of {favoritesTotalPages}</span>
-                                    <button className="btn btn-outline-secondary btn-sm rounded-circle p-2" onClick={handleNextPage} disabled={favoritesPage === favoritesTotalPages}><FaAngleRight /></button>
-                                </div>
+                                <Pagination 
+                                    currentPage={favoritesPage} 
+                                    totalPages={favoritesTotalPages} 
+                                    onPageChange={setFavoritesPage} 
+                                />
                             )}
                         </div>
                     )}

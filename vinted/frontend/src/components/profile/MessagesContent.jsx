@@ -8,10 +8,14 @@ import { useTranslation } from 'react-i18next';
 import { FaPaperPlane, FaUser, FaClock, FaCheck, FaTimes, FaInbox, FaBan, FaEllipsisV, FaEnvelope, FaShoppingBag, FaArrowLeft } from 'react-icons/fa';
 import { getImageUrl, safeString } from '../../utils/constants';
 import '../../styles/Messaging.css';
+import { io as socketIO } from 'socket.io-client';
 
-import { io } from 'socket.io-client';
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-const socket = io(SOCKET_URL);
+const socket = socketIO('/', {
+    path: '/socket.io/',
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 5
+});
 
 const getMarketplaceName = (siteNameStrOrObj) => {
     return safeString(siteNameStrOrObj) || 'Marketplace';

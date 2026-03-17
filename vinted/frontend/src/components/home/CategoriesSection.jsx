@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import {
@@ -9,7 +9,6 @@ import axios from '../../utils/axios';
 import { useTranslation } from 'react-i18next';
 import { safeString, getImageUrl } from '../../utils/constants';
 import LanguageContext from '../../context/LanguageContext';
-import { useContext } from 'react';
 
 const CategoriesSection = () => {
     const { currentLanguage } = useContext(LanguageContext);
@@ -21,6 +20,10 @@ const CategoriesSection = () => {
     const [isMouseDown, setIsMouseDown] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+    const [dragged, setDragged] = useState(false);
+    const requestRef = useRef();
+    const lastTimeRef = useRef();
 
     // Fallback static categories
     const staticCategories = [
@@ -56,8 +59,46 @@ const CategoriesSection = () => {
         fetchCategories();
     }, []);
 
+    // Auto-scroll loop
+    const animate = useCallback((time) => {
+        if (lastTimeRef.current !== undefined && !isMouseDown && !isHovered) {
+            const deltaTime = time - lastTimeRef.current;
+            const speed = 0.05; 
+            const delta = speed * deltaTime;
+
+            if (scrollRef.current) {
+                // For auto-scroll, we just move "forward"
+                if (isRTL) {
+                    scrollRef.current.scrollLeft -= delta;
+                } else {
+                    scrollRef.current.scrollLeft += delta;
+                }
+
+                // Infinite loop logic: If we reached the middle, snap back
+                const halfWidth = scrollRef.current.scrollWidth / 2;
+                const currentScroll = Math.abs(scrollRef.current.scrollLeft);
+                
+                if (currentScroll >= halfWidth) {
+                    if (isRTL) {
+                        scrollRef.current.scrollLeft += halfWidth;
+                    } else {
+                        scrollRef.current.scrollLeft -= halfWidth;
+                    }
+                }
+            }
+        }
+        lastTimeRef.current = time;
+        requestRef.current = requestAnimationFrame(animate);
+    }, [isMouseDown, isHovered, isRTL]);
+
+    useEffect(() => {
+        requestRef.current = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(requestRef.current);
+    }, [animate]);
+
     const handleMouseDown = (e) => {
         setIsMouseDown(true);
+        setDragged(false);
         setStartX(e.pageX - scrollRef.current.offsetLeft);
         setScrollLeft(scrollRef.current.scrollLeft);
     };
@@ -74,17 +115,21 @@ const CategoriesSection = () => {
         if (!isMouseDown) return;
         e.preventDefault();
         const x = e.pageX - scrollRef.current.offsetLeft;
-        const walk = (x - startX) * 2; // scroll speed
+        const walk = (x - startX) * 1.5; 
         
-        if (isRTL) {
-            scrollRef.current.scrollLeft = scrollLeft + walk;
-        } else {
-            scrollRef.current.scrollLeft = scrollLeft - walk;
+        if (Math.abs(walk) > 5) setDragged(true);
+
+        if (scrollRef.current) {
+            if (isRTL) {
+                scrollRef.current.scrollLeft = scrollLeft + walk;
+            } else {
+                scrollRef.current.scrollLeft = scrollLeft - walk;
+            }
         }
     };
 
     // Create a duplicated list for infinite look
-    const marqueeItems = [...categories, ...categories, ...categories];
+    const marqueeItems = [...categories, ...categories];
 
     return (
         <section className="categories-section py-4 py-md-5 overflow-hidden">
@@ -101,9 +146,13 @@ const CategoriesSection = () => {
                 className={`categories-marquee-container ${isMouseDown ? 'dragging' : ''}`}
                 ref={scrollRef}
                 onMouseDown={handleMouseDown}
-                onMouseLeave={handleMouseLeave}
                 onMouseUp={handleMouseUp}
                 onMouseMove={handleMouseMove}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => {
+                    setIsHovered(false);
+                    setIsMouseDown(false);
+                }}
             >
                 <div className="categories-marquee-track">
                     {marqueeItems.map((cat, index) => (
@@ -112,7 +161,7 @@ const CategoriesSection = () => {
                             to={`/categories/${cat.slug}`}
                             className="category-card-marquee"
                             onClick={(e) => {
-                                if (isMouseDown) e.preventDefault();
+                                if (dragged) e.preventDefault();
                             }}
                         >
                             <div className="category-card h-100">

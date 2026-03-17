@@ -11,12 +11,12 @@ const HeroSection = () => {
     const { td, ti, currentLanguage } = useContext(LanguageContext);
 
     const heroTitle = td('home.hero_title', 'Buy & sell everything from cars to couches.');
-    const heroImage = ti('home.hero_image', 'https://images.unsplash.com/photo-1556740758-90de374c12ad?w=1200&q=80');
+    const heroImage = ti('home.hero_image', '/images/site/image-1773747434041-845775531.jpg');
     const titleParts = heroTitle.includes('from') ? heroTitle.split('from') : [heroTitle, ''];
 
     const isRTL = currentLanguage?.direction === 'rtl';
     const heroStyle = {
-        backgroundImage: `linear-gradient(to ${isRTL ? 'left' : 'right'}, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0.2) 100%), url('${heroImage}')`
+        backgroundImage: `linear-gradient(to ${isRTL ? 'left' : 'right'}, rgba(0, 0, 0, 0.90) 0%, rgba(0, 0, 0, 0.7) 30%, rgba(0, 0, 0, 0.0) 100%), url('${heroImage}')`
     };
 
     return (

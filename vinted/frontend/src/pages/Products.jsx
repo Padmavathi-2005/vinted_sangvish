@@ -14,6 +14,7 @@ import axios from '../utils/axios';
 import CurrencyContext from '../context/CurrencyContext';
 import ItemCard from '../components/common/ItemCard';
 import SkeletonCard from '../components/common/SkeletonCard';
+import Pagination from '../components/common/Pagination';
 import Meta from '../components/common/Meta';
 import { getImageUrl } from '../utils/constants';
 import '../styles/Products.css';
@@ -524,15 +525,11 @@ const Products = () => {
 
                                 {/* Numbered pagination */}
                                 {paginationMode === 'number' && totalPages > 1 && (
-                                    <div className="pagination-row">
-                                        <button className="page-btn" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-                                            <FaAngleLeft /> Prev
-                                        </button>
-                                        <span className="page-info">Page {page} of {totalPages}</span>
-                                        <button className="page-btn" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
-                                            Next <FaAngleRight />
-                                        </button>
-                                    </div>
+                                    <Pagination 
+                                        currentPage={page} 
+                                        totalPages={totalPages} 
+                                        onPageChange={setPage} 
+                                    />
                                 )}
                             </>
                         ) : !loading && (

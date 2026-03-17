@@ -108,8 +108,10 @@ const ListingsSection = () => {
 
     const rawItems = activeTab === 'popular' ? popularItems : newestItems;
     // Show exactly 2 rows
-    const displayItems = rawItems.slice(0, columns * 2);
-    const skeletonCount = columns * 2;
+    const isMobileOrTablet = window.innerWidth <= 991;
+    const itemsToShow = isMobileOrTablet ? 10 : (columns * 2);
+    const displayItems = rawItems.slice(0, itemsToShow);
+    const skeletonCount = itemsToShow;
 
     return (
         <section className="listings-section py-4 py-md-5" style={{ backgroundColor: '#f8fafc', minHeight: '600px' }}>

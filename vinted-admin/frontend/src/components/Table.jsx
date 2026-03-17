@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Button, Table as BTable, Pagination, Form } from 'react-bootstrap';
-import { FaEdit, FaTrash, FaChevronLeft, FaChevronRight, FaPlus } from 'react-icons/fa';
+import { Button, Table as BTable, Form } from 'react-bootstrap';
+import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import { showToast } from '../utils/swal';
 import Toggle from './Toggle';
 import axios from '../utils/axios';
+import Pagination from './common/Pagination';
 import '../styles/Table.css';
 
 const Table = ({
@@ -242,31 +243,11 @@ const Table = ({
                     </div>
 
                     {!isScrollMode && totalPages > 1 && (
-                        <Pagination className="mb-0 custom-pagination">
-                            <Pagination.Prev
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                            >
-                                <FaChevronLeft size={12} />
-                            </Pagination.Prev>
-
-                            {[...Array(totalPages)].map((_, i) => (
-                                <Pagination.Item
-                                    key={i + 1}
-                                    active={i + 1 === currentPage}
-                                    onClick={() => handlePageChange(i + 1)}
-                                >
-                                    {i + 1}
-                                </Pagination.Item>
-                            ))}
-
-                            <Pagination.Next
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                            >
-                                <FaChevronRight size={12} />
-                            </Pagination.Next>
-                        </Pagination>
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={handlePageChange}
+                        />
                     )}
                     {isScrollMode && currentLimit < data.length && (
                         <div ref={observerTarget} className="d-flex justify-content-center py-2 ms-auto" style={{ width: '100px' }}>

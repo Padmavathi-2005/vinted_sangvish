@@ -7,8 +7,8 @@
 /* Hero Section */
 .hero-section {
     background-image:
-        linear-gradient(to var(--direction-to, right), rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0.2) 100%),
-        url('https://images.unsplash.com/photo-1556740758-90de374c12ad?w=1200&q=80');
+        linear-gradient(to var(--direction-to, right), rgba(0, 0, 0, 0.90) 0%, rgba(0, 0, 0, 0.7) 30%, rgba(0, 0, 0, 0.0) 100%),
+        url('/images/site/image-1773747434041-845775531.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: scroll;
@@ -532,12 +532,19 @@
 /* Categories Marquee Section */
 .categories-marquee-container {
     width: 100%;
-    overflow-x: hidden;
+    overflow-x: auto;
     padding: 20px 0 40px;
     position: relative;
     cursor: grab;
     user-select: none;
     -webkit-user-drag: none;
+    -ms-overflow-style: none; /* Hide scrollbar IE/Edge */
+    scrollbar-width: none; /* Hide scrollbar Firefox */
+    scroll-behavior: auto; /* Required for frame-based JS scrolling */
+}
+
+.categories-marquee-container::-webkit-scrollbar {
+    display: none; /* Hide scrollbar Chrome/Safari */
 }
 
 .categories-marquee-container.dragging {
@@ -547,22 +554,13 @@
 .categories-marquee-track {
     display: flex;
     width: max-content;
-    animation: marquee-scroll 60s linear infinite;
-    will-change: transform;
-    flex-direction: row; /* Force LTR for marquee track content to keep consistent scroll math */
+    will-change: scroll-position;
+    flex-direction: row;
 }
 
-[dir="rtl"] .categories-marquee-track {
-    animation: marquee-scroll-rtl 60s linear infinite;
-}
-
-.categories-marquee-container:hover .categories-marquee-track {
-    animation-play-state: paused;
-}
-
-.categories-marquee-container.dragging .categories-marquee-track {
-    animation: none;
-    /* Disable animation while dragging for manual control */
+/* RTL overrides removed as JS now handles scrollLeft generically */
+.categories-marquee-container.dragging {
+    cursor: grabbing;
 }
 
 .category-card-marquee {
@@ -870,7 +868,8 @@
 
     .banner-text {
         font-size: 1rem !important;
-        margin-bottom: 1rem !important; /* Overriding mb-5 */
+        margin-bottom: 1rem !important;
+        /* Overriding mb-5 */
     }
 
     .hero-section {

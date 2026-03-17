@@ -728,49 +728,7 @@
     }
 }
 
-/* ── Number Pagination ────────────────────────────────────── */
-.pagination-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 28px 0 16px;
-}
-
-.page-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 22px;
-    background: white;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 50px;
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-    border-color: var(--primary-color, #0ea5e9);
-    color: var(--primary-color, #0ea5e9);
-    background: #f0f9ff;
-}
-
-.page-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.page-info {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: #64748b;
-    background: #f8fafc;
-    padding: 10px 18px;
-    border-radius: 50px;
-}
+/* New Pagination component styles are handled in Pagination.css */
 
 /* ── Empty state ──────────────────────────────────────────── */
 .products-empty {
