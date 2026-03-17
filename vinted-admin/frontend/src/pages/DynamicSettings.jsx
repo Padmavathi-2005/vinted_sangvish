@@ -3,7 +3,7 @@ import { FaCloudUploadAlt, FaSave, FaUndo, FaImage, FaChevronDown, FaCcStripe, F
 import { Form, Button, Row, Col, Card, InputGroup, Container, Accordion, Nav } from 'react-bootstrap';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
-import axios from '../utils/axios';
+import axios, { imageBaseURL } from '../utils/axios';
 import AdminSearchSelect from '../components/AdminSearchSelect';
 import Toggle from '../components/Toggle';
 import { showToast } from '../utils/swal';
@@ -50,7 +50,7 @@ const DynamicSettings = () => {
                 const previewFields = ['site_logo', 'site_favicon', 'image_not_found', 'empty_table_image', 'stripe_logo', 'paypal_logo'];
                 previewFields.forEach(field => {
                     if (settingsData[field]) {
-                        setPreviews(prev => ({ ...prev, [field]: `${axios.defaults.baseURL}/${settingsData[field]}` }));
+                        setPreviews(prev => ({ ...prev, [field]: `${imageBaseURL.endsWith('/') ? imageBaseURL.slice(0, -1) : imageBaseURL}/${settingsData[field].startsWith('/') ? settingsData[field].substring(1) : settingsData[field]}` }));
                     }
                 });
             }
@@ -520,6 +520,9 @@ const DynamicSettings = () => {
                 'stripe_live_public_key', 'stripe_live_secret_key', 'stripe_live_webhook_secret',
                 'paypal_enabled', 'paypal_test_mode', 'paypal_test_client_id', 'paypal_test_client_secret',
                 'paypal_live_client_id', 'paypal_live_client_secret'
+            ],
+            api_settings: [
+                'gemini_api_key'
             ]
         };
         return fieldMap[type] || [];
@@ -794,6 +797,15 @@ const DynamicSettings = () => {
                             <Row>
                                 {getFieldsForType(type).map(key => renderField(key))}
                             </Row>
+                        )}
+                        {type === 'api_settings' && (
+                            <div className="api-settings-info mt-3 p-3 bg-light rounded border">
+                                <h6 className="fw-bold mb-2"><FaGoogle className="text-primary me-2" /> Gemini AI Integration</h6>
+                                <p className="small text-muted mb-0">
+                                    Enter your Google Gemini API key to enable AI-powered chat and visual search features. 
+                                    You can get a key from the <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>.
+                                </p>
+                            </div>
                         )}
                         {type === 'currency_settings' && renderCurrencySection()}
                     </Form>

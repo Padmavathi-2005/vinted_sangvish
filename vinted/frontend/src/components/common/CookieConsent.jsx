@@ -113,9 +113,16 @@ const CookieConsent = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        gap: '40px'
+                        gap: '24px',
+                        flexWrap: 'wrap'
                     }}>
-                        <div style={{ flex: 1, display: 'flex', gap: '20px', alignItems: 'center' }}>
+                        <div style={{ 
+                            flex: 1, 
+                            display: 'flex', 
+                            gap: '20px', 
+                            alignItems: 'center',
+                            minWidth: '280px' 
+                        }}>
                             <img
                                 src="/eaten_cookie.png"
                                 alt="Cookie"

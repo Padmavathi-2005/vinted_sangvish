@@ -8,6 +8,7 @@ import '../styles/Profile.css';
 import EditProfileModal from '../components/common/EditProfileModal';
 import EditItemModal from '../components/common/EditItemModal';
 import ItemCard from '../components/common/ItemCard';
+import SkeletonCard from '../components/common/SkeletonCard';
 import MessagesContent from '../components/profile/MessagesContent';
 import NotificationsContent from '../components/profile/NotificationsContent';
 import WalletContent from '../components/profile/WalletContent';
@@ -16,14 +17,36 @@ import Meta from '../components/common/Meta';
 import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 
 const Profile = () => {
-    const { user, loading, updateUser, logout, mode, toggleMode } = useContext(AuthContext);
+    const { user, loading, updateUser, logout, mode, toggleMode, setMode } = useContext(AuthContext);
     const { formatPrice } = useContext(CurrencyContext);
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Tab State
-    const [activeTab, setActiveTab] = useState('dashboard');
+    // Tab State - Persist in localStorage
+    const [activeTab, setActiveTab] = useState(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const tabParam = queryParams.get('tab');
+        if (tabParam) return tabParam;
+        
+        return localStorage.getItem('profileActiveTab') || 'dashboard';
+    });
+
+    // Pagination Mode State - Persist in localStorage
+    const [paginationMode, setPaginationMode] = useState(() => localStorage.getItem('paginationMode') || 'scroll');
+
+    const handlePaginationModeChange = (newMode) => {
+        setPaginationMode(newMode);
+        localStorage.setItem('paginationMode', newMode);
+        // Reset pages
+        setListingsPage(1);
+        setFavoritesPage(1);
+        // Scroll to top of content area for better UX
+        const mainContent = document.querySelector('.pd-main');
+        if (mainContent) {
+            mainContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
 
     // Listings State
     const [myListings, setMyListings] = useState([]);
@@ -68,6 +91,13 @@ const Profile = () => {
     const [reviewComment, setReviewComment] = useState('');
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
     const [existingReview, setExistingReview] = useState(null);
+    const [shippingCompanies, setShippingCompanies] = useState([]);
+    const [dispatchForm, setDispatchForm] = useState({
+        shipping_company_id: '',
+        tracking_id: '',
+        dispatch_date: new Date().toISOString().split('T')[0]
+    });
+    const [isDispatching, setIsDispatching] = useState(false);
 
     // Tab label helper
     const getTabLabel = (tab) => {
@@ -90,35 +120,82 @@ const Profile = () => {
 
     const filteredOrders = currentOrders.filter(order => {
         if (orderSubTab === 'all') return true;
-        if (orderSubTab === 'booked') return order.order_status === 'placed';
+        // Map legacy 'booked' to 'pending'
+        if (orderSubTab === 'booked' && (order.order_status === 'pending' || order.order_status === 'placed')) return true;
+        // Map legacy 'dispatched' to 'shipped'
+        if (orderSubTab === 'dispatched' && (order.order_status === 'shipped' || order.order_status === 'dispatched')) return true;
+        // Map legacy 'on_the_way' to 'out_for_delivery'
+        if (orderSubTab === 'on_the_way' && (order.order_status === 'out_for_delivery' || order.order_status === 'on_the_way')) return true;
+        
         return order.order_status === orderSubTab;
     });
 
     // Persistence Type
-    const [paginationMode, setPaginationMode] = useState('scroll');
+    // const [paginationMode, setPaginationMode] = useState('scroll'); // Already defined above with persistence
+    const [paginationModeForced, setPaginationModeForced] = useState(false);
 
-    // Handle initial tab from URL
+    // 1. Initial Load: Sync state from URL
     useEffect(() => {
         const queryParams = new URLSearchParams(location.search);
         const tab = queryParams.get('tab');
-        if (tab) {
-            setActiveTab(tab);
-            // If redirected to listings tab, switch to seller mode so the guard doesn't override it
-            if (tab === 'listings' && mode !== 'seller') {
-                toggleMode();
-            }
-        } else {
-            setActiveTab('dashboard'); // Reset to dashboard if no tab in URL
-        }
-    }, [location.search]);
+        const urlMode = queryParams.get('mode');
 
-    // Redirect to dashboard if tab is not allowed in current mode
+        if (urlMode && (urlMode === 'buyer' || urlMode === 'seller')) {
+            if (mode !== urlMode) setMode(urlMode);
+        }
+        
+        if (tab && activeTab !== tab) {
+            setActiveTab(tab);
+            localStorage.setItem('profileActiveTab', tab);
+        }
+    }, []); // Run only once on mount
+
+    // 2. State to URL Sync: Keep URL in sync with any mode/tab changes (Internal or Global)
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        const currentUrlMode = queryParams.get('mode');
+        const currentUrlTab = queryParams.get('tab');
+
+        // Only navigate if there's a real mismatch to avoid infinite loops
+        if (currentUrlMode !== mode || currentUrlTab !== activeTab) {
+            navigate(`/profile?tab=${activeTab}&mode=${mode}`, { replace: true });
+        }
+
+        // Tab-to-Mode Enforcement (Hard Guard)
+        if (activeTab === 'listings' && mode !== 'seller') {
+            setMode('seller');
+        } else if (activeTab === 'favorites' && mode !== 'buyer') {
+            setMode('buyer');
+        }
+    }, [mode, activeTab, navigate, location.pathname]);
+
+    // Persist Tab Change
+    const handleTabChange = (tab) => {
+        let newMode = mode;
+        
+        // Determine the required mode for this tab
+        if (['listings', 'bundle_settings'].includes(tab)) {
+            newMode = 'seller';
+        } else if (['favorites'].includes(tab)) {
+            newMode = 'buyer';
+        }
+
+        // Apply state changes
+        setActiveTab(tab);
+        localStorage.setItem('profileActiveTab', tab);
+        if (mode !== newMode) setMode(newMode);
+
+        // Official navigate ensures Header and Profile sync immediately
+        navigate(`/profile?tab=${tab}&mode=${newMode}`, { replace: true });
+    };
+
+    // Redirect logic removed because we want to allow viewing tabs in any mode 
+    // or at least not reset to dashboard on every mode toggle if possible.
+    // However, if we must guard:
     useEffect(() => {
         if (mode === 'seller' && activeTab === 'favorites') {
-            setActiveTab('dashboard');
-        }
-        if (mode === 'buyer' && activeTab === 'listings') {
-            setActiveTab('dashboard');
+            // Keep it for now as favorites are usually buyer features, 
+            // but don't reset unless strictly necessary.
         }
     }, [mode, activeTab]);
 
@@ -241,13 +318,23 @@ const Profile = () => {
 
     const getStatusLabel = (status) => {
         const labels = {
-            'placed': 'BOOKED',
-            'dispatched': 'DISPATCHED',
-            'on_the_way': 'ON THE WAY',
+            'pending': 'PENDING',
+            'confirmed': 'CONFIRMED',
+            'packed': 'PACKED',
+            'shipped': 'SHIPPED',
+            'out_for_delivery': 'OUT FOR DELIVERY',
             'delivered': 'DELIVERED',
-            'cancelled': 'CANCELLED'
+            'cancelled': 'CANCELLED',
+            'return_requested': 'RETURN REQUESTED',
+            'returned': 'RETURNED'
         };
-        return labels[status] || (status || 'BOOKED').toUpperCase().replace(/_/g, ' ');
+        // Backwards compatibility for old statuses
+        const legacyLabels = {
+            'placed': 'PENDING',
+            'dispatched': 'SHIPPED',
+            'on_the_way': 'OUT FOR DELIVERY'
+        };
+        return labels[status] || legacyLabels[status] || (status || 'PENDING').toUpperCase().replace(/_/g, ' ');
     };
 
     const handleCancelOrder = async () => {
@@ -317,6 +404,26 @@ const Profile = () => {
         }
     };
 
+    const handleDispatchOrder = async (e) => {
+        if (e) e.preventDefault();
+        
+        if (!dispatchForm.shipping_company_id) return alert('Please select a shipping company');
+        if (!dispatchForm.tracking_id) return alert('Please enter a tracking ID');
+
+        setIsDispatching(true);
+        try {
+            const res = await axios.put(`/api/shipping/dispatch/${selectedOrder._id}`, dispatchForm);
+            setSelectedOrder(res.data);
+            fetchMyOrders();
+            alert('Order dispatched successfully!');
+        } catch (err) {
+            console.error('Error dispatching order:', err);
+            alert(err.response?.data?.message || 'Failed to dispatch order');
+        } finally {
+            setIsDispatching(false);
+        }
+    };
+
     // Fetch Initial Counts
     useEffect(() => {
         if (user) {
@@ -361,6 +468,21 @@ const Profile = () => {
         }
     }, [activeTab, fetchMyOrders]);
 
+    // Fetch Shipping Companies for Seller
+    useEffect(() => {
+        if (mode === 'seller' && activeTab === 'orders') {
+            const fetchShippingCompanies = async () => {
+                try {
+                    const res = await axios.get('/api/shipping/companies');
+                    setShippingCompanies(res.data);
+                } catch (err) {
+                    console.error('Error fetching shipping companies:', err);
+                }
+            };
+            fetchShippingCompanies();
+        }
+    }, [mode, activeTab]);
+
     if (loading) return (
         <div className="d-flex justify-content-center align-items-center" style={{ height: '80vh' }}>
             <div className="spinner-border text-primary" role="status">
@@ -372,13 +494,25 @@ const Profile = () => {
     if (!user) return null;
 
     const handleNextPage = () => {
-        if (activeTab === 'listings' && listingsPage < listingsTotalPages) setListingsPage(p => p + 1);
-        if (activeTab === 'favorites' && favoritesPage < favoritesTotalPages) setFavoritesPage(p => p + 1);
+        if (activeTab === 'listings' && listingsPage < listingsTotalPages) {
+            setListingsPage(p => p + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        if (activeTab === 'favorites' && favoritesPage < favoritesTotalPages) {
+            setFavoritesPage(p => p + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     };
 
     const handlePrevPage = () => {
-        if (activeTab === 'listings' && listingsPage > 1) setListingsPage(p => p - 1);
-        if (activeTab === 'favorites' && favoritesPage > 1) setFavoritesPage(p => p - 1);
+        if (activeTab === 'listings' && listingsPage > 1) {
+            setListingsPage(p => p - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        if (activeTab === 'favorites' && favoritesPage > 1) {
+            setFavoritesPage(p => p - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     };
 
     // Fetch existing review when order modal opens
@@ -451,7 +585,7 @@ const Profile = () => {
                         <div
                             key={tab}
                             className={`pd-mobile-drawer-item ${activeTab === tab ? 'active' : ''}`}
-                            onClick={() => { setActiveTab(tab); setMobileMenuOpen(false); }}
+                            onClick={() => { handleTabChange(tab); setMobileMenuOpen(false); }}
                         >
                             {getTabLabel(tab)}
                         </div>
@@ -463,27 +597,27 @@ const Profile = () => {
                 {/* ─── Top Navigation ─── */}
                 <div className="pd-nav">
                     <div className="pd-nav-items">
-                        <div className={`pd-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>{t('profile.dashboard')}</div>
-                        <div className={`pd-nav-item ${activeTab === 'profile_settings' ? 'active' : ''}`} onClick={() => setActiveTab('profile_settings')}>{t('user_menu.my_profile')}</div>
+                        <div className={`pd-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}>{t('profile.dashboard')}</div>
+                        <div className={`pd-nav-item ${activeTab === 'profile_settings' ? 'active' : ''}`} onClick={() => handleTabChange('profile_settings')}>{t('user_menu.my_profile')}</div>
 
                         {mode === 'buyer' && (
                             <>
-                                <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>{t('user_menu.my_orders', 'My Orders')}</div>
-                                <div className={`pd-nav-item ${activeTab === 'favorites' ? 'active' : ''}`} onClick={() => setActiveTab('favorites')}>{t('profile.favorites')}</div>
+                                <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('user_menu.my_orders', 'My Orders')}</div>
+                                <div className={`pd-nav-item ${activeTab === 'favorites' ? 'active' : ''}`} onClick={() => handleTabChange('favorites')}>{t('profile.favorites')}</div>
                             </>
                         )}
 
                         {mode === 'seller' && (
                             <>
-                                <div className={`pd-nav-item ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => setActiveTab('listings')}>{t('user_menu.manage_listings', 'Manage Listings')}</div>
-                                <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>{t('profile.orders_received', 'Orders Received')}</div>
-                                <div className={`pd-nav-item ${activeTab === 'bundle_settings' ? 'active' : ''}`} onClick={() => setActiveTab('bundle_settings')}>Bundle Discounts</div>
+                                <div className={`pd-nav-item ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => handleTabChange('listings')}>{t('user_menu.manage_listings', 'Manage Listings')}</div>
+                                <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('profile.orders_received', 'Orders Received')}</div>
+                                <div className={`pd-nav-item ${activeTab === 'bundle_settings' ? 'active' : ''}`} onClick={() => handleTabChange('bundle_settings')}>Bundle Discounts</div>
                             </>
                         )}
 
-                        <div className={`pd-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>{t('user_menu.messages', 'Messages')}</div>
-                        <div className={`pd-nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => setActiveTab('notifications')}>{t('notifications.title', 'Notifications')}</div>
-                        <div className={`pd-nav-item ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>{t('profile.payment_account', 'Payment & Account')}</div>
+                        <div className={`pd-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => handleTabChange('messages')}>{t('user_menu.messages', 'Messages')}</div>
+                        <div className={`pd-nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => handleTabChange('notifications')}>{t('notifications.title', 'Notifications')}</div>
+                        <div className={`pd-nav-item ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => handleTabChange('payments')}>{t('profile.payment_account', 'Payment & Account')}</div>
                     </div>
 
                     <div
@@ -516,7 +650,7 @@ const Profile = () => {
                                         {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
                                     </div>
                                 )}
-                                <div className="pd-avatar-upload-icon" onClick={() => setActiveTab('profile_settings')}><FaUserEdit /></div>
+                                <div className="pd-avatar-upload-icon" onClick={() => handleTabChange('profile_settings')}><FaUserEdit /></div>
                             </div>
                             <div className="d-grid gap-2 mt-3">
                                 <button className="btn btn-outline-danger btn-sm rounded-pill py-2" onClick={logout}>{t('user_menu.logout', 'Logout')}</button>
@@ -532,20 +666,11 @@ const Profile = () => {
                                     <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>{t('profile.order_status', 'Order Status')}</p>
                                     <div className="d-flex flex-column gap-1">
                                         <div className={`pd-sidemenu-item ${orderSubTab === 'all' ? 'active' : ''}`} onClick={() => setOrderSubTab('all')}>{t('profile.all_orders', 'All Orders')}</div>
-                                        <div className={`pd-sidemenu-item ${orderSubTab === 'booked' ? 'active' : ''}`} onClick={() => setOrderSubTab('booked')}>{t('profile.booked', 'Booked')}</div>
-                                        {mode === 'seller' ? (
-                                            <>
-                                                <div className={`pd-sidemenu-item ${orderSubTab === 'dispatched' ? 'active' : ''}`} onClick={() => setOrderSubTab('dispatched')}>{t('profile.dispatched', 'Dispatched')}</div>
-                                                <div className={`pd-sidemenu-item ${orderSubTab === 'on_the_way' ? 'active' : ''}`} onClick={() => setOrderSubTab('on_the_way')}>{t('profile.on_the_way', 'On the way')}</div>
-                                                <div className={`pd-sidemenu-item ${orderSubTab === 'delivered' ? 'active' : ''}`} onClick={() => setOrderSubTab('delivered')}>{t('profile.delivered', 'Delivered')}</div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className={`pd-sidemenu-item ${orderSubTab === 'delivered' ? 'active' : ''}`} onClick={() => setOrderSubTab('delivered')}>{t('profile.delivered', 'Delivered')}</div>
-                                                <div className={`pd-sidemenu-item ${orderSubTab === 'returned' ? 'active' : ''}`} onClick={() => setOrderSubTab('returned')}>{t('profile.returned', 'Returned')}</div>
-                                                <div className={`pd-sidemenu-item ${orderSubTab === 'cancelled' ? 'active' : ''}`} onClick={() => setOrderSubTab('cancelled')}>{t('profile.cancelled', 'Cancelled')}</div>
-                                            </>
-                                        )}
+                                        <div className={`pd-sidemenu-item ${orderSubTab === 'pending' ? 'active' : ''}`} onClick={() => setOrderSubTab('pending')}>{t('order_status.pending', 'Pending')}</div>
+                                        <div className={`pd-sidemenu-item ${orderSubTab === 'confirmed' ? 'active' : ''}`} onClick={() => setOrderSubTab('confirmed')}>{t('order_status.confirmed', 'Confirmed')}</div>
+                                        <div className={`pd-sidemenu-item ${orderSubTab === 'shipped' ? 'active' : ''}`} onClick={() => setOrderSubTab('shipped')}>{t('order_status.shipped', 'Shipped')}</div>
+                                        <div className={`pd-sidemenu-item ${orderSubTab === 'delivered' ? 'active' : ''}`} onClick={() => setOrderSubTab('delivered')}>{t('order_status.delivered', 'Delivered')}</div>
+                                        <div className={`pd-sidemenu-item ${orderSubTab === 'cancelled' ? 'active' : ''}`} onClick={() => setOrderSubTab('cancelled')}>{t('order_status.cancelled', 'Cancelled')}</div>
                                     </div>
                                 </div>
                             )}
@@ -557,6 +682,7 @@ const Profile = () => {
                                         <div className={`pd-sidemenu-item ${paymentSubTab === 'wallet' ? 'active' : ''}`} onClick={() => setPaymentSubTab('wallet')}>{t('profile.wallet', 'Wallet')}</div>
                                         <div className={`pd-sidemenu-item ${paymentSubTab === 'transactions' ? 'active' : ''}`} onClick={() => setPaymentSubTab('transactions')}>{t('profile.transactions', 'Transactions')}</div>
                                         <div className={`pd-sidemenu-item ${paymentSubTab === 'withdrawals' ? 'active' : ''}`} onClick={() => setPaymentSubTab('withdrawals')}>{t('profile.withdraw_requests', 'Withdraw Requests')}</div>
+                                        <div className={`pd-sidemenu-item ${paymentSubTab === 'payout-methods' ? 'active' : ''}`} onClick={() => setPaymentSubTab('payout-methods')}>{t('profile.payout_methods', 'Payout Methods')}</div>
                                     </div>
                                 </div>
                             )}
@@ -620,17 +746,17 @@ const Profile = () => {
                             <div className="pd-stats-row">
                                 {mode === 'seller' ? (
                                     <>
-                                        <div className="pd-stat-card clickable" onClick={() => setActiveTab('listings')}>
+                                        <div className="pd-stat-card clickable" onClick={() => handleTabChange('listings')}>
                                             <div className="pd-stat-icon blue"><FaListAlt /></div>
                                             <div className="pd-stat-value">{listingsTotalCount}</div>
                                             <div className="pd-stat-label">{t('profile.active_listings')}</div>
                                         </div>
-                                        <div className="pd-stat-card clickable" onClick={() => setActiveTab('orders')}>
+                                        <div className="pd-stat-card clickable" onClick={() => handleTabChange('orders')}>
                                             <div className="pd-stat-icon orange"><FaBoxOpen /></div>
                                             <div className="pd-stat-value">{user.sold_count || 0}</div>
                                             <div className="pd-stat-label">{t('profile.orders_received', 'Orders Received')}</div>
                                         </div>
-                                        <div className="pd-stat-card clickable" onClick={() => setActiveTab('payments')}>
+                                        <div className="pd-stat-card clickable" onClick={() => handleTabChange('payments')}>
                                             <div className="pd-stat-icon yellow"><FaWallet /></div>
                                             <div className="pd-stat-value">{formatPrice(user.balance || 0)}</div>
                                             <div className="pd-stat-label">{t('profile.available_balance')}</div>
@@ -638,17 +764,17 @@ const Profile = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <div className="pd-stat-card clickable" onClick={() => setActiveTab('orders')}>
+                                        <div className="pd-stat-card clickable" onClick={() => handleTabChange('orders')}>
                                             <div className="pd-stat-icon blue"><FaBoxOpen /></div>
                                             <div className="pd-stat-value">{user.orders_count || 0}</div>
                                             <div className="pd-stat-label">{t('user_menu.my_orders')}</div>
                                         </div>
-                                        <div className="pd-stat-card clickable" onClick={() => setActiveTab('favorites')}>
+                                        <div className="pd-stat-card clickable" onClick={() => handleTabChange('favorites')}>
                                             <div className="pd-stat-icon purple"><FaHeart /></div>
                                             <div className="pd-stat-value">{favoritesTotalCount}</div>
                                             <div className="pd-stat-label">{t('profile.favorites')}</div>
                                         </div>
-                                        <div className="pd-stat-card clickable" onClick={() => setActiveTab('payments')}>
+                                        <div className="pd-stat-card clickable" onClick={() => handleTabChange('payments')}>
                                             <div className="pd-stat-icon yellow"><FaWallet /></div>
                                             <div className="pd-stat-value">{formatPrice(user.balance || 0)}</div>
                                             <div className="pd-stat-label">{t('profile.available_balance')}</div>
@@ -782,25 +908,26 @@ const Profile = () => {
                                 <div className="d-flex gap-2 align-items-center">
                                     <div className={`pd-pagination-toggle-wrapper ${paginationMode === 'number' ? 'page-active' : ''}`}>
                                         <div className="pd-pagination-toggle-slider" />
-                                        <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => { setPaginationMode('scroll'); setListingsPage(1); }}>Scroll</div>
-                                        <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => { setPaginationMode('number'); setListingsPage(1); }}>Page</div>
+                                        <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('scroll')}>Scroll</div>
+                                        <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('number')}>Page</div>
                                     </div>
                                     <Link to="/sell" className="btn btn-primary btn-sm px-3">Add New Item</Link>
                                 </div>
                             </div>
 
-                            <div className="row g-4">
-                                {myListings.length > 0 ? (
+                            <div className="vinted-product-grid mb-4">
+                                {listingsLoading && myListings.length === 0 ? (
+                                    [...Array(6)].map((_, i) => <SkeletonCard key={i} />)
+                                ) : myListings.length > 0 ? (
                                     myListings.map(item => (
-                                        <div key={item._id} className="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
-                                            <ItemCard 
-                                                item={item} 
-                                                onEdit={(it) => setEditingItem(it)}
-                                            />
-                                        </div>
+                                        <ItemCard 
+                                            key={item._id}
+                                            item={item} 
+                                            onEdit={(it) => setEditingItem(it)}
+                                        />
                                     ))
                                 ) : !listingsLoading && (
-                                    <div className="col-12 text-center py-5 bg-white rounded-4 border border-dashed">
+                                    <div className="w-100 text-center py-5 bg-white rounded-4 border border-dashed" style={{ gridColumn: '1 / -1' }}>
                                         <FaBoxOpen size={48} className="text-muted mb-3 opacity-25" />
                                         <p className="text-muted">You haven't listed anything yet.</p>
                                         <Link to="/sell" className="btn btn-link text-primary p-0">Start Selling Now</Link>
@@ -832,20 +959,20 @@ const Profile = () => {
                                 <h2 className="fw-bold m-0" style={{ fontSize: '1.2rem' }}>{t('profile.favorites')} ({favoritesTotalCount || 0})</h2>
                                 <div className={`pd-pagination-toggle-wrapper ${paginationMode === 'number' ? 'page-active' : ''}`}>
                                     <div className="pd-pagination-toggle-slider" />
-                                    <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => { setPaginationMode('scroll'); setFavoritesPage(1); }}>Scroll</div>
-                                    <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => { setPaginationMode('number'); setFavoritesPage(1); }}>Page</div>
+                                    <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('scroll')}>Scroll</div>
+                                    <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('number')}>Page</div>
                                 </div>
                             </div>
 
-                            <div className="row g-4">
-                                {favorites.length > 0 ? (
+                            <div className="vinted-product-grid mb-4">
+                                {favoritesLoading && favorites.length === 0 ? (
+                                    [...Array(6)].map((_, i) => <SkeletonCard key={i} />)
+                                ) : favorites.length > 0 ? (
                                     favorites.map(item => (
-                                        <div key={item._id} className="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
-                                            <ItemCard item={item} />
-                                        </div>
+                                        <ItemCard key={item._id} item={item} />
                                     ))
                                 ) : !favoritesLoading && (
-                                    <div className="col-12 pd-empty-state-full" style={{ border: 'none', borderTop: 'none' }}>
+                                    <div className="w-100 pd-empty-state-full" style={{ border: 'none', borderTop: 'none', gridColumn: '1 / -1' }}>
                                         <svg width="130" height="130" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <rect width="130" height="130" rx="65" fill="#FFF7ED" />
                                             <rect x="30" y="52" width="70" height="55" rx="8" fill="#FED7AA" stroke="#F97316" strokeWidth="2" />
@@ -984,24 +1111,28 @@ const Profile = () => {
                                                     <div className="order-tracker-container">
                                                         <h4 className="detail-section-title">{t('profile.delivery_progress', 'Delivery Progress')}</h4>
                                                         <div className="order-tracker">
-                                                            <div className={`tracker-step ${['placed', 'dispatched', 'on_the_way', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
+                                                            {/* Step 1: Pending/Confirmed/Packed */}
+                                                            <div className={`tracker-step ${['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
-                                                                <div className="tracker-label">{t('profile.booked', 'Booked')}</div>
+                                                                <div className="tracker-label">{t('order_status.confirmed', 'Confirmed')}</div>
                                                             </div>
-                                                            <div className={`tracker-step ${['dispatched', 'on_the_way', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
+                                                            {/* Step 2: Shipped */}
+                                                            <div className={`tracker-step ${['shipped', 'out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
-                                                                <div className="tracker-label">{t('profile.dispatched', 'Dispatched')}</div>
+                                                                <div className="tracker-label">{t('order_status.shipped', 'Shipped')}</div>
                                                             </div>
-                                                            <div className={`tracker-step ${['on_the_way', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
+                                                            {/* Step 3: Out for Delivery */}
+                                                            <div className={`tracker-step ${['out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
-                                                                <div className="tracker-label">{t('profile.on_the_way', 'On the way')}</div>
+                                                                <div className="tracker-label">{t('order_status.out_for_delivery', 'Out for Delivery')}</div>
                                                             </div>
+                                                            {/* Step 4: Delivered */}
                                                             <div className={`tracker-step ${selectedOrder.order_status === 'delivered' ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
-                                                                <div className="tracker-label">{t('profile.delivered', 'Delivered')}</div>
+                                                                <div className="tracker-label">{t('order_status.delivered', 'Delivered')}</div>
                                                             </div>
                                                             <div className="tracker-line-bg"></div>
-                                                            <div className="tracker-line-fill" data-status={selectedOrder.order_status || 'placed'}></div>
+                                                            <div className="tracker-line-fill" data-status={selectedOrder.order_status || 'pending'}></div>
                                                         </div>
                                                     </div>
 
@@ -1167,20 +1298,111 @@ const Profile = () => {
                                                         </div>
                                                     )}
 
-                                                    {mode === 'seller' && selectedOrder.order_status !== 'delivered' && selectedOrder.order_status !== 'cancelled' && selectedOrder.order_status !== 'return_requested' && selectedOrder.order_status !== 'returned' && (
+                                                    {/* Tracking Info for Customer/Seller */}
+                                                    {(selectedOrder.tracking_id || selectedOrder.shipping_company_id) && (
                                                         <div className="pd-section-card mt-3 p-3 bg-light border">
-                                                            <h4 className="detail-section-title mb-3">{t('profile.update_order_status', 'Update Order Status')}</h4>
+                                                            <h4 className="detail-section-title mb-3">{t('profile.tracking_info', 'Tracking Information')}</h4>
+                                                            <div className="mb-2 d-flex justify-content-between">
+                                                                <span className="text-muted small">{t('profile.courier', 'Courier')}:</span>
+                                                                <span className="small fw-bold">{selectedOrder.shipping_company_id?.company_name || 'Generic Courier'}</span>
+                                                            </div>
+                                                            <div className="mb-2 d-flex justify-content-between">
+                                                                <span className="text-muted small">{t('profile.tracking_id', 'Tracking ID')}:</span>
+                                                                <span className="small fw-bold">{selectedOrder.tracking_id}</span>
+                                                            </div>
+                                                            {selectedOrder.dispatch_date && (
+                                                                <div className="mb-3 d-flex justify-content-between">
+                                                                    <span className="text-muted small">{t('profile.dispatch_date', 'Dispatch Date')}:</span>
+                                                                    <span className="small fw-bold">{new Date(selectedOrder.dispatch_date).toLocaleDateString()}</span>
+                                                                </div>
+                                                            )}
+                                                            {selectedOrder.shipping_company_id?.tracking_url && (
+                                                                <a 
+                                                                    href={selectedOrder.shipping_company_id.tracking_url.replace('%tracking_id%', selectedOrder.tracking_id)} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer"
+                                                                    className="btn btn-primary btn-sm w-100 fw-bold"
+                                                                >
+                                                                    {t('profile.track_package', 'Track Package')}
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Seller: Update Order Status / Dispatch */}
+                                                    {mode === 'seller' && !['delivered', 'cancelled', 'returned'].includes(selectedOrder.order_status) && (
+                                                        <div className="pd-section-card mt-3 p-3 bg-white border border-primary shadow-sm" style={{ borderLeftWidth: '4px' }}>
+                                                            <h4 className="detail-section-title mb-3 d-flex align-items-center gap-2">
+                                                                <FaTruck className="text-primary" />
+                                                                {t('profile.shipping_management', 'Shipping Management')}
+                                                            </h4>
+                                                            
                                                             <div className="d-grid gap-2">
-                                                                {selectedOrder.order_status === 'placed' && (
-                                                                    <button className="btn btn-primary btn-sm" onClick={() => handleStatusUpdate('dispatched')}>{t('profile.mark_as_dispatched', 'Mark as Dispatched')}</button>
+                                                                {/* Pending -> Confirmed */}
+                                                                {(selectedOrder.order_status === 'pending' || !selectedOrder.order_status) && (
+                                                                    <button className="btn btn-primary btn-sm fw-bold" onClick={() => handleStatusUpdate('confirmed')}>
+                                                                        {t('profile.confirm_order', 'Confirm Order')}
+                                                                    </button>
                                                                 )}
-                                                                {selectedOrder.order_status === 'dispatched' && (
-                                                                    <button className="btn btn-primary btn-sm" onClick={() => handleStatusUpdate('on_the_way')}>{t('profile.mark_as_on_the_way', 'Mark as On the way')}</button>
+                                                                
+                                                                {/* Confirmed -> Packed */}
+                                                                {selectedOrder.order_status === 'confirmed' && (
+                                                                    <button className="btn btn-primary btn-sm fw-bold" onClick={() => handleStatusUpdate('packed')}>
+                                                                        {t('profile.mark_as_packed', 'Mark as Packed')}
+                                                                    </button>
                                                                 )}
-                                                                {selectedOrder.order_status === 'on_the_way' && (
-                                                                    <button className="btn btn-success btn-sm" onClick={() => handleStatusUpdate('delivered')}>{t('profile.mark_as_delivered', 'Mark as Delivered')}</button>
+
+                                                                {/* Dispatch Flow (Requirement 3) */}
+                                                                {(selectedOrder.order_status === 'packed' || selectedOrder.order_status === 'confirmed') && (
+                                                                    <div className="mt-2 p-3 bg-light rounded-3 border">
+                                                                        <label className="form-label mb-1 extra-small fw-bold text-uppercase text-muted">{t('profile.courier_company', 'Courier Company')}</label>
+                                                                        <select 
+                                                                            className="form-select form-select-sm mb-2"
+                                                                            value={dispatchForm.shipping_company_id}
+                                                                            onChange={(e) => setDispatchForm({...dispatchForm, shipping_company_id: e.target.value})}
+                                                                        >
+                                                                            <option value="">{t('profile.select_courier', '-- Select Courier --')}</option>
+                                                                            {shippingCompanies.map(comp => (
+                                                                                <option key={comp._id} value={comp._id}>{comp.company_name}</option>
+                                                                            ))}
+                                                                        </select>
+
+                                                                        <label className="form-label mb-1 extra-small fw-bold text-uppercase text-muted">{t('profile.tracking_id', 'Tracking ID')}</label>
+                                                                        <input 
+                                                                            type="text"
+                                                                            className="form-control form-control-sm mb-3"
+                                                                            placeholder="Enter Tracking Number"
+                                                                            value={dispatchForm.tracking_id}
+                                                                            onChange={(e) => setDispatchForm({...dispatchForm, tracking_id: e.target.value})}
+                                                                        />
+
+                                                                        <button 
+                                                                            className="btn btn-success btn-sm w-100 fw-bold"
+                                                                            onClick={handleDispatchOrder}
+                                                                            disabled={isDispatching}
+                                                                        >
+                                                                            {isDispatching ? t('common.processing', 'Processing...') : t('profile.dispatch_order', 'Dispatch Order')}
+                                                                        </button>
+                                                                    </div>
                                                                 )}
-                                                                <button className="btn btn-outline-danger btn-sm mt-1" onClick={() => handleStatusUpdate('cancelled')}>{t('profile.cancel_order', 'Cancel Order')}</button>
+
+                                                                {/* Shipped -> Out for Delivery */}
+                                                                {selectedOrder.order_status === 'shipped' && (
+                                                                    <button className="btn btn-primary btn-sm fw-bold" onClick={() => handleStatusUpdate('out_for_delivery')}>
+                                                                        {t('profile.mark_out_for_delivery', 'Mark Out for Delivery')}
+                                                                    </button>
+                                                                )}
+
+                                                                {/* Out for Delivery -> Delivered */}
+                                                                {selectedOrder.order_status === 'out_for_delivery' && (
+                                                                    <button className="btn btn-success btn-sm fw-bold" onClick={() => handleStatusUpdate('delivered')}>
+                                                                        {t('profile.mark_as_delivered', 'Mark as Delivered')}
+                                                                    </button>
+                                                                )}
+
+                                                                <button className="btn btn-outline-danger btn-sm mt-2" onClick={() => handleStatusUpdate('cancelled')}>
+                                                                    {t('profile.cancel_order', 'Cancel Order')}
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     )}

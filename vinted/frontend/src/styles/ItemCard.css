@@ -21,7 +21,8 @@
     border-radius: 12px;
     overflow: hidden;
     margin-bottom: 12px;
-    height: 300px;
+    width: 100%;
+    aspect-ratio: 3/4;
     background-color: #f8f9fa;
     /* Placeholder bg */
 }
@@ -266,224 +267,27 @@
     font-weight: 700;
     font-size: 1.1rem;
     text-transform: uppercase;
-}
-
-.listing-details {
-    padding: 0;
-}
-
-.listing-title {
-    font-size: 0.95rem;
-    font-weight: 800;
-    margin: 0;
-    color: #1a2332;
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.listing-rating {
-    font-size: 0.85rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    color: #1a2332;
-}
-
-.listing-location {
-    font-size: 0.75rem;
-    color: #999;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-}
-
-.listing-price {
-    font-size: 0.9rem;
-    color: #1a2332;
-    font-weight: 700;
-}
-
-.listing-price strong {
-    font-size: 1rem;
-    font-weight: 800;
-    color: #1a2332;
-}
-
-.action-btn-circle {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 1px solid var(--primary-color, #0ea5e9);
-    background: white;
-    color: var(--primary-color, #0ea5e9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    font-size: 0.8rem;
-}
-
-.listing-card:hover .action-btn-circle {
-    background: var(--primary-color, #0ea5e9);
-    color: white;
-}
-
-/* New Badge with Shimmer Effect */
-/* Condition Badge Styling */
-.condition-badge {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background-color: white;
-    backdrop-filter: contrast(110%);
-    color: var(--primary-color, #0ea5e9);
-    padding: 4px 12px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    border: 1px solid white;
-    font-weight: 700;
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    z-index: 10;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    /* Subtle shadow since border is white */
-}
-
-.condition-badge::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg,
-            transparent,
-            rgba(255, 255, 255, 0.15),
-            transparent);
-    transform: skewX(-20deg);
-    animation: shimmer 3s infinite;
-}
-
-/* Additional Condition/Time Styles */
-.item-meta {
-    font-size: 0.75rem;
-    color: #64748b;
-    margin-top: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-}
-
-.item-condition {
-    background: white;
-    padding: 3px 10px;
-    border-radius: 6px;
-    color: var(--primary-color, #0ea5e9);
-    font-weight: 700;
-    font-size: 0.68rem;
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid white;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-/* Seller Info Styles */
-.seller-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 0.8rem;
-    color: #475569;
-}
-
-.seller-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid #e2e8f0;
-}
-
-.seller-name {
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100px;
-}
-
-/* SOLD Overlay */
-.sold-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
     backdrop-filter: blur(2px);
 }
 
-.sold-overlay span {
-    background: white;
-    color: #ef4444;
-    padding: 6px 20px;
-    border-radius: 6px;
-    font-weight: 900;
-    font-size: 1.2rem;
-    letter-spacing: 2px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transform: rotate(-12deg);
-    border: 3px solid #ef4444;
-}
-
-/* EDIT Overlay */
-.edit-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.6);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 15;
-    color: white;
-    font-weight: 700;
-    font-size: 1.1rem;
-    gap: 10px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.listing-card.editable:hover .edit-overlay {
+.listing-card:hover .edit-overlay {
     opacity: 1;
 }
 
-.edit-overlay svg {
-    font-size: 1.5rem;
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
 }
 
-/* Tablet Responsive Adjustments */
-@media (min-width: 769px) and (max-width: 1199px) {
-    .listing-image-wrapper {
-        height: 250px;
-    }
-}
+/* Responsive Adjustments */
+/* Removing fixed heights to let aspect-ratio take over */
 
 /* Mobile Responsive Adjustments */
 @media (max-width: 768px) {
     .listing-image-wrapper {
-        height: 200px;
+        /* height removed */
         border-radius: 10px;
         margin-bottom: 8px;
     }

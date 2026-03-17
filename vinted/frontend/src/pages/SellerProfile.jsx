@@ -9,6 +9,7 @@ import {
 import AuthContext from '../context/AuthContext';
 import CurrencyContext from '../context/CurrencyContext';
 import ItemCard from '../components/common/ItemCard';
+import SkeletonCard from '../components/common/SkeletonCard';
 import { getImageUrl, safeString } from '../utils/constants';
 import '../styles/SellerProfile.css';
 import { useTranslation } from 'react-i18next';
@@ -169,8 +170,8 @@ const SellerProfile = () => {
     return (
         <div className="sp-page">
             <Meta 
-                title={safeString(seller.username)}
-                description={seller.bio || `Check out ${safeString(seller.username)}'s profile on Vinted Marketplace.`}
+                title={safeString(seller.name || seller.username)}
+                description={seller.bio || `Check out ${safeString(seller.name || seller.username)}'s profile on Vinted Marketplace.`}
                 image={seller.profile_image ? getImageUrl(seller.profile_image) : undefined}
                 type="profile"
             />
@@ -184,11 +185,11 @@ const SellerProfile = () => {
                                 <img src={getImageUrl(seller.profile_image)} alt={seller.username} className="sp-avatar" />
                             ) : (
                                 <div className="sp-avatar-placeholder">
-                                    {(seller.username || 'S').charAt(0).toUpperCase()}
+                                    {(seller.name || seller.username || 'S').charAt(0).toUpperCase()}
                                 </div>
                             )}
                         </div>
-                        <h2 className="sp-seller-name">{safeString(seller.username || seller.name)}</h2>
+                        <h2 className="sp-seller-name">{safeString(seller.name || seller.username)}</h2>
                         <p className="sp-seller-email">{seller.email || ''}</p>
                         {renderStars(seller.rating_avg, seller.rating_count)}
                         <div className="sp-meta-row">
@@ -249,13 +250,15 @@ const SellerProfile = () => {
                     {activeTab === 'products' && (
                         <div className="sp-section">
                             <div className="sp-section-header">
-                                <h2 className="sp-section-title"><FaShoppingBag /> {t('seller_profile.products_by', 'Products by')} {safeString(seller.username)}</h2>
+                                <h2 className="sp-section-title"><FaShoppingBag /> {t('seller_profile.products_by', 'Products by')} {safeString(seller.name || seller.username)}</h2>
                             </div>
                             {productsLoading ? (
-                                <div className="sp-tab-loading"><FaSpinner className="sp-spinner" /></div>
+                                <div className="vinted-product-grid mt-4">
+                                    {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+                                </div>
                             ) : products.length > 0 ? (
                                 <>
-                                    <div className="sp-products-grid">
+                                    <div className="vinted-product-grid mt-4">
                                         {products.map(item => (
                                             <div key={item._id} className="sp-product-card">
                                                 <ItemCard item={item} />
@@ -320,7 +323,7 @@ const SellerProfile = () => {
                                                     )}
                                                 </div>
                                                 <div className="sp-reviewer-info">
-                                                    <strong>{safeString(review.reviewer?.username) || t('seller_profile.anonymous', 'Anonymous')}</strong>
+                                                    <strong>{safeString(review.reviewer?.name || review.reviewer?.username) || t('seller_profile.anonymous', 'Anonymous')}</strong>
                                                     {renderStars(review.rating)}
                                                 </div>
                                                 <span className="sp-review-date">
@@ -353,7 +356,7 @@ const SellerProfile = () => {
                         <div className="sp-login-header">
                             <div className="sp-login-icon"><FaEnvelope /></div>
                             <h2>{t('seller_profile.login_to_message', 'Login to Message')}</h2>
-                            <p>{t('seller_profile.sign_in_to_start', 'Sign in to start a conversation with')} {safeString(seller.username)}</p>
+                            <p>{t('seller_profile.sign_in_to_start', 'Sign in to start a conversation with')} {safeString(seller.name || seller.username)}</p>
                         </div>
                         {loginError && <div className="sp-login-error">{loginError}</div>}
                         <form className="sp-login-form" onSubmit={handleLoginSubmit}>

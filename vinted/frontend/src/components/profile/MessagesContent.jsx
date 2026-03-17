@@ -520,8 +520,8 @@ const MessagesContent = () => {
                         const lm = conv.last_message || '';
                         const isSystemConv = lm.startsWith('🛒') || lm.startsWith('✅') || lm.startsWith('ORDER') || lm.includes('Order placed') || lm.includes('Order delivered') || lm.includes('ORDER_NOTIFICATION');
                         const marketplaceName = getMarketplaceName(settings?.site_name);
-                        const displayName = otherData?.on_model === 'Admin' ? 'Admin' : (safeString(other?.username) || marketplaceName);
-                        const siteLogo = settings?.site_logo;
+                        const displayName = otherData?.on_model === 'Admin' ? marketplaceName : (safeString(other?.username) || marketplaceName);
+                        const siteLogo = settings?.site_favicon || settings?.site_logo;
                         const siteInitial = marketplaceName.charAt(0).toUpperCase();
                         return (
                             <div
@@ -576,7 +576,7 @@ const MessagesContent = () => {
                         {(() => {
                             const hasSystemMsgs = messages.some(m => m.message_type === 'system');
                             const headerSiteName = getMarketplaceName(settings?.site_name);
-                            const headerSiteLogo = settings?.site_logo;
+                            const headerSiteLogo = settings?.site_favicon || settings?.site_logo;
                             const headerOtherData = getOtherParticipant(activeConv);
                             const headerOther = headerOtherData?.user;
                             const headerOtherOnModel = headerOtherData?.on_model;
@@ -608,9 +608,9 @@ const MessagesContent = () => {
                                         )}
                                     </div>
                                     <div className="pd-msg-user-meta">
-                                        <div className="fw-bold">{isMarketplace ? (headerOtherOnModel === 'Admin' ? 'Admin' : headerSiteName) : safeString(headerOther?.username)}</div>
+                                        <div className="fw-bold">{isMarketplace ? headerSiteName : safeString(headerOther?.username)}</div>
                                         {isMarketplace ? (
-                                            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>{headerOtherOnModel === 'Admin' ? 'System Admin' : 'Order Notifications'}</div>
+                                            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>{headerOtherOnModel === 'Admin' ? 'Official Support' : 'Order Notifications'}</div>
                                         ) : (
                                             <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
                                                 {t('profile.last_seen', 'Last seen')}: {formatLastSeen(headerOther?.last_login)}
@@ -702,7 +702,7 @@ const MessagesContent = () => {
 
                                         if (isSystem) {
                                             const siteName = getMarketplaceName(settings?.site_name);
-                                            const siteLogo = settings?.site_logo;
+                                            const siteLogo = settings?.site_favicon || settings?.site_logo;
                                             const siteInitial = siteName.charAt(0).toUpperCase();
 
                                             // Try parsing rich order notification

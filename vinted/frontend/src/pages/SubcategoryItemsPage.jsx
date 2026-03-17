@@ -3,33 +3,10 @@ import { Container, Row, Col, Form } from 'react-bootstrap';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import ItemCard from '../components/common/ItemCard';
+import SkeletonCard from '../components/common/SkeletonCard';
 import { FaAngleLeft, FaAngleRight, FaRedo, FaSearch, FaSortAmountDown, FaThLarge, FaList } from 'react-icons/fa';
 import { getImageUrl, safeString } from '../utils/constants';
 
-const SkeletonLoader = () => (
-    <div className="skeleton-item" style={{
-        width: '100%',
-        marginBottom: '20px',
-        animation: 'skeleton-blink 1.5s infinite ease-in-out'
-    }}>
-        <div style={{
-            width: '100%',
-            aspectRatio: '3/4',
-            backgroundColor: '#f1f5f9',
-            borderRadius: '12px',
-            marginBottom: '12px'
-        }}></div>
-        <div style={{ width: '60%', height: '14px', backgroundColor: '#f1f5f9', borderRadius: '4px', marginBottom: '8px' }}></div>
-        <div style={{ width: '40%', height: '12px', backgroundColor: '#f1f5f9', borderRadius: '4px' }}></div>
-        <style>{`
-            @keyframes skeleton-blink {
-                0% { opacity: 0.5; }
-                50% { opacity: 1; }
-                100% { opacity: 0.5; }
-            }
-        `}</style>
-    </div>
-);
 
 const SubcategoryItemsPage = () => {
     const { slug, subSlug } = useParams();
@@ -268,26 +245,24 @@ const SubcategoryItemsPage = () => {
 
                 {/* Items Grid */}
                 {loading && items.length === 0 ? (
-                    <Row className="g-4">
+                    <div className="vinted-product-grid">
                         {[...Array(8)].map((_, i) => (
-                            <Col key={i} xs={6} md={4} lg={3}>
-                                <SkeletonLoader />
-                            </Col>
+                            <SkeletonCard key={i} />
                         ))}
-                    </Row>
+                    </div>
                 ) : (
-                    <Row className="g-4">
+                    <div className="vinted-product-grid">
                         {items.map((item, index) => (
-                            <Col
+                            <div
                                 ref={items.length === index + 1 && paginationMode === 'scroll' ? lastItemRef : null}
-                                key={item._id}
-                                xs={6} md={4} lg={3} xl={3}
-                                className="d-flex align-items-stretch fade-in"
+                                key={item._id || index}
+                                className="fade-in"
+                                style={{ display: 'flex', flexDirection: 'column' }}
                             >
                                 <ItemCard item={item} />
-                            </Col>
+                            </div>
                         ))}
-                    </Row>
+                    </div>
                 )}
 
                 {/* Empty State */}

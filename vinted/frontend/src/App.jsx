@@ -36,10 +36,24 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
-  // If maintenance mode is ON and we're not explicitly trying to access admin (which is now separate anyway)
-  // Show maintenance page instead of the site
+  // If maintenance mode is ON and we're not explicitly trying to access admin
   if (settings?.maintenance_mode) {
     return <Maintenance />;
+  }
+
+  // If initial settings are still loading and we have no cached site name
+  // Show a clean loading state instead of flickering "Marketplace"
+  if (settings?.loading && !settings?.site_name) {
+    return (
+      <div className="d-flex align-items-center justify-content-center vh-100 bg-white">
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem', color: settings.primary_color || '#0ea5e9' }}>
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <div style={{ color: '#64748b', fontWeight: '500' }}>Starting services...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -81,7 +95,7 @@ const App = () => {
                         <Route path="/checkout" element={<Checkout />} />
                         <Route path="/categories" element={<CategoriesPage />} />
                         <Route path="/categories/:slug" element={<CategoryPage />} />
-                        <Route path="/categories/:slug/:subSlug" element={<SubcategoryItemsPage />} />
+                        <Route path="/categories/:slug/:subSlug" element={<Products />} />
                         <Route path="/pages/:slug" element={<DynamicPage />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>

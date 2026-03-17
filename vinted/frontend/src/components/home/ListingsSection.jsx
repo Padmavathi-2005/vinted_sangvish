@@ -3,6 +3,7 @@ import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import axios from '../../utils/axios';
 import ItemCard from '../common/ItemCard';
+import SkeletonCard from '../common/SkeletonCard';
 import { useTranslation } from 'react-i18next';
 
 const ListingsSection = () => {
@@ -134,20 +135,22 @@ const ListingsSection = () => {
                     </div>
                 </div>
 
-                {/* Grid */}
-                <Row className="g-4 mb-5">
-                    {displayItems.length > 0 ? (
+                {/* Standardized Grid */}
+                <div className="vinted-product-grid mb-5">
+                    {loading ? (
+                        [...Array(8)].map((_, i) => (
+                            <SkeletonCard key={i} />
+                        ))
+                    ) : displayItems.length > 0 ? (
                         displayItems.map(item => (
-                            <Col key={item._id} xs={6} sm={6} md={4} lg={3} className="d-flex align-items-stretch">
-                                <ItemCard item={item} />
-                            </Col>
+                            <ItemCard key={item._id} item={item} />
                         ))
                     ) : (
-                        <Col className="text-center py-5">
+                        <div className="w-100 text-center py-5" style={{ gridColumn: '1 / -1' }}>
                             <p className="text-muted">No items found in this category.</p>
-                        </Col>
+                        </div>
                     )}
-                </Row>
+                </div>
 
                 {/* Load More Button */}
                 <div className="text-center">

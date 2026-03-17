@@ -30,7 +30,7 @@ export const WishlistProvider = ({ children }) => {
             };
             const response = await axios.get(BACKEND_URL, config);
             if (Array.isArray(response.data)) {
-                setWishlist(response.data);
+                setWishlist(response.data.map(id => String(id)));
             } else {
                 console.warn('Backend returned non-array wishlist:', response.data);
                 setWishlist([]);
@@ -56,7 +56,8 @@ export const WishlistProvider = ({ children }) => {
                 },
             };
             await axios.post(BACKEND_URL, { item_id: itemId }, config);
-            setWishlist((prev) => (Array.isArray(prev) ? [...prev, itemId] : [itemId]));
+            const stringId = String(itemId);
+            setWishlist((prev) => (Array.isArray(prev) ? [...prev, stringId] : [stringId]));
         } catch (error) {
             console.error('Error adding to wishlist:', error);
         }
@@ -77,7 +78,8 @@ export const WishlistProvider = ({ children }) => {
         }
     };
 
-    const isWishlisted = (itemId) => Array.isArray(wishlist) && wishlist.includes(itemId);
+    const isWishlisted = (itemId) => 
+        Array.isArray(wishlist) && wishlist.some(id => String(id) === String(itemId));
 
     return (
         <WishlistContext.Provider

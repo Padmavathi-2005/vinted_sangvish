@@ -246,7 +246,7 @@ const AdminHeader = ({ toggleSidebar }) => {
                                 <span className="view-all-link" onClick={() => navigate('/messages')}>{t('header.view_all')}</span>
                             </div>
                             <div className="dropdown-list scroll-area">
-                                {latestMessages.length > 0 ? (
+                                {Array.isArray(latestMessages) && latestMessages.length > 0 ? (
                                     latestMessages.map((msg) => (
                                         <div key={msg.id} className="notification-dropdown-item" onClick={() => navigate('/messages')}>
                                             <div className="notif-icon-circle bg-info-subtle text-info">
@@ -284,7 +284,7 @@ const AdminHeader = ({ toggleSidebar }) => {
                                 <span className="view-all-link" onClick={() => navigate('/notifications')}>{t('header.view_all')}</span>
                             </div>
                             <div className="dropdown-list scroll-area">
-                                {latestNotifications.length > 0 ? (
+                                {Array.isArray(latestNotifications) && latestNotifications.length > 0 ? (
                                     latestNotifications.map((notif) => (
                                         <div key={notif._id} className="notification-dropdown-item" onClick={() => handleNotificationClick(notif)}>
                                             <div className="notif-icon-circle">

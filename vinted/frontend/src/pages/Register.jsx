@@ -9,12 +9,18 @@ import '../styles/Auth.css';
 
 const Register = () => {
     const { login } = useContext(AuthContext);
-    const [formData, setFormData] = useState({ username: '', email: '', password: '' });
+    const [formData, setFormData] = useState({ 
+        username: '', 
+        first_name: '', 
+        last_name: '', 
+        email: '', 
+        password: '' 
+    });
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [socialSettings, setSocialSettings] = useState(null);
     const navigate = useNavigate();
-    const { username, email, password } = formData;
+    const { username, first_name, last_name, email, password } = formData;
 
     useEffect(() => {
         const fetchSocialSettings = async () => {
@@ -37,7 +43,13 @@ const Register = () => {
     const onSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/api/users', { username, email, password });
+            const response = await axios.post('/api/users', { 
+                username, 
+                email, 
+                password,
+                first_name,
+                last_name
+            });
             if (response.data) {
                 login(response.data);
                 navigate('/');
@@ -79,7 +91,7 @@ const Register = () => {
 
                     {/* Username */}
                     <div className="auth-field">
-                        <label className="auth-label">Username</label>
+                        <label className="auth-label">Display Name</label>
                         <div className="auth-input-wrapper">
                             <span className="auth-icon"><FaUser /></span>
                             <input
@@ -91,6 +103,45 @@ const Register = () => {
                                 onChange={onChange}
                                 required
                             />
+                        </div>
+                    </div>
+
+                    <div className="row">
+                        <div className="col-md-6">
+                            {/* First Name */}
+                            <div className="auth-field">
+                                <label className="auth-label">First Name</label>
+                                <div className="auth-input-wrapper">
+                                    <span className="auth-icon"><FaUser /></span>
+                                    <input
+                                        type="text"
+                                        className="auth-input"
+                                        name="first_name"
+                                        value={first_name}
+                                        placeholder="John"
+                                        onChange={onChange}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-md-6">
+                            {/* Last Name */}
+                            <div className="auth-field">
+                                <label className="auth-label">Last Name</label>
+                                <div className="auth-input-wrapper">
+                                    <span className="auth-icon"><FaUser /></span>
+                                    <input
+                                        type="text"
+                                        className="auth-input"
+                                        name="last_name"
+                                        value={last_name}
+                                        placeholder="Doe"
+                                        onChange={onChange}
+                                        required
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -121,7 +172,7 @@ const Register = () => {
                                 className="auth-input"
                                 name="password"
                                 value={password}
-                                placeholder="Min. 8 characters"
+                                placeholder="Min. 6 characters"
                                 onChange={onChange}
                                 required
                             />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import axios from '../utils/axios';
+import axios, { imageBaseURL } from '../utils/axios';
 import {
     FaTachometerAlt,
     FaUsers,
@@ -23,11 +23,14 @@ import {
     FaFileAlt,
     FaLanguage,
     FaEnvelope,
-    FaBell
+    FaBell,
+    FaUniversity,
+    FaTruck
 } from 'react-icons/fa';
 import { getAdminInfo } from '../utils/auth';
 import { useSettings } from '../context/SettingsContext';
 import { useLocalization } from '../context/LocalizationContext';
+import { getImageUrl } from '../utils/constants';
 import '../styles/AdminSidebar.css';
 
 const AdminSidebar = () => {
@@ -55,6 +58,7 @@ const AdminSidebar = () => {
         { path: '/users', icon: <FaUsers />, label: t('sidebar.users') },
         { path: '/listings', icon: <FaShoppingBag />, label: t('sidebar.listings') },
         { path: '/orders', icon: <FaBoxOpen />, label: t('sidebar.orders') },
+        { path: '/shipping-companies', icon: <FaTruck />, label: 'Shipping Companies' },
         {
             id: 'wallet',
             path: '/wallet',
@@ -62,7 +66,8 @@ const AdminSidebar = () => {
             label: t('sidebar.wallet.title'),
             subItems: [
                 { path: '/wallet/withdrawal-requests', label: t('sidebar.wallet.withdrawal_requests'), icon: <FaMoneyBillWave size={12} /> },
-                { path: '/wallet/transactions', label: t('sidebar.wallet.transactions'), icon: <FaWallet size={12} /> }
+                { path: '/wallet/transactions', label: t('sidebar.wallet.transactions'), icon: <FaWallet size={12} /> },
+                { path: '/wallet/payout-methods', label: t('sidebar.wallet.payout_methods') || 'User Payout Methods', icon: <FaUniversity size={12} /> }
             ]
         },
         { path: '/categories/main', icon: <FaTags />, label: t('sidebar.categories.title') },
@@ -75,7 +80,7 @@ const AdminSidebar = () => {
             icon: <FaCog />,
             label: t('sidebar.settings.title'),
             subItems: [
-                ...settingTypes.map(type => {
+                ...(Array.isArray(settingTypes) ? settingTypes : []).map(type => {
                     const labelKey = `sidebar.settings.${type}`;
                     const translatedLabel = t(labelKey);
 
@@ -164,7 +169,7 @@ const AdminSidebar = () => {
                     {!trulyCollapsed && (
                         <div className="sidebar-logo">
                             {siteLogo ? (
-                                <img src={`${axios.defaults.baseURL}/${siteLogo}`} alt="Site Logo" className="logo-img" />
+                                <img src={getImageUrl(siteLogo)} alt="Site Logo" className="logo-img" />
                             ) : (
                                 <>
                                     <div className="logo-icon"><span>{(siteName || 'A').charAt(0)}</span></div>

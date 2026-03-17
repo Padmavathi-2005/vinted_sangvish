@@ -5,17 +5,19 @@ import Table from '../components/Table';
 import Modal from '../components/Modal';
 import axios, { imageBaseURL } from '../utils/axios';
 import { showToast, showConfirm } from '../utils/swal';
-import { safeString } from '../utils/constants';
+import { safeString, getImageUrl } from '../utils/constants';
 import '../styles/UnifiedCategories.css';
 
-const AVATAR = (image, fallback) => (
-    <div style={{ width: 40, height: 40, minWidth: 40, borderRadius: 8, overflow: 'hidden', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', flexShrink: 0 }}>
-        {image
-            ? <img src={`${imageBaseURL}/${image}`} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `${imageBaseURL}/images/site/not_found.png`; }} />
-            : fallback
-        }
-    </div>
-);
+const AVATAR = (image, fallback) => {
+    return (
+        <div style={{ width: 40, height: 40, minWidth: 40, borderRadius: 8, overflow: 'hidden', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', flexShrink: 0 }}>
+            {image
+                ? <img src={getImageUrl(image)} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = getImageUrl('images/site/not_found.png'); }} />
+                : fallback
+            }
+        </div>
+    );
+};
 
 const UnifiedCategories = () => {
     const [categories, setCategories] = useState([]);
@@ -388,7 +390,7 @@ const UnifiedCategories = () => {
                                     <div className="cat-upload-box" onClick={() => fileInputRef.current?.click()}>
                                         {(formData.category_image || (formData.image && typeof formData.image === 'string')) ? (
                                             <img
-                                                src={formData.category_image ? URL.createObjectURL(formData.category_image) : (formData.image?.startsWith('http') ? formData.image : `${imageBaseURL}/${formData.image}`)}
+                                                src={formData.category_image ? URL.createObjectURL(formData.category_image) : getImageUrl(formData.image)}
                                                 alt="Preview"
                                                 className="cat-upload-preview"
                                                 onError={(e) => { e.target.style.display = 'none'; }}

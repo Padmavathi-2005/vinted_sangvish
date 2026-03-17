@@ -17,12 +17,14 @@ const SHIPPING_FEE = 200; // ₹200 temp flat fee
 const Cart = () => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
-    const { formatPrice } = useContext(CurrencyContext);
+    const { formatPrice, currencies } = useContext(CurrencyContext);
     const {
         cartItems, removeFromCart, toggleSelect, selectAll,
         deselectAll, selectedItems, cartCount, removeSelected
     } = useCart();
     const { showPopup, PopupComponent } = usePopup();
+
+    const allSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
 
     // Helper to group items by seller
     const groupedItems = cartItems.reduce((groups, item) => {
@@ -39,10 +41,6 @@ const Cart = () => {
         let shippingTotal = 0;
         let discountTotal = 0;
 
-        selectedItems.forEach(item => {
-            subtotal += (item.price || 0);
-        });
-
         // Group selected items by seller to calculate shipping and discounts
         const selectedBySeller = selectedItems.reduce((acc, item) => {
             const sid = item.seller_id?._id || item.seller_id;
@@ -55,10 +53,32 @@ const Cart = () => {
             const { items, seller } = group;
             if (items.length === 0) return;
 
+            let groupSubtotalRaw = 0;
+
+            items.forEach(item => {
+                // To sum correctly, we must convert each item to a common base (e.g., default currency)
+                // We'll simulate the formatPrice logic but without the final target conversion
+                let itemPrice = Number(item.price || 0);
+                let itemCurrencyId = typeof item.currency_id === 'object' ? item.currency_id?._id : item.currency_id;
+                
+                // Find currency for base rate
+                let baseRate = 1;
+                const found = currencies.find(c => c._id === itemCurrencyId);
+                if (found) {
+                    baseRate = found.exchange_rate || 1;
+                }
+                
+                // Convert to "base units" (price / its_rate)
+                const baseValue = itemPrice / baseRate;
+                subtotal += baseValue;
+                groupSubtotalRaw += baseValue;
+            });
+
             // Shipping: One fee per seller unless any item has free shipping
+            // Note: SHIPPING_FEE is assumed to be in base currency units for this calculation
             const hasFreeShipping = items.some(i => i.shipping_included);
             if (!hasFreeShipping) {
-                shippingTotal += SHIPPING_FEE;
+                shippingTotal += (SHIPPING_FEE / (currencies.find(c => c.code === 'INR')?.exchange_rate || 80)); 
             }
 
             // Discount: Check seller bundle discounts
@@ -70,13 +90,19 @@ const Cart = () => {
                 else if (count >= 2) pct = seller.bundle_discounts.two_items;
 
                 if (pct > 0) {
-                    const groupSubtotal = items.reduce((s, i) => s + (i.price || 0), 0);
-                    discountTotal += (groupSubtotal * pct) / 100;
+                    discountTotal += (groupSubtotalRaw * pct) / 100;
                 }
             }
         });
 
-        return { subtotal, shippingTotal, discountTotal, total: subtotal + shippingTotal - discountTotal };
+        // The final subtotal, shipping, and discount are now in "base units".
+        // formatPrice(value) will then convert them to the current user currency.
+        return { 
+            subtotal, 
+            shippingTotal, 
+            discountTotal, 
+            total: subtotal + shippingTotal - discountTotal 
+        };
     };
 
     const { subtotal, shippingTotal, discountTotal, total } = calculateBundleTotals();
@@ -277,7 +303,7 @@ const Cart = () => {
                                                     <FaTruck />
                                                     {selectedInGroup.some(i => i.shipping_included)
                                                         ? ' Combined shipping: Free'
-                                                        : ` Combined shipping: ₹${SHIPPING_FEE}`
+                                                        : ` Combined shipping: ${formatPrice(SHIPPING_FEE)}`
                                                     }
                                                 </div>
                                                 {hasDiscount && (
@@ -305,7 +331,7 @@ const Cart = () => {
                             <div className="cart-summary-row">
                                 <span>Combined Shipping</span>
                                 <span className={shippingTotal === 0 ? 'cart-free-tag' : ''}>
-                                    {shippingTotal === 0 ? 'FREE' : `₹${shippingTotal}`}
+                                    {shippingTotal === 0 ? 'FREE' : formatPrice(shippingTotal)}
                                 </span>
                             </div>
                             {discountTotal > 0 && (

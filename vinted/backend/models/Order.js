@@ -64,11 +64,18 @@ const orderSchema = mongoose.Schema(
         },
         order_status: {
             type: String,
-            enum: ['placed', 'dispatched', 'on_the_way', 'delivered', 'cancelled', 'return_requested', 'returned'],
-            default: 'placed',
+            enum: ['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned'],
+            default: 'pending',
         },
-        tracking_number: {
+        shipping_company_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'ShippingCompany',
+        },
+        tracking_id: {
             type: String,
+        },
+        dispatch_date: {
+            type: Date,
         },
         stripe_payment_id: {
             type: String,

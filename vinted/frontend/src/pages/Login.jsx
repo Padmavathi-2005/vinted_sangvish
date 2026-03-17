@@ -109,7 +109,7 @@ const Login = () => {
                                 className="auth-input"
                                 name="password"
                                 value={password}
-                                placeholder="••••••••"
+                                placeholder="Min. 6 characters"
                                 onChange={onChange}
                                 required
                             />

@@ -1,23 +1,26 @@
-export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5003';
+export const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || 'http://localhost:5003';
 
 export const getImageUrl = (path) => {
     if (!path) return '';
     if (String(path).startsWith('http')) return path;
 
     // Robust normalization for frontend
-    // Remove leading slash, replace backslashes, and handle repeated prefixes
     let clean = String(path).replace(/\\/g, '/').replace(/^\/+/, '');
     
-    // If it already has BASE_URL or protocol, return it
+    // If it already has protocol, return it
     if (clean.startsWith('http')) return clean;
 
-    if (BASE_URL === '/' || !BASE_URL) {
+    // Use absolute path from root if base is '/' or empty
+    if (IMAGE_BASE_URL === '/' || !IMAGE_BASE_URL) {
         return `/${clean}`;
     }
 
-    // Remove trailing slashes from BASE_URL to prevent double slashes
-    const cleanBase = BASE_URL.replace(/\/+$/, '');
-    return `${cleanBase}/${clean}`;
+    // Remove trailing slashes from IMAGE_BASE_URL to prevent double slashes
+    const cleanBase = IMAGE_BASE_URL.replace(/\/+$/, '');
+    // Ensure we have a leading slash if the base is relative
+    const prefix = cleanBase.startsWith('http') ? cleanBase : `/${cleanBase.replace(/^\/+/, '')}`;
+    return `${prefix}/${clean}`.replace(/\/+/g, '/'); // Final check to prevent double slashes
 };
 
 export const getItemImageUrl = (path) => {

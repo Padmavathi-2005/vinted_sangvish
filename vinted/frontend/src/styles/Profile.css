@@ -590,13 +590,8 @@
     color: white;
 }
 
-.pd-listings-grid, .pd-orders-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-}
-
-.pd-listing-card, .pd-order-item-card {
+.pd-listing-card,
+.pd-order-item-card {
     background: white;
     border-radius: 14px;
     overflow: hidden;
@@ -718,11 +713,6 @@
     .pd-nav-items {
         justify-content: flex-start;
     }
-
-    .pd-listings-grid, .pd-orders-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-    }
 }
 
 @media (max-width: 600px) {
@@ -812,27 +802,23 @@
     .pd-sidebar {
         flex-direction: column;
     }
-
-    .pd-listings-grid, .pd-orders-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
 }
 
 /* Pagination Toggle Container */
 .pd-pagination-toggle-wrapper {
     position: relative;
     display: flex;
-    background-color: #ffffff;
+    background-color: #f1f5f9;
     border-radius: 30px;
-    padding: 3px;
+    padding: 4px;
     cursor: pointer;
     user-select: none;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    width: fit-content;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     .pd-pagination-toggle-wrapper {
         display: none !important;
     }
@@ -841,14 +827,15 @@
 /* The sliding background for pagination */
 .pd-pagination-toggle-slider {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    bottom: 3px;
-    width: calc(50% - 3px);
+    top: 4px;
+    left: 4px;
+    bottom: 4px;
+    width: calc(50% - 4px);
     background-color: var(--primary-color, #0ea5e9);
     border-radius: 26px;
-    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 1;
 }
 
 .pd-pagination-toggle-wrapper.page-active .pd-pagination-toggle-slider {
@@ -859,21 +846,30 @@
 .pd-pagination-option {
     position: relative;
     z-index: 2;
-    padding: 4px 16px;
-    font-weight: 500;
-    font-size: 0.85rem;
+    padding: 6px 18px;
+    font-weight: 600;
+    font-size: 0.82rem;
     color: #64748b;
-    transition: color 0.3s;
-    min-width: 64px;
+    transition: all 0.3s ease;
+    min-width: 80px;
     text-align: center;
     display: flex;
     align-items: center;
     justify-content: center;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
 }
 
 .pd-pagination-option.active {
-    color: white;
-    font-weight: 600;
+    color: #ffffff;
+}
+
+.pd-pagination-option:not(.active):hover {
+    color: #334155;
+}
+
+.pd-pagination-toggle-wrapper:hover .pd-pagination-toggle-slider {
+    filter: brightness(1.05);
 }
 
 /* ─── Community Mini List ─── */
@@ -1193,14 +1189,19 @@ body.modal-open {
     transition: width 0.5s ease;
 }
 
-.tracker-line-fill[data-status="placed"] {
+.tracker-line-fill[data-status="pending"],
+.tracker-line-fill[data-status="placed"],
+.tracker-line-fill[data-status="confirmed"],
+.tracker-line-fill[data-status="packed"] {
     width: 0%;
 }
 
+.tracker-line-fill[data-status="shipped"],
 .tracker-line-fill[data-status="dispatched"] {
     width: 33%;
 }
 
+.tracker-line-fill[data-status="out_for_delivery"],
 .tracker-line-fill[data-status="on_the_way"] {
     width: 66%;
 }
@@ -1623,7 +1624,7 @@ body.modal-open {
         flex-wrap: wrap;
         gap: 15px;
     }
-    
+
     .pd-section-header h2 {
         font-size: 1.2rem;
         font-weight: 800;
@@ -1902,16 +1903,178 @@ body.modal-open {
     font-weight: bold;
 }
 
-@media (max-width: 1100px) {
-    .pd-bundle-dashboard-layout {
-        grid-template-columns: 1fr;
+/* ─── Wallet Transaction Table Styles ─── */
+.custom-transaction-table th {
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: #64748b;
+}
+
+.custom-transaction-table td {
+    padding: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.bg-success-soft {
+    background-color: #f0fdf4 !important;
+}
+
+.bg-danger-soft {
+    background-color: #fef2f2 !important;
+}
+
+.bg-info-soft {
+    background-color: #eff6ff !important;
+}
+
+.bg-warning-soft {
+    background-color: #fffbeb !important;
+}
+
+.xsmall {
+    font-size: 0.7rem;
+}
+
+.fw-600 {
+    font-weight: 600;
+}
+
+.fw-500 {
+    font-weight: 500;
+}
+
+/* ─── Premium Modal Backdrop & Card ─── */
+.pd-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(12px);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    /* Start from top to allow scrolling */
+    padding: 40px 20px;
+    overflow-y: auto;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+}
+
+.pd-modal-card {
+    background: white;
+    border-radius: 32px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 600px;
+    position: relative;
+    margin: auto;
+    /* Center horizontally and allow margin to push content */
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pd-modal-header {
+    padding: 32px 32px 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* position: sticky; */
+    top: 0;
+    background: white;
+    z-index: 10;
+    border-radius: 32px 32px 0 0;
+}
+
+.pd-modal-header .btn-close {
+    background-color: #f1f5f9;
+    padding: 12px;
+    border-radius: 50%;
+    opacity: 1;
+    transition: all 0.2s;
+    background-size: 12px;
+    margin: -8px;
+}
+
+.pd-modal-header .btn-close:hover {
+    background-color: #e2e8f0;
+    transform: rotate(90deg);
+}
+
+.pd-modal-body {
+    padding: 0 32px 32px 32px;
+}
+
+/* ─── Custom Custom Dropdown ─── */
+.custom-dropdown-container,
+.custom-payout-dropdown-container {
+    user-select: none;
+}
+
+.dropdown-item-custom:hover {
+    background-color: #f8fafc !important;
+    transform: scale(1.01);
+    transition: all 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
     }
-    
-    .pd-bundle-sidebar {
-        order: 2;
-    }
-    
-    .pd-bundle-main-settings {
-        order: 1;
+
+    to {
+        opacity: 1;
     }
 }
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ─── Extra Polish ─── */
+.border-dashed {
+    border: 2px dashed #e2e8f0;
+}
+
+.extra-small {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* ─── Mobile: hide sidebar entirely (tab bar inside components handles nav) ─── */
+@media (max-width: 900px) {
+    /* Collapse the whole sidebar so it doesn't take up space */
+    .pd-sidebar {
+        display: none !important;
+    }
+
+    /* Remove left column gap — full-width content */
+    .pd-container {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* Wallet tab bar — ensure enough tap target */
+    .wc-tab-bar {
+        padding: 0 2px;
+        border-bottom: 2px solid #f1f5f9;
+    }
+
+    /* wallet modal overlay — full screen bottom sheet */
+    .pd-modal-card {
+        border-radius: 20px 20px 0 0;
+        width: 100%;
+        max-height: 90vh;
+    }
+}

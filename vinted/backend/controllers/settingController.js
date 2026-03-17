@@ -6,8 +6,7 @@ import Setting from '../models/Setting.js';
 // @access  Private (Admin)
 const getSettingTypes = asyncHandler(async (req, res) => {
     const types = await Setting.distinct('type');
-    const coreTypes = ['general_settings', 'site_settings', 'cookie_settings', 'payment_settings'];
-    const merged = [...new Set([...coreTypes, ...types])];
+    const merged = [...new Set(['general_settings', 'site_settings', 'cookie_settings', 'payment_settings', 'api_settings', ...types])];
     res.json(merged);
 });
 
@@ -94,6 +93,13 @@ const getSettingsByType = asyncHandler(async (req, res) => {
             apple_enabled: false,
             apple_client_id: '',
             apple_client_secret: '',
+        });
+    }
+
+    if (!setting && type === 'api_settings') {
+        setting = await Setting.create({
+            type: 'api_settings',
+            gemini_api_key: ''
         });
     }
 
@@ -233,9 +239,15 @@ const updateSettingsByType = asyncHandler(async (req, res) => {
 // Backward compatibility for main frontend
 const getSettings = asyncHandler(async (req, res) => {
     const allSettings = await Setting.find({});
+    // Order settings so that more specific/important ones come later in the merge
+    const order = ['general_settings', 'site_settings', 'cookie_settings', 'social_login_settings', 'payment_settings'];
+    allSettings.sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
+
     let merged = {};
     allSettings.forEach(s => {
+        if (s.type === 'api_settings') return;
         const obj = s.toObject();
+        
         // Filtering sensitive keys
         Object.keys(obj).forEach(key => {
             const lowerKey = key.toLowerCase();
@@ -246,12 +258,21 @@ const getSettings = asyncHandler(async (req, res) => {
                 lowerKey.includes('key_test') ||
                 lowerKey.includes('password')
             ) {
-                // Keep only public keys if specifically allowed, otherwise remove
                 if (!lowerKey.includes('public_key') && !lowerKey.includes('client_id')) {
                     delete obj[key];
                 }
             }
         });
+
+        // Special handling for boolean flags to avoid overwriting "true" with "false" defaults from other docs
+        Object.keys(obj).forEach(key => {
+            if (typeof obj[key] === 'boolean') {
+                if (merged[key] === true) {
+                    obj[key] = true;
+                }
+            }
+        });
+
         merged = { ...merged, ...obj };
     });
     res.json(merged);

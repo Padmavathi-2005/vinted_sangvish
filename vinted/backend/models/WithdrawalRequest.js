@@ -16,11 +16,15 @@ const withdrawalRequestSchema = mongoose.Schema(
             enum: ['pending', 'approved', 'rejected', 'completed'],
             default: 'pending',
         },
+        currency: {
+            type: String,
+            default: 'INR',
+        },
         payment_method: {
-            type: String, // Bank Transfer, PayPal, etc.
+            type: String, // Bank, UPI, PayPal, etc.
         },
         payment_details: {
-            type: String, // Account number, etc.
+            type: Object, // Comprehensive snapshot of payout details
         },
         admin_note: {
             type: String,
@@ -31,6 +35,10 @@ const withdrawalRequestSchema = mongoose.Schema(
         processed_by: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Admin',
+        },
+        payout_method_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'UserPayoutMethod',
         },
     },
     {

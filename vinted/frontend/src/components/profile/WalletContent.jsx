@@ -1,40 +1,72 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
-import { FaWallet, FaArrowDown, FaArrowUp, FaClock, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import {
+    FaWallet, FaArrowDown, FaArrowUp, FaClock, FaCheckCircle,
+    FaExclamationCircle, FaExchangeAlt, FaMoneyBillWave, FaUniversity
+} from 'react-icons/fa';
 import CurrencyContext from '../../context/CurrencyContext';
 import { useTranslation } from 'react-i18next';
 import { safeString } from '../../utils/constants';
+import PayoutMethodsContent from './PayoutMethodsContent';
+import { useNavigate } from 'react-router-dom';
+import '../../styles/WalletContent.css';
 
-const WalletContent = ({ activeSubTab = 'wallet' }) => {
+/* ── sub-tab config ──────────────────────────────────────── */
+const SUB_TABS = [
+    { key: 'wallet',         icon: <FaWallet />,         label: 'Wallet'       },
+    { key: 'transactions',   icon: <FaExchangeAlt />,    label: 'Transactions' },
+    { key: 'withdrawals',    icon: <FaMoneyBillWave />,  label: 'Withdrawals'  },
+    { key: 'payout-methods', icon: <FaUniversity />,     label: 'Payout'       },
+];
+
+/* ── Component ───────────────────────────────────────────── */
+const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
     const { t } = useTranslation();
-    const { formatPrice } = useContext(CurrencyContext);
-    const [loading, setLoading] = useState(true);
-    const [walletData, setWalletData] = useState(null);
-    const [withdrawHistory, setWithdrawHistory] = useState([]);
+    const navigate = useNavigate();
+    const { formatPrice, currentCurrency } = useContext(CurrencyContext);
+
+    /* internal sub-tab state — kept in sync with sidebar prop */
+    const [activeSubTab, setActiveSubTab] = useState(propSubTab);
+
+    useEffect(() => {
+        setActiveSubTab(propSubTab);
+    }, [propSubTab]);
+
+    const [loading, setLoading]                   = useState(true);
+    const [walletData, setWalletData]             = useState(null);
+    const [withdrawHistory, setWithdrawHistory]   = useState([]);
+    const [userPayoutMethods, setUserPayoutMethods] = useState([]);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-    const [withdrawForm, setWithdrawForm] = useState({ amount: '', method: 'Bank Transfer', details: '' });
-    const [submitting, setSubmitting] = useState(false);
-    const [message, setMessage] = useState(null);
+    const [withdrawForm, setWithdrawForm]         = useState({ amount: '', payout_method_id: '' });
+    const [submitting, setSubmitting]             = useState(false);
+    const [message, setMessage]                   = useState(null);
+    const [isPayoutDropdownOpen, setIsPayoutDropdownOpen] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [wRes, hRes] = await Promise.all([
+            const [wRes, hRes, pRes] = await Promise.all([
                 axios.get('/api/wallet/me'),
-                axios.get('/api/wallet/withdrawals')
+                axios.get('/api/wallet/withdrawals'),
+                axios.get('/api/wallet/payout-methods'),
             ]);
             setWalletData(wRes.data);
             setWithdrawHistory(hRes.data);
+
+            const savedMethods = pRes.data || [];
+            setUserPayoutMethods(savedMethods);
+            if (savedMethods.length > 0) {
+                const def = savedMethods.find(m => m.is_default) || savedMethods[0];
+                setWithdrawForm(prev => ({ ...prev, payout_method_id: def._id }));
+            }
         } catch (err) {
-            console.error("Error fetching wallet data:", err);
+            console.error('Error fetching wallet data:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
 
     const handleWithdraw = async (e) => {
         e.preventDefault();
@@ -43,16 +75,17 @@ const WalletContent = ({ activeSubTab = 'wallet' }) => {
         try {
             await axios.post('/api/wallet/withdraw', {
                 amount: parseFloat(withdrawForm.amount),
-                payment_method: withdrawForm.method,
-                payment_details: withdrawForm.details
+                payout_method_id: withdrawForm.payout_method_id,
+                currency: currentCurrency?.code || 'INR'
             });
             setMessage({ type: 'success', text: 'Withdrawal request submitted successfully!' });
-            setWithdrawForm({ amount: '', method: 'Bank Transfer', details: '' });
+            const def = userPayoutMethods.find(m => m.is_default) || userPayoutMethods[0];
+            setWithdrawForm({ amount: '', payout_method_id: def?._id || '' });
             setTimeout(() => {
                 setShowWithdrawModal(false);
                 setMessage(null);
+                fetchData();
             }, 2000);
-            fetchData();
         } catch (err) {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Withdrawal failed.' });
         } finally {
@@ -60,185 +93,278 @@ const WalletContent = ({ activeSubTab = 'wallet' }) => {
         }
     };
 
-    if (loading) return <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>;
+    if (loading) return (
+        <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status" />
+        </div>
+    );
 
+    /* ── Wallet Hero ─────────────────────────────────────── */
     const renderWallet = () => (
-        <div className="pd-section-card mb-4" style={{ background: 'linear-gradient(135deg, #0ea5e9, #6366f1)', color: 'white', border: 'none', borderRadius: '24px', padding: '40px' }}>
-            <div className="d-flex align-items-center gap-4">
-                <div className="wallet-icon-large" style={{ background: 'rgba(255,255,255,0.2)', padding: '20px', borderRadius: '20px' }}>
-                    <FaWallet size={40} />
+        <div className="wc-hero">
+            <div className="wc-hero-inner">
+                <div className="wc-hero-icon"><FaWallet /></div>
+                <div className="wc-hero-text">
+                    <div className="wc-hero-label">{t('wallet.total_balance', 'Total Balance')}</div>
+                    <div className="wc-hero-amount">{formatPrice(walletData?.wallet?.balance || 0)}</div>
                 </div>
-                <div>
-                    <div style={{ opacity: 0.9, fontSize: '1rem', fontWeight: 500 }}>{t('wallet.total_balance', 'Total Balance')}</div>
-                    <h2 className="fw-bold mb-0" style={{ fontSize: '3rem' }}>{formatPrice(walletData?.wallet?.balance || 0)}</h2>
-                </div>
-                <button
-                    className="btn btn-white btn-lg ms-auto px-5 fw-bold rounded-pill shadow-sm"
-                    style={{ background: 'white', color: '#0ea5e9', border: 'none', height: '60px' }}
-                    onClick={() => setShowWithdrawModal(true)}
-                >
-                    {t('wallet.withdraw_funds', 'Withdraw Funds')}
+                <button className="wc-withdraw-btn" onClick={() => setShowWithdrawModal(true)}>
+                    <FaArrowUp size={13} />
+                    {t('wallet.withdraw_funds', 'Withdraw')}
                 </button>
             </div>
         </div>
     );
 
-    const renderTransactions = () => (
-        <div className="pd-section-card border-0 shadow-sm" style={{ borderRadius: '20px', padding: '24px', background: 'white' }}>
-            <h3 className="pd-section-title mb-4" style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('wallet.transaction_history', 'Transaction History')}</h3>
-            <div className="transaction-list">
-                {walletData?.transactions?.length > 0 ? (
-                    walletData.transactions.map(tx => (
-                        <div key={tx._id} className="transaction-item d-flex align-items-center justify-content-between p-3 mb-2 rounded-4 border-0 bg-light">
-                            <div className="d-flex align-items-center gap-3">
-                                <div className={`tx-type-icon ${tx.type}`} style={{ background: tx.type === 'credit' ? '#dcfce7' : '#fee2e2', padding: '10px', borderRadius: '12px' }}>
-                                    {tx.type === 'credit' ? <FaArrowDown color="#16a34a" /> : <FaArrowUp color="#dc2626" />}
+    /* ── Transactions ────────────────────────────────────── */
+    const renderTransactions = (limit = null) => {
+        const txns = limit
+            ? (walletData?.transactions?.slice(0, limit) || [])
+            : (walletData?.transactions || []);
+
+        return (
+            <div className="wc-section">
+                <div className="wc-section-header">
+                    <h3 className="wc-section-title">
+                        <FaExchangeAlt /> {t('wallet.transaction_history', 'Transaction History')}
+                    </h3>
+                    {limit && walletData?.transactions?.length > limit && (
+                        <button
+                            className="wc-link-btn"
+                            onClick={() => setActiveSubTab('transactions')}
+                        >
+                            {t('common.show_all', 'Show All')}
+                        </button>
+                    )}
+                </div>
+
+                {/* Mobile stack */}
+                <div className="wc-tx-list">
+                    {txns.length > 0 ? txns.map(tx => (
+                        <div key={tx._id} className="wc-tx-row">
+                            <div className={`wc-tx-icon ${tx.type === 'credit' ? 'credit' : 'debit'}`}>
+                                {tx.type === 'credit' ? <FaArrowDown size={12} /> : <FaArrowUp size={12} />}
+                            </div>
+                            <div className="wc-tx-info">
+                                <div className="wc-tx-desc">
+                                    {tx.description ? safeString(tx.description) : (tx.type === 'credit' ? 'Credit' : 'Debit')}
                                 </div>
-                                <div>
-                                    <div className="fw-bold" style={{ fontSize: '0.9rem' }}>{safeString(tx.description)}</div>
-                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                        {new Date(tx.created_at).toLocaleDateString()} • {tx.purpose.replace(/_/g, ' ')}
-                                    </div>
+                                <div className="wc-tx-meta">
+                                    <span>{new Date(tx.created_at).toLocaleDateString()}</span>
+                                    {tx.purpose && <span className="wc-tx-purpose">{tx.purpose.replace(/_/g, ' ')}</span>}
                                 </div>
                             </div>
-                            <div className="text-end">
-                                <div className={`fw-bold ${tx.type === 'credit' ? 'text-success' : 'text-danger'}`} style={{ fontSize: '1.1rem' }}>
-                                    {tx.type === 'credit' ? '+' : '-'}{formatPrice(tx.amount)}
-                                </div>
-                                <div className="tx-status-badge small" style={{ fontSize: '0.7rem' }}>
-                                    {tx.status === 'completed' ? (
-                                        <span className="text-success fw-bold"><FaCheckCircle className="me-1" />{t('wallet.completed', 'Completed')}</span>
-                                    ) : (
-                                        <span className="text-warning fw-bold"><FaClock className="me-1" />{t('wallet.pending', 'Pending')}</span>
-                                    )}
-                                </div>
+                            <div className="wc-tx-right">
+                                <span className={`wc-tx-amount ${tx.type === 'credit' ? 'credit' : 'debit'}`}>
+                                    {tx.type === 'credit' ? '+' : '−'}{formatPrice(tx.amount)}
+                                </span>
+                                <span className={`wc-tx-status ${tx.status}`}>
+                                    {tx.status === 'completed' ? <><FaCheckCircle size={9} /> Done</> :
+                                     tx.status === 'failed'    ? <><FaExclamationCircle size={9} /> Failed</> :
+                                                                 <><FaClock size={9} /> Pending</>}
+                                </span>
                             </div>
                         </div>
-                    ))
-                ) : (
-                    <div className="text-center py-5 text-muted">
-                        <FaExclamationCircle size={40} className="mb-3 opacity-25" />
-                        <p>{t('wallet.no_transactions', 'No transactions found.')}</p>
-                    </div>
-                )}
+                    )) : (
+                        <div className="wc-empty">
+                            <FaExchangeAlt className="wc-empty-icon" />
+                            <p>{t('wallet.no_transactions', 'No transactions yet.')}</p>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
+    /* ── Withdrawals ─────────────────────────────────────── */
     const renderWithdrawals = () => (
-        <div className="pd-section-card border-0 shadow-sm" style={{ borderRadius: '20px', padding: '24px', background: 'white' }}>
-            <h3 className="pd-section-title mb-4" style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('wallet.withdrawal_requests', 'Withdrawal Requests')}</h3>
-            <div className="transaction-list">
-                {withdrawHistory?.length > 0 ? (
-                    withdrawHistory.map(req => (
-                        <div key={req._id} className="transaction-item d-flex align-items-center justify-content-between p-3 mb-2 rounded-4 border-0 bg-light">
-                            <div className="d-flex align-items-center gap-3">
-                                <div className="tx-type-icon" style={{ background: '#e0f2fe', padding: '10px', borderRadius: '12px' }}>
-                                    <FaArrowUp color="#0ea5e9" />
-                                </div>
-                                <div>
-                                    <div className="fw-bold" style={{ fontSize: '0.9rem' }}>{req.payment_method} {t('wallet.withdrawal', 'Withdrawal')}</div>
-                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                        {new Date(req.created_at).toLocaleDateString()} • ID: #{req._id.slice(-6).toUpperCase()}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="text-end">
-                                <div className="fw-bold text-dark" style={{ fontSize: '1.1rem' }}>
-                                    {formatPrice(req.amount)}
-                                </div>
-                                <div className="tx-status-badge small">
-                                    <span className={`badge ${req.status === 'pending' ? 'bg-warning' : req.status === 'completed' ? 'bg-success' : 'bg-danger'} rounded-pill px-3`}>
-                                        {req.status === 'pending' ? t('wallet.pending', 'Pending').toUpperCase() : req.status === 'completed' ? t('wallet.completed', 'Completed').toUpperCase() : req.status.toUpperCase()}
-                                    </span>
-                                </div>
-                            </div>
+        <div className="wc-section">
+            <div className="wc-section-header">
+                <h3 className="wc-section-title">
+                    <FaMoneyBillWave /> {t('wallet.withdrawal_requests', 'Withdrawal Requests')}
+                </h3>
+            </div>
+            <div className="wc-tx-list">
+                {withdrawHistory?.length > 0 ? withdrawHistory.map(req => (
+                    <div key={req._id} className="wc-tx-row">
+                        <div className="wc-tx-icon debit">
+                            <FaArrowUp size={12} />
                         </div>
-                    ))
-                ) : (
-                    <div className="text-center py-5 text-muted">
-                        <FaExclamationCircle size={40} className="mb-3 opacity-25" />
-                        <p>{t('wallet.no_withdrawals', 'No withdrawal requests found.')}</p>
+                        <div className="wc-tx-info">
+                            <div className="wc-tx-desc">
+                                {req.payment_method
+                                    ? safeString(req.payment_method)
+                                    : 'Bank Transfer'} Withdrawal
+                            </div>
+                            <div className="wc-tx-meta">
+                                <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                                <span>#{req._id.slice(-6).toUpperCase()}</span>
+                            </div>
+                            {req.admin_note && (
+                                <div className="wc-tx-note">{req.admin_note}</div>
+                            )}
+                        </div>
+                        <div className="wc-tx-right">
+                            <span className="wc-tx-amount debit">{formatPrice(req.amount)}</span>
+                            <span className={`wc-tx-status ${req.status === 'completed' ? 'completed' : req.status === 'pending' ? 'pending' : 'failed'}`}>
+                                {req.status === 'completed' ? <><FaCheckCircle size={9}/> Done</> :
+                                 req.status === 'pending'   ? <><FaClock size={9}/> Pending</> :
+                                                              <><FaExclamationCircle size={9}/> {req.status}</>}
+                            </span>
+                        </div>
+                    </div>
+                )) : (
+                    <div className="wc-empty">
+                        <FaMoneyBillWave className="wc-empty-icon" />
+                        <p>{t('wallet.no_withdrawals', 'No withdrawal requests yet.')}</p>
                     </div>
                 )}
             </div>
         </div>
     );
 
-    return (
-        <div className="wallet-content">
-            {activeSubTab === 'wallet' && renderWallet()}
-            {activeSubTab === 'transactions' && renderTransactions()}
-            {activeSubTab === 'withdrawals' && renderWithdrawals()}
+    /* ── Withdraw Request Modal ───────────────────────────── */
+    const renderWithdrawModal = () => (
+        <div className="wc-modal-overlay" onClick={() => setShowWithdrawModal(false)}>
+            <div className="wc-modal-card" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="wc-modal-header">
+                    <div>
+                        <h3 className="wc-modal-title">{t('wallet.request_withdrawal', 'Request Withdrawal')}</h3>
+                        <p className="wc-modal-sub">
+                            {t('wallet.available', 'Available')}: <strong>{formatPrice(walletData?.wallet?.balance || 0)}</strong>
+                        </p>
+                    </div>
+                    <button className="btn-close" onClick={() => setShowWithdrawModal(false)} />
+                </div>
 
-            {/* Withdrawal Modal */}
-            {showWithdrawModal && (
-                <div className="pd-modal-overlay">
-                    <div className="pd-modal-content" style={{ maxWidth: '450px', borderRadius: '24px', padding: '30px' }}>
-                        <div className="d-flex justify-content-between align-items-start mb-4">
-                            <h3 className="fw-bold m-0">{t('wallet.withdraw_funds', 'Withdraw Funds')}</h3>
-                            <button className="btn-close" onClick={() => setShowWithdrawModal(false)}></button>
+                {/* Body */}
+                <div className="wc-modal-body">
+                    {message && (
+                        <div className={`wc-alert wc-alert-${message.type}`}>
+                            {message.type === 'success' ? <FaCheckCircle /> : <FaExclamationCircle />}
+                            {message.text}
                         </div>
+                    )}
 
-                        {message && (
-                            <div className={`alert alert-${message.type === 'success' ? 'success' : 'danger'} small rounded-3`}>
-                                {message.text}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleWithdraw}>
-                            <div className="mb-3">
-                                <label className="form-label small fw-bold text-muted">{t('wallet.amount_to_withdraw', 'Amount to Withdraw')}</label>
-                                <div className="input-group">
-                                    <span className="input-group-text border-0 bg-light" style={{ borderRadius: '12px 0 0 12px' }}>₹</span>
-                                    <input
-                                        type="number"
-                                        className="form-control border-0 bg-light"
-                                        style={{ borderRadius: '0 12px 12px 0' }}
-                                        value={withdrawForm.amount}
-                                        onChange={(e) => setWithdrawForm({ ...withdrawForm, amount: e.target.value })}
-                                        placeholder="0.00"
-                                        max={walletData?.wallet?.balance}
-                                        required
-                                    />
-                                </div>
-                                <div className="text-primary xsmall mt-2 fw-bold">{t('wallet.available', 'Available')}: {formatPrice(walletData?.wallet?.balance || 0)}</div>
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label small fw-bold text-muted">{t('wallet.payment_method', 'Payment Method')}</label>
-                                <select
-                                    className="form-select border-0 bg-light"
-                                    style={{ borderRadius: '12px' }}
-                                    value={withdrawForm.method}
-                                    onChange={(e) => setWithdrawForm({ ...withdrawForm, method: e.target.value })}
-                                >
-                                    <option>{t('wallet.bank_transfer', 'Bank Transfer')}</option>
-                                    <option>{t('wallet.upi', 'UPI')}</option>
-                                    <option>{t('wallet.paypal', 'PayPal')}</option>
-                                </select>
-                            </div>
-                            <div className="mb-4">
-                                <label className="form-label small fw-bold text-muted">{t('wallet.payment_details', 'Payment Details')}</label>
-                                <textarea
-                                    className="form-control border-0 bg-light"
-                                    style={{ borderRadius: '12px' }}
-                                    rows="3"
-                                    value={withdrawForm.details}
-                                    onChange={(e) => setWithdrawForm({ ...withdrawForm, details: e.target.value })}
-                                    placeholder={t('wallet.enter_bank_details', 'Enter your bank account number and IFSC or UPI ID...')}
+                    <form onSubmit={handleWithdraw}>
+                        {/* Amount */}
+                        <div className="wc-form-group">
+                            <label className="wc-label">
+                                {t('wallet.amount_to_withdraw', 'Amount to withdraw')}
+                            </label>
+                            <div className="wc-input-row">
+                                <span className="wc-currency-sym">{currentCurrency?.symbol || '₹'}</span>
+                                <input
+                                    type="number"
+                                    className="wc-input"
+                                    value={withdrawForm.amount}
+                                    onChange={e => setWithdrawForm({ ...withdrawForm, amount: e.target.value })}
+                                    placeholder="0.00"
+                                    min="1"
+                                    max={walletData?.wallet?.balance}
                                     required
                                 />
                             </div>
-                            <div className="d-flex gap-2">
-                                <button type="button" className="btn btn-light flex-grow-1 rounded-pill py-2" onClick={() => setShowWithdrawModal(false)}>{t('common.cancel', 'Cancel')}</button>
-                                <button type="submit" className="btn btn-primary flex-grow-1 rounded-pill py-2 fw-bold" disabled={submitting || !withdrawForm.amount}>
-                                    {submitting ? t('common.saving', 'Submitting...') : t('wallet.request_withdrawal', 'Request Withdrawal')}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        </div>
+
+                        {/* Payout method picker */}
+                        <div className="wc-form-group">
+                            <label className="wc-label">
+                                {t('wallet.payout_method', 'Select Payout Method')}
+                            </label>
+
+                            {userPayoutMethods.length > 0 ? (
+                                <div className="wc-payout-list">
+                                    {userPayoutMethods.map(m => (
+                                        <div
+                                            key={m._id}
+                                            className={`wc-payout-option ${withdrawForm.payout_method_id === m._id ? 'selected' : ''}`}
+                                            onClick={() => setWithdrawForm({ ...withdrawForm, payout_method_id: m._id })}
+                                        >
+                                            <div className="wc-payout-radio">
+                                                {withdrawForm.payout_method_id === m._id && <div className="wc-payout-radio-dot" />}
+                                            </div>
+                                            <div className="wc-payout-icon">
+                                                <FaUniversity />
+                                            </div>
+                                            <div className="wc-payout-details">
+                                                <span className="wc-payout-type">{m.payout_type}</span>
+                                                <span className="wc-payout-sub">
+                                                    {m.payout_type === 'Bank'
+                                                        ? `${m.bank_name} · ····${String(m.account_number || '').slice(-4)}`
+                                                        : (m.upi_id || m.paypal_email)}
+                                                </span>
+                                            </div>
+                                            {m.is_default && <span className="wc-payout-default">Default</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="wc-no-payout">
+                                    <FaUniversity className="wc-no-payout-icon" />
+                                    <p>No payout methods saved yet.</p>
+                                    <button
+                                        type="button"
+                                        className="wc-add-payout-btn"
+                                        onClick={() => {
+                                            setShowWithdrawModal(false);
+                                            setActiveSubTab('payout-methods');
+                                        }}
+                                    >
+                                        + Add Payout Method
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="wc-submit-btn"
+                            disabled={submitting || !withdrawForm.payout_method_id || !withdrawForm.amount}
+                        >
+                            {submitting
+                                ? t('common.processing', 'Processing…')
+                                : t('wallet.submit_request', 'Submit Withdrawal Request')}
+                        </button>
+                    </form>
                 </div>
-            )}
+            </div>
+        </div>
+    );
+
+    /* ── Render ──────────────────────────────────────────── */
+    return (
+        <div className="wallet-content">
+            {/* ── Inline pill tabs (always visible, critical on mobile) ── */}
+            <div className="wc-tab-bar">
+                {SUB_TABS.map(tab => (
+                    <button
+                        key={tab.key}
+                        className={`wc-tab ${activeSubTab === tab.key ? 'active' : ''}`}
+                        onClick={() => setActiveSubTab(tab.key)}
+                    >
+                        <span className="wc-tab-icon">{tab.icon}</span>
+                        <span className="wc-tab-label">{tab.label}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* ── Content area ── */}
+            <div className="wc-body">
+                {activeSubTab === 'wallet' && (
+                    <>
+                        {renderWallet()}
+                        <div className="mt-3">{renderTransactions(3)}</div>
+                    </>
+                )}
+                {activeSubTab === 'transactions'   && renderTransactions()}
+                {activeSubTab === 'withdrawals'    && renderWithdrawals()}
+                {activeSubTab === 'payout-methods' && <PayoutMethodsContent />}
+            </div>
+
+            {/* Withdrawal modal */}
+            {showWithdrawModal && renderWithdrawModal()}
         </div>
     );
 };

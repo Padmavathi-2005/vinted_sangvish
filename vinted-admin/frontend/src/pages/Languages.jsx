@@ -143,10 +143,10 @@ const Languages = () => {
         }
     ];
 
-    const filteredData = languages.filter(l =>
-        l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l.code.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredData = Array.isArray(languages) ? languages.filter(l =>
+        (l.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.code || '').toLowerCase().includes(searchTerm.toLowerCase())
+    ) : [];
 
 
 

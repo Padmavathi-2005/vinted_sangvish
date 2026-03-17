@@ -152,10 +152,10 @@ const Currencies = () => {
         }
     ];
 
-    const filteredData = currencies.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.code.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredData = Array.isArray(currencies) ? currencies.filter(c =>
+        (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.code || '').toLowerCase().includes(searchTerm.toLowerCase())
+    ) : [];
 
 
 

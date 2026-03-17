@@ -48,6 +48,8 @@ import {
     getNotifications,
     getNotificationCount,
     markNotificationAsRead,
+    getPayoutMethods,
+    seedShippingCompanies
 } from '../controllers/adminController.js';
 import {
     getSubscribers,
@@ -64,6 +66,7 @@ router.use(adminProtect);
 
 router.get('/verify', verifyAdmin);
 router.get('/dashboard', getDashboardStats);
+router.get('/seed-shipping', seedShippingCompanies);
 router.get('/reports', getReports);
 
 // User Management
@@ -121,6 +124,7 @@ router.get('/transactions', getTransactions);
 
 router.get('/withdrawal-requests', getWithdrawalRequests);
 router.put('/withdrawal-requests/:id', updateWithdrawalRequest);
+router.get('/payout-methods', getPayoutMethods);
 
 // Notification Management
 router.get('/notifications', getNotifications);

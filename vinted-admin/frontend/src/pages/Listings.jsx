@@ -210,7 +210,7 @@ const Listings = () => {
                     <div className="item-img-placeholder bg-light rounded" style={{ width: '45px', height: '45px', overflow: 'hidden' }}>
                         {row.images?.[0] ?
                             <img
-                                src={`${imageBaseURL}/${row.images[0]}`}
+                                src={row.images[0].startsWith('http') ? row.images[0] : `${imageBaseURL.endsWith('/') ? imageBaseURL.slice(0, -1) : imageBaseURL}/${row.images[0].startsWith('/') ? row.images[0].substring(1) : row.images[0]}`}
                                 alt={row.title}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={(e) => { e.target.onerror = null; e.target.src = `${imageBaseURL}/images/site/not_found.png`; }}
@@ -263,10 +263,10 @@ const Listings = () => {
         }
     ];
 
-    const filteredListings = listings.filter(l =>
-        l.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l._id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredListings = Array.isArray(listings) ? listings.filter(l =>
+        (l.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l._id || '').toLowerCase().includes(searchTerm.toLowerCase())
+    ) : [];
 
     // Client-side pagination logic
 
@@ -454,7 +454,7 @@ const Listings = () => {
                             <div className="d-flex flex-wrap gap-2 mb-2">
                                 {existingImages.map((img, idx) => (
                                     <div key={`existing-${idx}`} className="position-relative" style={{ width: '80px', height: '80px' }}>
-                                        <img src={`${imageBaseURL}/${img}`} alt="" className="w-100 h-100 object-fit-cover rounded border" />
+                                        <img src={img.startsWith('http') ? img : `${imageBaseURL.endsWith('/') ? imageBaseURL.slice(0, -1) : imageBaseURL}/${img.startsWith('/') ? img.substring(1) : img}`} alt="" className="w-100 h-100 object-fit-cover rounded border" />
                                         <button 
                                             type="button"
                                             className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 d-flex align-items-center justify-content-center rounded-circle"

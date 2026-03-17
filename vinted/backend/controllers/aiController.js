@@ -4,17 +4,19 @@ import Category from '../models/Category.js';
 import Setting from '../models/Setting.js';
 import fs from 'fs';
 
-// Initialize Gemini
-let genAI;
-
-const getGenAI = () => {
-    if (!genAI) {
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY is missing in the .env file.");
+// Helper to get Gemini API Key from Settings
+const getGeminiApiKey = async () => {
+    try {
+        const settings = await Setting.findOne({ type: 'api_settings' });
+        const key = settings?.gemini_api_key || process.env.GEMINI_API_KEY;
+        if (!key) {
+            console.error("[AI Settings] Gemini API Key is missing in DB and .env");
         }
-        genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        return key;
+    } catch (error) {
+        console.error("[AI Settings] Error fetching API key:", error);
+        return process.env.GEMINI_API_KEY;
     }
-    return genAI;
 };
 
 // @desc    Chat with AI assistant
@@ -24,58 +26,107 @@ const chatWithAI = asyncHandler(async (req, res) => {
     const { message, history } = req.body;
 
     if (!message) {
-        res.status(400);
-        throw new Error("Message is required");
+        return res.status(400).json({ message: "Message is required" });
     }
 
     try {
-        const genAIInstance = getGenAI();
-        const model = genAIInstance.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const apiKey = await getGeminiApiKey();
+        if (!apiKey) {
+            return res.status(503).json({
+                message: "AI service is currently not configured by administrator.",
+                text: "I'm still learning! My AI brain isn't fully connected yet. Please check back later."
+            });
+        }
 
-        // Fetch categories and settings dynamically to give AI context
+        const genAIInstance = new GoogleGenerativeAI(apiKey);
+        
+        // Fetch categories and general settings for context
         const categories = await Category.find({ is_active: true }).select('name');
         const categoryNames = categories.map(c => c.name).join(", ");
+        const generalSettings = await Setting.findOne({ type: 'site_settings' }) || await Setting.findOne({ type: 'general_settings' });
+        
+        const siteName = generalSettings?.site_name?.en || 'Sangvish Marketplace';
+        const siteUrl = generalSettings?.site_url || 'vinted.sangvish.com';
 
-        const settings = await Setting.findOne();
-        const siteName = (settings && settings.site_name) ? settings.site_name : 'Vinted (developed by Sangvish)';
-        const siteUrl = (settings && settings.site_url) ? settings.site_url : 'vinted.sangvish.com';
-
-        const systemInstruction = `You are a helpful AI assistant for a marketplace website called ${siteName}. 
-CRITICAL RULES:
-1. NEVER provide links to the official vinted.com website or any external websites.
-2. The official URL for THIS project is ${siteUrl}. If you MUST provide a URL, only use this domain or relative paths (e.g., /products).
-3. Do not pretend to be the official Vinted company. You are assisting users specifically on THIS marketplace platform.
-4. If a user asks how to do something (like buy, sell, or search), provide step-by-step instructions based on a typical e-commerce experience. For example, tell them to "use the search bar at the top" or "click the 'Sell' button".
-5. Keep your answers concise, friendly, and directly related to buying, selling, and managing profile items.
-6. Available categories include: ${categoryNames}.`;
+        const systemInstruction = `You are a helpful, friendly AI assistant for ${siteName}.
+Speak like a real person—be helpful but not robotic.
+- NEVER mention external sites or official Vinted.com.
+- Our site URL is ${siteUrl}.
+- Categories available: ${categoryNames}.
+- If users ask how to use the site, suggest using the search bar or clicking "Sell".`;
 
         // Format history for Gemini
-        // Gemini expects role: 'user' or 'model'
-        const chat = model.startChat({
-            history: (history || []).map(msg => ({
-                role: msg.isAi ? "model" : "user",
-                parts: [{ text: msg.text }]
-            })),
-            generationConfig: {
-                maxOutputTokens: 500,
-            },
-        });
+        // CRITICAL: First message MUST be 'user'
+        let formattedHistory = [];
+        if (history && Array.isArray(history)) {
+            let firstUserIndex = history.findIndex(msg => !msg.isAi);
+            if (firstUserIndex !== -1) {
+                // Start from the first user message to satisfy Gemini requirements
+                formattedHistory = history.slice(firstUserIndex).map(msg => ({
+                    role: msg.isAi ? "model" : "user",
+                    parts: [{ text: msg.text }]
+                }));
+            }
+        }
 
         const fullMessage = `${systemInstruction}\n\nUser: ${message}`;
-        const result = await chat.sendMessage(fullMessage);
-        const responseData = await result.response;
-        const text = responseData.text();
+        
+        // Define candidate models for fallback - Using names confirmed in REST check
+        const models = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-pro-latest", "gemini-1.5-flash", "gemini-pro"];
+        let lastError = null;
+        let text = "";
+
+        for (const modelName of models) {
+            try {
+                console.log(`[AI Chat] Attempting with model: ${modelName}`);
+                const model = genAIInstance.getGenerativeModel({ model: modelName });
+                const chat = model.startChat({
+                    history: formattedHistory,
+                    generationConfig: { maxOutputTokens: 800 },
+                });
+
+                const result = await chat.sendMessage(fullMessage);
+                const responseData = await result.response;
+                text = responseData.text();
+                if (text) break; // Success!
+            } catch (err) {
+                console.error(`[AI Chat] Failed with ${modelName}:`, err.message);
+                lastError = err;
+                // Continue to next model if it's a 404 or model not found error
+                if (err.message?.includes('not found') || err.message?.includes('404')) {
+                    continue;
+                } else {
+                    // For other errors (like quota), break early as they likely affect all models
+                    break;
+                }
+            }
+        }
+
+        if (!text && lastError) {
+            throw lastError;
+        }
 
         return res.json({ text });
 
     } catch (error) {
-        console.error("=== GEMINI CHAT ERROR ===");
-        console.error(error.message);
-        console.error("=========================");
+        console.error("=== AI CHAT ERROR ===");
+        console.error(error);
+        
+        let userMessage = "I'm having a little trouble connecting to my service right now. Please try again in a moment!";
+        let statusCode = 500;
 
-        res.status(500).json({
-            message: "AI Error: " + error.message,
-            text: "Sorry, I could not connect. Error: " + error.message
+        if (error.message?.includes('quota') || error.message?.includes('429')) {
+            userMessage = "I've been talking a lot lately and need a short break! My daily limit is reached. Please try again soon or contact support to upgrade.";
+            statusCode = 429;
+        } else if (error.message?.includes('key') || error.message?.includes('API_KEY_INVALID')) {
+            userMessage = "My connection key seems invalid. Please notify the administrator to check the AI API settings.";
+        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+            userMessage = "I'm experiencing a network hiccup. Please check your internet connection and try again.";
+        }
+
+        res.status(statusCode).json({
+            message: "Internal AI Error: " + error.message,
+            text: userMessage
         });
     }
 });
@@ -85,17 +136,18 @@ CRITICAL RULES:
 // @access  Public
 const imageSearch = asyncHandler(async (req, res) => {
     if (!req.file) {
-        res.status(400);
-        throw new Error("No image uploaded");
+        return res.status(400).json({ message: "No image uploaded" });
     }
 
-    console.log("AI SEARCH: Analyzing image with Gemini:", req.file.path);
-
     try {
-        const genAIInstance = getGenAI();
-        const model = genAIInstance.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const apiKey = await getGeminiApiKey();
+        if (!apiKey) {
+            if (req.file) await fs.promises.unlink(req.file.path).catch(() => {});
+            return res.status(503).json({ message: "Visual search is not configured." });
+        }
 
-        // Read image file and convert to parts
+        const genAIInstance = new GoogleGenerativeAI(apiKey);
+        
         const imageBuffer = await fs.promises.readFile(req.file.path);
         const image = {
             inlineData: {
@@ -104,37 +156,50 @@ const imageSearch = asyncHandler(async (req, res) => {
             }
         };
 
-        const prompt = "What is this product? Provide a short, 3-word search query to find similar items in a marketplace. Return ONLY the search query text, no punctuation or extra words.";
+        const prompt = "What is this product? Provide a 2-3 word search query. Return ONLY text.";
+        
+        // Define candidate models for fallback
+        const models = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-pro-vision", "gemini-1.5-flash"];
+        let lastError = null;
+        let caption = "";
 
-        const result = await model.generateContent([prompt, image]);
-        const responseData = await result.response;
-        const caption = responseData.text().trim().replace(/['"]+/g, '');
-
-        console.log("AI SEARCH: Gemini generated keywords:", caption);
-
-        // Clean up
-        try {
-            await fs.promises.unlink(req.file.path);
-        } catch (err) {
-            // Non-blocking
+        for (const modelName of models) {
+            try {
+                console.log(`[AI Image Search] Attempting with model: ${modelName}`);
+                const model = genAIInstance.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent([prompt, image]);
+                const responseData = await result.response;
+                caption = responseData.text().trim().replace(/['"]+/g, '');
+                if (caption) break;
+            } catch (err) {
+                console.error(`[AI Image Search] Failed with ${modelName}:`, err.message);
+                lastError = err;
+                if (err.message?.includes('not found') || err.message?.includes('404')) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
         }
 
-        if (!caption) {
-            return res.status(500).json({ message: "AI could not analyze this image." });
+        if (!caption && lastError) {
+            throw lastError;
         }
 
+        await fs.promises.unlink(req.file.path).catch(() => {});
         return res.json({ query: caption });
 
     } catch (error) {
-        console.error("=== GEMINI IMAGE SEARCH FAILURE ===");
+        console.error("=== AI IMAGE SEARCH ERROR ===");
         console.error(error);
+        if (req.file) await fs.promises.unlink(req.file.path).catch(() => {});
 
-        // Final fallback: delete file if still exists
-        try { if (req.file) await fs.promises.unlink(req.file.path); } catch (e) { }
+        let tip = "We're having trouble with visual search. Try describing the item in the search bar!";
+        if (error.message?.includes('quota')) tip = "Image search limit reached for today. Try again later!";
 
         res.status(500).json({
             message: "Visual Search Error: " + error.message,
-            tip: "We're having trouble connecting to the AI service. Please try again or use text search."
+            tip: tip
         });
     }
 });

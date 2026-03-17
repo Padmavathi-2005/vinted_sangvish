@@ -326,13 +326,6 @@
     padding: 48px;
 }
 
-/* ─── Products Grid ─── */
-.sp-products-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 20px;
-}
-
 /* ─── Empty State ─── */
 .sp-empty {
     text-align: center;
@@ -763,10 +756,6 @@
         padding: 18px;
     }
 
-    .sp-products-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 14px;
-    }
 
     .sp-rating-summary {
         flex-direction: column;

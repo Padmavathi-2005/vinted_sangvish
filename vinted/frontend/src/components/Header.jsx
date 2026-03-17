@@ -391,10 +391,9 @@ const Header = () => {
                                 alignItems: 'center',
                                 background: '#f8f9fa', // Keep neutral gray background
                                 borderRadius: (showSearchHistory && (searchHistory.length > 0 || categories.length > 0)) ? '24px 24px 0 0' : '24px',
-                                border: '1px solid #e9ecef',
-                                borderBottom: (showSearchHistory && (searchHistory.length > 0 || categories.length > 0)) ? '1px solid #f1f3f5' : '1px solid #e9ecef',
-                                boxShadow: 'none', // Removed background shadow
-                                transition: 'all 0.2s',
+                                border: `1.5px solid ${isSearchFocused ? settings.primary_color : (settings.primary_color + '30')}`,
+                                boxShadow: isSearchFocused ? `0 0 0 4px ${settings.primary_color}15` : '0 2px 10px rgba(0,0,0,0.06)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 zIndex: 101,
                                 height: '46px',
                                 width: '100%',
@@ -402,7 +401,7 @@ const Header = () => {
                             }}
                         >
                             <div style={{ paddingLeft: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <FaSearch className="search-icon-svg" style={{ color: '#adb5bd', fontSize: '0.9rem', opacity: 0.8 }} />
+                                <FaSearch className="search-icon-svg" style={{ color: isSearchFocused ? settings.primary_color : '#adb5bd', fontSize: '0.95rem', opacity: 0.8, transition: 'color 0.3s' }} />
                             </div>
                             <input
                                 type="text"
@@ -1046,26 +1045,26 @@ const Header = () => {
                                                 {mode === 'buyer' ? t('user_menu.buyer_mode', 'Buyer Mode') : t('user_menu.seller_mode', 'Seller Mode')}
                                             </div>
 
-                                            <Link to="/profile" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <Link to={`/profile?tab=dashboard&mode=${mode}`} className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                 <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaUser style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                 {t('profile.dashboard', 'Dashboard')}
                                             </Link>
-                                            <Link to="/profile?tab=profile_settings" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <Link to={`/profile?tab=profile_settings&mode=${mode}`} className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                 <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaUser style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                 {t('user_menu.my_profile', 'My Profile')}
                                             </Link>
 
                                             {mode === 'buyer' ? (
                                                 <>
-                                                    <Link to="/profile?tab=orders" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <Link to="/profile?tab=orders&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                         <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaShoppingCart style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                         {t('user_menu.my_orders', 'My Orders')}
                                                     </Link>
-                                                    <Link to="/profile?tab=favorites" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <Link to="/profile?tab=favorites&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                         <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaHeart style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                         {t('profile.favorites', 'Favorites')}
                                                     </Link>
-                                                    <Link to="/profile?tab=messages" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <Link to="/profile?tab=messages&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                         <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaBell style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                         {t('user_menu.messages', 'Messages')}
                                                     </Link>
@@ -1081,15 +1080,15 @@ const Header = () => {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Link to="/profile?tab=listings" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <Link to="/profile?tab=listings&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                         <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaCheck style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                         {t('user_menu.manage_listings', 'Manage Listings')}
                                                     </Link>
-                                                    <Link to="/profile?tab=payments" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <Link to="/profile?tab=payments&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                         <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaCoins style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                         {t('user_menu.payments', 'Payments')}
                                                     </Link>
-                                                    <Link to="/profile?tab=messages" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <Link to="/profile?tab=messages&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                         <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaBell style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
                                                         {t('user_menu.messages', 'Messages')}
                                                     </Link>

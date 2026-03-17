@@ -29,15 +29,27 @@ const Orders = () => {
     const [formData, setFormData] = useState({
         order_status: '',
         payment_status: '',
-        tracking_number: ''
+        tracking_id: '',
+        shipping_company_id: ''
     });
+    const [shippingCompanies, setShippingCompanies] = useState([]);
     const [saving, setSaving] = useState(false);
 
     const { formatPrice, t } = useLocalization();
 
     useEffect(() => {
         fetchOrders();
+        fetchShippingCompanies();
     }, [orderTypeFilter]);
+
+    const fetchShippingCompanies = async () => {
+        try {
+            const { data } = await axios.get('/api/shipping-companies');
+            setShippingCompanies(data.filter(c => c.status === 'active'));
+        } catch (error) {
+            console.error("Error fetching shipping companies", error);
+        }
+    };
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -127,9 +139,10 @@ const Orders = () => {
     const handleEditOrder = (order) => {
         setSelectedOrder(order);
         setFormData({
-            order_status: order.order_status || 'placed',
+            order_status: order.order_status || 'pending',
             payment_status: order.payment_status || 'pending',
-            tracking_number: order.tracking_number || ''
+            tracking_id: order.tracking_id || '',
+            shipping_company_id: order.shipping_company_id?._id || order.shipping_company_id || ''
         });
         setShowEditModal(true);
     };
@@ -182,7 +195,7 @@ const Orders = () => {
                     <div className="item-img-placeholder bg-light rounded" style={{ width: '45px', height: '45px', overflow: 'hidden' }}>
                         {order.item_id?.images?.[0] ? (
                             <img
-                                src={`${imageBaseURL}/${order.item_id.images[0]}`}
+                                src={order.item_id.images[0].startsWith('http') ? order.item_id.images[0] : `${imageBaseURL.endsWith('/') ? imageBaseURL.slice(0, -1) : imageBaseURL}/${order.item_id.images[0].startsWith('/') ? order.item_id.images[0].substring(1) : order.item_id.images[0]}`}
                                 alt={order.item_id.title}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={(e) => { e.target.onerror = null; e.target.src = `${imageBaseURL}/images/site/not_found.png`; }}
@@ -233,13 +246,26 @@ const Orders = () => {
             accessor: 'order_status',
             render: (order) => {
                 const config = {
-                    'placed': 'primary',
-                    'dispatched': 'info',
-                    'on_the_way': 'warning',
+                    'pending': 'warning',
+                    'confirmed': 'info',
+                    'packed': 'info',
+                    'shipped': 'primary',
+                    'out_for_delivery': 'warning',
                     'delivered': 'success',
-                    'cancelled': 'danger'
+                    'cancelled': 'danger',
+                    'return_requested': 'warning',
+                    'returned': 'secondary',
+                    // Legacy
+                    'placed': 'warning',
+                    'dispatched': 'primary',
+                    'on_the_way': 'warning'
                 };
-                return <Badge bg={config[order.order_status] || 'secondary'} className="text-capitalize">{t(`orders.status.${order.order_status?.toLowerCase()}`)}</Badge>;
+                return (
+                    <div className="d-flex flex-column gap-1">
+                        <Badge bg={config[order.order_status] || 'secondary'} className="text-capitalize">{order.order_status?.replace(/_/g, ' ')}</Badge>
+                        {order.tracking_id && <Badge bg="light" text="dark" className="border extra-small fw-normal">Trk: {order.tracking_id}</Badge>}
+                    </div>
+                );
             }
         },
         {
@@ -349,11 +375,15 @@ const Orders = () => {
                                             value={formData.order_status}
                                             onChange={(e) => setFormData({ ...formData, order_status: e.target.value })}
                                         >
-                                            <option value="placed">{t('orders.status.placed')}</option>
-                                            <option value="dispatched">{t('orders.status.dispatched')}</option>
-                                            <option value="on_the_way">{t('orders.status.on_the_way')}</option>
-                                            <option value="delivered">{t('orders.status.delivered')}</option>
-                                            <option value="cancelled">{t('orders.status.cancelled')}</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="confirmed">Confirmed</option>
+                                            <option value="packed">Packed</option>
+                                            <option value="shipped">Shipped</option>
+                                            <option value="out_for_delivery">Out for Delivery</option>
+                                            <option value="delivered">Delivered</option>
+                                            <option value="cancelled">Cancelled</option>
+                                            <option value="return_requested">Return Requested</option>
+                                            <option value="returned">Returned</option>
                                         </Form.Select>
                                     </Form.Group>
                                 </Col>
@@ -372,18 +402,33 @@ const Orders = () => {
                                     </Form.Group>
                                 </Col>
                             </Row>
-                            <Form.Group className="mb-3">
-                                <Form.Label>{t('orders.modal.tracking_code')}</Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    placeholder={t('orders.modal.tracking_code_placeholder')}
-                                    value={formData.tracking_number}
-                                    onChange={(e) => setFormData({ ...formData, tracking_number: e.target.value })}
-                                />
-                                <Form.Text className="text-muted">
-                                    {t('orders.modal.tracking_help')}
-                                </Form.Text>
-                            </Form.Group>
+                            <Row>
+                                <Col md={6} className="mb-3">
+                                    <Form.Group>
+                                        <Form.Label>Courier Company</Form.Label>
+                                        <Form.Select
+                                            value={formData.shipping_company_id}
+                                            onChange={(e) => setFormData({ ...formData, shipping_company_id: e.target.value })}
+                                        >
+                                            <option value="">-- No Courier --</option>
+                                            {shippingCompanies.map(c => (
+                                                <option key={c._id} value={c._id}>{c.company_name}</option>
+                                            ))}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6} className="mb-3">
+                                    <Form.Group>
+                                        <Form.Label>Tracking ID</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="Enter Tracking ID"
+                                            value={formData.tracking_id}
+                                            onChange={(e) => setFormData({ ...formData, tracking_id: e.target.value })}
+                                        />
+                                    </Form.Group>
+                                </Col>
+                            </Row>
                         </Form>
                     )}
                 </Modal>

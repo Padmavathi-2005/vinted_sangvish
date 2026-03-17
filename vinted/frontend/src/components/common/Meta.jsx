@@ -11,7 +11,7 @@ const Meta = ({
     type = "website"
 }) => {
     const { settings } = useSettings();
-    const siteName = safeString(settings.site_name, "Marketplace");
+    const siteName = safeString(settings.site_name, "");
     const siteUrl = settings.site_url || window.location.origin;
     const siteFavicon = settings.site_favicon ? getImageUrl(settings.site_favicon) : "/vite.svg";
     

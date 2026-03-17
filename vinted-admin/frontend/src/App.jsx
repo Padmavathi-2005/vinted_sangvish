@@ -13,12 +13,14 @@ import Currencies from './pages/Currencies';
 import Transactions from './pages/Transactions';
 import PaymentMethods from './pages/PaymentMethods';
 import WithdrawalRequests from './pages/WithdrawalRequests';
+import UserPayoutMethods from './pages/UserPayoutMethods';
 import Pages from './pages/Pages';
 import PageEditor from './pages/PageEditor';
 import FrontendContent from './pages/FrontendContent';
 import Subscribers from './pages/Subscribers';
 import Notifications from './pages/Notifications';
 import Messages from './pages/Messages';
+import ShippingCompanies from './pages/ShippingCompanies';
 import NotFound from './pages/NotFound';
 
 import { getAdminInfo } from './utils/auth';
@@ -37,9 +39,11 @@ function App() {
                     <Route path="/users" element={<Users />} />
                     <Route path="/listings" element={<Listings />} />
                     <Route path="/orders" element={<Orders />} />
+                    <Route path="/shipping-companies" element={<ShippingCompanies />} />
                     <Route path="/wallet/transactions" element={<Transactions />} />
                     <Route path="/wallet/transactions" element={<Transactions />} />
                     <Route path="/wallet/withdrawal-requests" element={<WithdrawalRequests />} />
+                    <Route path="/wallet/payout-methods" element={<UserPayoutMethods />} />
                     <Route path="/categories/main" element={<UnifiedCategories />} />
                     <Route path="/categories/subcategories" element={<UnifiedCategories />} />
                     <Route path="/categories/item-types" element={<UnifiedCategories />} />

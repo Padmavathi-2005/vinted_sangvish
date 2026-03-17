@@ -9,6 +9,14 @@ const userSchema = mongoose.Schema(
             required: [true, 'Please add a username'],
             unique: true,
         },
+        first_name: {
+            type: String,
+            default: '',
+        },
+        last_name: {
+            type: String,
+            default: '',
+        },
         email: {
             type: String,
             required: [true, 'Please add an email'],
@@ -107,6 +115,8 @@ const userSchema = mongoose.Schema(
 
                     ret.profile_image = `images/profile/${cleanPath}`;
                 }
+                ret.id = ret._id;
+                ret.name = ret.username;
                 return ret;
             }
         },
@@ -119,6 +129,8 @@ const userSchema = mongoose.Schema(
 
                     ret.profile_image = `images/profile/${cleanPath}`;
                 }
+                ret.id = ret._id;
+                ret.name = ret.username;
                 return ret;
             }
         }

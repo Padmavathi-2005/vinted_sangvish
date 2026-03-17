@@ -11,6 +11,7 @@ import StripePaymentForm from '../components/checkout/StripePaymentForm';
 import { useCart } from '../context/CartContext';
 import CurrencyContext from '../context/CurrencyContext';
 import AuthContext from '../context/AuthContext';
+import LanguageContext from '../context/LanguageContext';
 import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 import { usePopup } from '../components/common/Popup';
 import '../styles/Checkout.css';
@@ -24,10 +25,11 @@ const SHIPPING_FEE = 200;
 const Checkout = () => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
-    const { formatPrice } = useContext(CurrencyContext);
+    const { formatPrice, currentCurrency, defaultCurrency } = useContext(CurrencyContext);
     const { selectedItems, clearCart } = useCart();
     const { showPopup, PopupComponent } = usePopup();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    const { currentLanguage } = useContext(LanguageContext);
 
     const calculateBundleTotals = () => {
         let subtotal = 0;
@@ -77,69 +79,114 @@ const Checkout = () => {
     const { subtotal, shippingTotal, discountTotal, total } = calculateBundleTotals();
 
     const [availableMethods, setAvailableMethods] = useState([]);
+    const [walletBalance, setWalletBalance] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState('');
     const [clientSecret, setClientSecret] = useState('');
     const [stripeError, setStripeError] = useState(null);
     const [placing, setPlacing] = useState(false);
     const [step, setStep] = useState('details'); // 'details' | 'done'
     const [fieldErrors, setFieldErrors] = useState({});
+    const [paypalSettings, setPaypalSettings] = useState(null);
+    const [paypalLoaded, setPaypalLoaded] = useState(false);
+    const [paypalError, setPaypalError] = useState(null);
+    const handlePlaceOrderRef = React.useRef(null);
 
     // Fetch methods and settings on mount
     React.useEffect(() => {
         const fetchPaymentConfigs = async () => {
             try {
-                // 1. Fetch settings to get Stripe public key
+                // 1. Fetch settings to get Stripe & PayPal keys
                 const settingsRes = await axios.get('/api/settings');
                 const settings = settingsRes.data;
 
-                if (settings && settings.type === 'payment_settings' || settings) {
-                    const isTest = settings.stripe_test_mode !== false; // Default to test
-                    const pubKey = isTest ? settings.stripe_test_public_key : settings.stripe_live_public_key;
-
-                    if (pubKey) {
-                        stripePromise = loadStripe(pubKey);
-                    }
-                }
-
-                // 2. Fetch payment methods from settings
-                const methods = [];
-                const currentLang = localStorage.getItem('i18nextLng') || 'en';
-
                 if (settings) {
-                    // Stripe
-                    if (settings.stripe_enabled) {
-                        const stripeTrans = settings.stripe_translations?.[currentLang] || settings.stripe_translations?.['en'] || {};
-                        methods.push({
-                            key: 'stripe',
-                            name: stripeTrans.name || 'Stripe',
-                            description: stripeTrans.description || 'Credit / Debit Card',
-                            icon: settings.stripe_logo ? `${axios.defaults.baseURL}/${settings.stripe_logo}` : null,
-                            defaultIcon: <FaCreditCard />
-                        });
+                    // Stripe Logic
+                    const isStripeTest = settings.stripe_test_mode !== false;
+                    const stripePubKey = isStripeTest ? settings.stripe_test_public_key : settings.stripe_live_public_key;
+                    if (stripePubKey) {
+                        stripePromise = loadStripe(stripePubKey);
                     }
-                    // PayPal
+
+                    // PayPal Settings Logic
                     if (settings.paypal_enabled) {
-                        const paypalTrans = settings.paypal_translations?.[currentLang] || settings.paypal_translations?.['en'] || {};
-                        methods.push({
-                            key: 'paypal',
-                            name: paypalTrans.name || 'PayPal',
-                            description: paypalTrans.description || 'Pay via PayPal',
-                            icon: settings.paypal_logo ? `${axios.defaults.baseURL}/${settings.paypal_logo}` : null,
-                            defaultIcon: <FaCreditCard /> // Fallback icon
-                        });
+                        const isPaypalTest = settings.paypal_test_mode !== false;
+                        const clientId = isPaypalTest ? settings.paypal_test_client_id : settings.paypal_live_client_id;
+                        if (clientId) {
+                            setPaypalSettings({ clientId, isTest: isPaypalTest });
+                        }
                     }
                 }
 
-                setAvailableMethods(methods);
-                if (methods.length > 0) {
-                    setPaymentMethod(methods[0].key);
+                // 2. Fetch user wallet balance
+                let currentBalance = 0;
+                try {
+                    const walletRes = await axios.get('/api/wallet/me');
+                    currentBalance = walletRes.data?.wallet?.balance || 0;
+                    setWalletBalance(currentBalance);
+                } catch (walletErr) {
+                    console.error("Error fetching wallet:", walletErr);
+                }
+
+                // 3. Fetch payment methods from dynamic API
+                const methodsRes = await axios.get('/api/payments/methods');
+                const dbMethods = methodsRes.data || [];
+                
+                const langCode = currentLanguage?.code || i18n.language || 'en';
+                const methods = dbMethods.map(m => {
+                    const rawName = m.name?.[langCode] || m.name?.en || m.name || m.key;
+                    const rawDesc = m.description?.[langCode] || m.description?.en || m.description || '';
+                    
+                    let icon = m.icon ? (m.icon.startsWith('http') ? m.icon : `${axios.defaults.baseURL}/${m.icon}`) : null;
+                    let defaultIcon = <FaShieldAlt />;
+                    let finalName = typeof rawName === 'object' ? (rawName.en || rawName[Object.keys(rawName)[0]] || m.key) : rawName;
+                    let finalDesc = typeof rawDesc === 'object' ? (rawDesc.en || rawDesc[Object.keys(rawDesc)[0]] || '') : rawDesc;
+
+                    if (m.key === 'wallet') {
+                        defaultIcon = <FaShieldAlt style={{ color: '#10b981' }} />;
+                        finalName = 'Wallet';
+                        finalDesc = ''; // Keep button height consistent
+                    } else if (m.key === 'stripe') {
+                        finalName = 'Stripe';
+                        if (!icon) defaultIcon = <FaCreditCard style={{ color: '#6366f1' }} />;
+                    } else if (m.key === 'paypal' && !icon) {
+                        defaultIcon = <span style={{ color: '#002f86', fontWeight: 'bold' }}>PayPal</span>;
+                    }
+                    
+                    return {
+                        key: m.key,
+                        name: finalName,
+                        description: finalDesc,
+                        icon,
+                        defaultIcon
+                    };
+                });
+
+                // 4. Filter methods: Hide wallet if balance < total
+                const filteredMethods = methods.filter(m => {
+                    if (m.key === 'wallet') {
+                        return currentBalance >= total && total > 0;
+                    }
+                    return true;
+                });
+
+                setAvailableMethods(filteredMethods);
+                if (filteredMethods.length > 0) {
+                    // Only set default if no valid method is currently selected
+                    setPaymentMethod(prev => {
+                        const exists = filteredMethods.find(m => m.key === prev);
+                        if (exists) return prev;
+                        const stripeMethod = filteredMethods.find(m => m.key === 'stripe');
+                        return stripeMethod ? 'stripe' : filteredMethods[0].key;
+                    });
                 }
             } catch (err) {
                 console.error("Error fetching payment configuration:", err);
             }
         };
-        fetchPaymentConfigs();
-    }, []);
+        if (total > 0) {
+            fetchPaymentConfigs();
+        }
+    }, [total, currentCurrency?.code, defaultCurrency?._id]);
 
     // Create PaymentIntent if stripe is selected
     React.useEffect(() => {
@@ -147,9 +194,14 @@ const Checkout = () => {
             const createIntent = async () => {
                 setStripeError(null);
                 try {
+                    const rate = currentCurrency?.exchange_rate || 1;
+                    const baseRate = defaultCurrency?.exchange_rate || 1;
+                    const convertedAmount = (total / baseRate) * rate;
+
+                    console.log(`Creating Stripe intent for: ${convertedAmount} ${currentCurrency?.code || 'INR'}`);
                     const res = await axios.post('/api/payments/stripe/create-intent', {
-                        amount: total,
-                        currency: 'inr'
+                        amount: convertedAmount,
+                        currency: (currentCurrency?.code || 'INR').toLowerCase()
                     });
                     setClientSecret(res.data.clientSecret);
                 } catch (err) {
@@ -160,7 +212,115 @@ const Checkout = () => {
             };
             createIntent();
         }
-    }, [paymentMethod, total]);
+    }, [paymentMethod, total, currentCurrency?.code, defaultCurrency?._id]);
+
+    // Dedicated PayPal Script Manager
+    React.useEffect(() => {
+        if (!paypalSettings?.clientId || !currentCurrency?.code || step !== 'details') {
+            return;
+        }
+
+        const clientId = paypalSettings.clientId;
+        const currency = currentCurrency?.code || 'INR';
+        const scriptId = 'paypal-sdk-v4';
+        
+        console.log(`[PayPal] Manager triggered for ${currency}. Client ID exists.`);
+
+        let isMounted = true;
+
+        const loadScript = () => {
+            const existingScript = document.getElementById(scriptId);
+            
+            if (existingScript && existingScript.getAttribute('data-curr') === currency) {
+                if (window.paypal) {
+                    setPaypalLoaded(true);
+                    setPaypalError(null);
+                } else {
+                    existingScript.onload = () => isMounted && setPaypalLoaded(true);
+                }
+                return;
+            }
+
+            if (existingScript) existingScript.remove();
+            
+            setPaypalLoaded(false);
+            setPaypalError(null);
+
+            const script = document.createElement('script');
+            script.id = scriptId;
+            script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&intent=capture`;
+            script.async = true;
+            script.setAttribute('data-curr', currency);
+            
+            script.onload = () => {
+                if (isMounted) {
+                    console.log(`PayPal SDK (${currency}) loaded`);
+                    setPaypalLoaded(true);
+                }
+            };
+            
+            script.onerror = () => {
+                if (isMounted) {
+                    setPaypalError("PayPal could not be loaded. Please check your connection.");
+                }
+            };
+
+            document.body.appendChild(script);
+        };
+
+        loadScript();
+
+        return () => { isMounted = false; };
+    }, [paypalSettings?.clientId, currentCurrency?.code, step]); // Removed paypalLoaded to fix loop
+
+    // Handle PayPal buttons initialization
+    React.useEffect(() => {
+        if (paymentMethod === 'paypal' && paypalLoaded && step === 'details' && total > 0) {
+            const container = document.getElementById('paypal-button-container');
+            if (container) {
+                // Clear container for fresh render if it was destroyed or needs update
+                container.innerHTML = ''; 
+                
+                try {
+                    const buttons = window.paypal.Buttons({
+                        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
+                        createOrder: (data, actions) => {
+                            return actions.order.create({
+                                purchase_units: [{
+                                    amount: {
+                                        currency_code: currentCurrency?.code || 'INR',
+                                        value: total.toFixed(2).toString() 
+                                    },
+                                    description: `Purchase on ${window.location.hostname}`
+                                }]
+                            });
+                        },
+                        onApprove: async (data, actions) => {
+                            const details = await actions.order.capture();
+                            console.log('PayPal Payment Approved:', details);
+                            if (handlePlaceOrderRef.current) {
+                                handlePlaceOrderRef.current(null, details.id);
+                            }
+                        },
+                        onError: (err) => {
+                            console.error('PayPal Error:', err);
+                            // Only set error if it's not a zoid destruction (which happens on nav)
+                            if (err?.message?.includes('destroyed')) return;
+                            setStripeError('PayPal checkout process failed. Please try again.');
+                        }
+                    });
+
+                    if (buttons.isEligible()) {
+                        buttons.render('#paypal-button-container');
+                    } else {
+                        setStripeError('PayPal is unavailable for this currency/transaction.');
+                    }
+                } catch (renderErr) {
+                    console.error('PayPal Render Error:', renderErr);
+                }
+            }
+        }
+    }, [paymentMethod, paypalLoaded, total, step, currentCurrency?.code]); // handlePlaceOrder removed to prevent flicker
 
     const [form, setForm] = useState({
         full_name: user?.username || '',
@@ -173,30 +333,56 @@ const Checkout = () => {
     });
 
     const handleChange = (e) => {
-        setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-        if (fieldErrors[e.target.name]) {
+        const { name, value } = e.target;
+        let sanitizedValue = value;
+
+        if (name === 'pincode') {
+            sanitizedValue = value.replace(/\D/g, '').slice(0, 8); // Numeric only, max 8
+        } else if (name === 'phone') {
+            // Allow only + and numbers, no letters
+            sanitizedValue = value.replace(/[^0-9+]/g, '');
+            // Ensure + is only at the beginning
+            if (sanitizedValue.indexOf('+') > 0) {
+                sanitizedValue = sanitizedValue.replace(/\+/g, '');
+                if (value.startsWith('+')) sanitizedValue = '+' + sanitizedValue;
+            }
+        }
+
+        setForm(f => ({ ...f, [name]: sanitizedValue }));
+        
+        if (fieldErrors[name]) {
             setFieldErrors(prev => {
                 const updated = { ...prev };
-                delete updated[e.target.name];
+                delete updated[name];
                 return updated;
             });
         }
     };
 
-    const validateForm = () => {
+    const validateForm = React.useCallback(() => {
         const errors = {};
         const required = ['full_name', 'phone', 'address_line', 'city', 'pincode'];
 
         required.forEach(field => {
             if (!form[field] || form[field].trim() === '') {
-                errors[field] = true;
+                errors[field] = 'Required';
             }
         });
+
+        // Phone Validation (at least 10 digits, optional + at start)
+        const phoneRegex = /^\+?[0-9]{10,15}$/;
+        if (form.phone && !phoneRegex.test(form.phone)) {
+            errors.phone = 'Invalid phone format (e.g. +919876543210)';
+        }
+
+        // Pincode Validation (5-8 digits)
+        if (form.pincode && (form.pincode.length < 5 || form.pincode.length > 8)) {
+            errors.pincode = 'Invalid pincode';
+        }
 
         setFieldErrors(errors);
 
         if (Object.keys(errors).length > 0) {
-            // Scroll to the first error field
             const firstError = Object.keys(errors)[0];
             const element = document.getElementsByName(firstError)[0];
             if (element) {
@@ -206,9 +392,9 @@ const Checkout = () => {
             return false;
         }
         return true;
-    };
+    }, [form]);
 
-    const handlePlaceOrder = async (e, stripePaymentId = null) => {
+    const handlePlaceOrder = React.useCallback(async (e, stripePaymentId = null) => {
         if (e) e.preventDefault();
 
         if (!validateForm()) return;
@@ -218,8 +404,9 @@ const Checkout = () => {
             return;
         }
 
-        if (paymentMethod === 'stripe' && !stripePaymentId) {
-            // Stripe form handles its own submission
+        if ((paymentMethod === 'stripe' || paymentMethod === 'paypal') && !stripePaymentId) {
+            // These methods handle their own capture flow; 
+            // handlePlaceOrder should only proceed after capture (when stripePaymentId is present)
             return;
         }
 
@@ -244,7 +431,12 @@ const Checkout = () => {
                 message: err.response?.data?.message || 'There was an error placing your order.'
             });
         }
-    };
+    }, [validateForm, selectedItems, paymentMethod, form, showPopup, clearCart]);
+
+    // Keep ref updated for PayPal callbacks to prevent button re-rendering on every keystroke
+    React.useEffect(() => {
+        handlePlaceOrderRef.current = handlePlaceOrder;
+    });
 
     const stripeOptions = useMemo(() => {
         if (!clientSecret) return null;
@@ -318,20 +510,24 @@ const Checkout = () => {
                                 <div className={`checkout-field ${fieldErrors.full_name ? 'error' : ''}`}>
                                     <label>{t('checkout.full_name')}</label>
                                     <input name="full_name" value={form.full_name} onChange={handleChange} placeholder="John Doe" required />
+                                    {fieldErrors.full_name && <span className="field-error-text">{fieldErrors.full_name}</span>}
                                 </div>
                                 <div className={`checkout-field ${fieldErrors.phone ? 'error' : ''}`}>
                                     <label>{t('checkout.phone_number')}</label>
-                                    <input name="phone" value={form.phone} onChange={handleChange} placeholder="+91 9876543210" required />
+                                    <input name="phone" value={form.phone} onChange={handleChange} placeholder="+919876543210" required />
+                                    {fieldErrors.phone && <span className="field-error-text">{fieldErrors.phone}</span>}
                                 </div>
                             </div>
                             <div className={`checkout-field ${fieldErrors.address_line ? 'error' : ''}`}>
                                 <label>{t('checkout.street_address')}</label>
                                 <input name="address_line" value={form.address_line} onChange={handleChange} placeholder="123 Main Street, Apt 4B" required />
+                                {fieldErrors.address_line && <span className="field-error-text">{fieldErrors.address_line}</span>}
                             </div>
                             <div className="checkout-grid-3">
                                 <div className={`checkout-field ${fieldErrors.city ? 'error' : ''}`}>
                                     <label>{t('checkout.city')}</label>
                                     <input name="city" value={form.city} onChange={handleChange} placeholder="Mumbai" required />
+                                    {fieldErrors.city && <span className="field-error-text">{fieldErrors.city}</span>}
                                 </div>
                                 <div className="checkout-field">
                                     <label>{t('checkout.state')}</label>
@@ -339,7 +535,8 @@ const Checkout = () => {
                                 </div>
                                 <div className={`checkout-field ${fieldErrors.pincode ? 'error' : ''}`}>
                                     <label>{t('checkout.pincode')}</label>
-                                    <input name="pincode" value={form.pincode} onChange={handleChange} placeholder="400001" required maxLength={6} />
+                                    <input name="pincode" value={form.pincode} onChange={handleChange} placeholder="400001" required maxLength={8} />
+                                    {fieldErrors.pincode && <span className="field-error-text">{fieldErrors.pincode}</span>}
                                 </div>
                             </div>
                             <div className="checkout-field">
@@ -373,11 +570,60 @@ const Checkout = () => {
                                 ))}
                             </div>
 
+                            {paymentMethod === 'wallet' && (
+                                <div className="checkout-stripe-notice" style={{ background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46', marginTop: '10px' }}>
+                                    <FaShieldAlt style={{ color: '#059669' }} />
+                                    <div>
+                                        <strong>{t('profile.wallet_balance') || 'Wallet Balance'}: {formatPrice(walletBalance)}</strong>
+                                        <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.8 }}>Pay safely using your internal marketplace funds.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {paymentMethod === 'stripe' && stripeError && (
+                                <div className="alert alert-danger mt-2" style={{ fontSize: '0.85rem' }}>
+                                    <FaShieldAlt className="me-2" /> {stripeError}
+                                </div>
+                            )}
+
+                            {paymentMethod === 'paypal' && !paypalSettings && (
+                                <div className="alert alert-info mt-2" style={{ fontSize: '0.85rem' }}>
+                                    PayPal is not configured correctly in the admin panel.
+                                </div>
+                            )}
+
+                            {paymentMethod === 'paypal' && paypalSettings && !paypalLoaded && !paypalError && (
+                                <div className="checkout-loading-stripe" style={{ marginTop: '15px', color: '#666' }}>
+                                    <div className="spinner-border spinner-border-sm me-2" role="status" style={{ color: '#003087' }}></div>
+                                    <span>Syncing with PayPal...</span>
+                                    <button 
+                                        type="button" 
+                                        className="btn btn-link btn-sm p-0 ms-2" 
+                                        onClick={() => setPaypalSettings({...paypalSettings})} 
+                                        style={{ fontSize: '0.75rem' }}
+                                    >
+                                        Click if stuck
+                                    </button>
+                                </div>
+                            )}
+
+                            {paymentMethod === 'paypal' && paypalError && (
+                                <div className="alert alert-warning mt-2" style={{ fontSize: '0.85rem' }}>
+                                    <FaShieldAlt className="me-2" /> {paypalError}
+                                    <button className="btn btn-link btn-sm p-0 ms-2" onClick={() => window.location.reload()}>Retry</button>
+                                </div>
+                            )}
+
+                            {paymentMethod === 'paypal' && paypalLoaded && (
+                                <div id="paypal-button-container" style={{ marginTop: '20px', minHeight: '150px' }}></div>
+                            )}
+
                             {paymentMethod === 'stripe' && clientSecret && (
                                 <div className="checkout-card-fields">
                                     <Elements stripe={stripePromise} options={stripeOptions}>
                                         <StripePaymentForm
                                             amount={total}
+                                            formattedAmount={formatPrice(total)}
                                             validateForm={validateForm}
                                             billingDetails={{
                                                 name: form.full_name,
@@ -426,7 +672,7 @@ const Checkout = () => {
                                         />
                                         <div className="checkout-summary-item-info">
                                             <p className="checkout-summary-item-name">{safeString(item.title)}</p>
-                                            {item.condition && <span>{item.condition}</span>}
+                                            {item.condition && <span>{safeString(item.condition)}</span>}
                                         </div>
                                         <div className="checkout-summary-item-price">
                                             <strong>{formatPrice(item.price, item.currency_id)}</strong>
@@ -473,7 +719,7 @@ const Checkout = () => {
                                 </div>
                             )}
 
-                            {paymentMethod !== 'stripe' && availableMethods.length > 0 && (
+                            {paymentMethod !== 'stripe' && paymentMethod !== 'paypal' && availableMethods.length > 0 && (
                                 <button
                                     type="button"
                                     className="checkout-place-btn"
@@ -483,7 +729,7 @@ const Checkout = () => {
                                     {placing ? (
                                         <><span className="checkout-spinner" /> {t('checkout.placing_order')}</>
                                     ) : (
-                                        <><FaLock /> {t('checkout.place_order')}</>
+                                        <><FaLock /> {t('checkout.place_order')} ({formatPrice(total)})</>
                                     )}
                                 </button>
                             )}

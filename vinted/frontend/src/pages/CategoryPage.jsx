@@ -69,17 +69,13 @@ const CategoryPage = () => {
                 </div>
                 {/* Content Skeleton */}
                 <Container fluid className="px-md-5 px-3">
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                        gap: '20px'
-                    }}>
+                    <div className="vinted-category-grid">
                         {[...Array(12)].map((_, i) => (
                             <div key={i} className="skeleton-box" style={{
                                 height: '160px',
                                 backgroundColor: '#f1f5f9',
                                 borderRadius: '16px',
-                                animation: 'skeleton-blink 1.5s infinite ease-in-out'
+                                animation: 'sk-blink 1.5s infinite ease-in-out'
                             }}></div>
                         ))}
                     </div>
@@ -266,11 +262,7 @@ const CategoryPage = () => {
                     </div>
                 ) : (
                     <>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(6, 1fr)',
-                            gap: '16px',
-                        }}>
+                        <div className="vinted-category-grid">
                             {/* "All" card to browse entire category */}
                             <CategoryCard
                                 item={{ name: `All ${safeString(category.name)}`, icon: '🛍️', image: null }}

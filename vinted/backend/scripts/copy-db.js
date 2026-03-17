@@ -3,7 +3,7 @@ const { MongoClient } = require('mongodb');
 // Replace these two connection strings with your actual Atlas URIs.
 // IMPORTANT: Make sure the database name (e.g., /vinted) is included right before the `?` in the URIs!
 const SOURCE_URI = 'mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted';
-const TARGET_URI = 'mongodb+srv://support_db_uuser:gyhkuN-jammy8-voxqub@vinted.ek5p4it.mongodb.net/vinted_db?appName=vinted';
+const TARGET_URI = 'mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted';
 
 async function copyDatabase() {
     const sourceClient = new MongoClient(SOURCE_URI);

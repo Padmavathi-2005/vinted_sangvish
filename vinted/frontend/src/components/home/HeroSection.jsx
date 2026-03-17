@@ -3,18 +3,20 @@ import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { FaArrowRight, FaStar, FaUsers } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
+import { safeString } from '../../utils/constants';
 import LanguageContext from '../../context/LanguageContext';
 
 const HeroSection = () => {
     const { t } = useTranslation();
-    const { td, ti } = useContext(LanguageContext);
+    const { td, ti, currentLanguage } = useContext(LanguageContext);
 
     const heroTitle = td('home.hero_title', 'Buy & sell everything from cars to couches.');
     const heroImage = ti('home.hero_image', 'https://images.unsplash.com/photo-1556740758-90de374c12ad?w=1200&q=80');
     const titleParts = heroTitle.includes('from') ? heroTitle.split('from') : [heroTitle, ''];
 
+    const isRTL = currentLanguage?.direction === 'rtl';
     const heroStyle = {
-        backgroundImage: `linear-gradient(to right, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0.2) 100%), url('${heroImage}')`
+        backgroundImage: `linear-gradient(to ${isRTL ? 'left' : 'right'}, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0.2) 100%), url('${heroImage}')`
     };
 
     return (

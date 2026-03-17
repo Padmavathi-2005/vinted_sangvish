@@ -9,9 +9,19 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
     const { t } = useTranslation();
     const [formData, setFormData] = useState({
         username: user.username || '',
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
         bio: user.bio || '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        address: {
+            full_name: user.address?.full_name || '',
+            address_line: user.address?.address_line || '',
+            city: user.address?.city || '',
+            state: user.address?.state || '',
+            country: user.address?.country || '',
+            pincode: user.address?.pincode || '',
+        }
     });
     const [profileImage, setProfileImage] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(getImageUrl(user.profile_image));
@@ -22,15 +32,34 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
     React.useEffect(() => {
         setFormData({
             username: user.username || '',
+            first_name: user.first_name || '',
+            last_name: user.last_name || '',
             bio: user.bio || '',
             password: '',
-            confirmPassword: ''
+            confirmPassword: '',
+            address: {
+                full_name: user.address?.full_name || '',
+                address_line: user.address?.address_line || '',
+                city: user.address?.city || '',
+                state: user.address?.state || '',
+                country: user.address?.country || '',
+                pincode: user.address?.pincode || '',
+            }
         });
         setPreviewUrl(getImageUrl(user.profile_image));
     }, [user]);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        if (name.startsWith('address.')) {
+            const field = name.split('.')[1];
+            setFormData(prev => ({
+                ...prev,
+                address: { ...prev.address, [field]: value }
+            }));
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
     const handleImageChange = (e) => {
@@ -60,7 +89,11 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
 
             const payload = new FormData();
             payload.append('username', formData.username);
+            payload.append('first_name', formData.first_name);
+            payload.append('last_name', formData.last_name);
             payload.append('bio', formData.bio);
+            payload.append('address', JSON.stringify(formData.address));
+            
             if (formData.password) {
                 payload.append('password', formData.password);
             }
@@ -145,8 +178,41 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
                     </div>
                 </div>
 
+                <div className="row">
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>{t('profile.first_name', 'First Name')}</label>
+                            <div className="input-with-icon">
+                                <FaUser className="input-icon" />
+                                <input
+                                    type="text"
+                                    name="first_name"
+                                    value={formData.first_name}
+                                    onChange={handleChange}
+                                    placeholder="e.g. John"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>{t('profile.last_name', 'Last Name')}</label>
+                            <div className="input-with-icon">
+                                <FaUser className="input-icon" />
+                                <input
+                                    type="text"
+                                    name="last_name"
+                                    value={formData.last_name}
+                                    onChange={handleChange}
+                                    placeholder="e.g. Doe"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="form-group">
-                    <label>{t('profile.username', 'Username')}</label>
+                    <label>{t('profile.display_name', 'Display Name')}</label>
                     <div className="input-with-icon">
                         <FaUser className="input-icon" />
                         <input
@@ -154,9 +220,12 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
                             name="username"
                             value={formData.username}
                             onChange={handleChange}
-                            placeholder={t('profile.enter_username', 'Enter username')}
+                            placeholder={t('profile.enter_username', 'Enter display name')}
                         />
                     </div>
+                    <small className="text-muted" style={{ fontSize: '10px', marginTop: '4px', display: 'block' }}>
+                        Display name must be unique and will be shown across the platform.
+                    </small>
                 </div>
 
                 <div className="form-group">
@@ -170,6 +239,86 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
                             placeholder={t('profile.tell_us_about', 'Tell us about yourself...')}
                             rows="3"
                         />
+                    </div>
+                </div>
+
+                <div className="form-section-title">Shipping Address (For Orders)</div>
+                
+                <div className="form-group">
+                    <label>Full Name on Address</label>
+                    <input
+                        type="text"
+                        name="address.full_name"
+                        className="form-control-custom"
+                        value={formData.address.full_name}
+                        onChange={handleChange}
+                        placeholder="e.g. John Doe"
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>Street Address</label>
+                    <input
+                        type="text"
+                        name="address.address_line"
+                        className="form-control-custom"
+                        value={formData.address.address_line}
+                        onChange={handleChange}
+                        placeholder="House No, Street, Landmark"
+                    />
+                </div>
+
+                <div className="row">
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>City</label>
+                            <input
+                                type="text"
+                                name="address.city"
+                                className="form-control-custom"
+                                value={formData.address.city}
+                                onChange={handleChange}
+                            />
+                        </div>
+                    </div>
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>State / Province</label>
+                            <input
+                                type="text"
+                                name="address.state"
+                                className="form-control-custom"
+                                value={formData.address.state}
+                                onChange={handleChange}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="row">
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>Country</label>
+                            <input
+                                type="text"
+                                name="address.country"
+                                className="form-control-custom"
+                                value={formData.address.country}
+                                onChange={handleChange}
+                            />
+                        </div>
+                    </div>
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>Pincode / Zip Code</label>
+                            <input
+                                type="text"
+                                name="address.pincode"
+                                className="form-control-custom"
+                                value={formData.address.pincode}
+                                onChange={handleChange}
+                            />
+                        </div>
                     </div>
                 </div>
 

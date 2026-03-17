@@ -10,7 +10,7 @@ import axios, { imageBaseURL } from '../utils/axios';
 import { useSettings } from '../context/SettingsContext';
 import { useLocalization } from '../context/LocalizationContext';
 import { showToast, showConfirm } from '../utils/swal';
-import { safeString } from '../utils/constants';
+import { safeString, getImageUrl } from '../utils/constants';
 
 const Users = () => {
     const location = useLocation();
@@ -48,7 +48,7 @@ const Users = () => {
 
     const handleImageError = (e) => {
         e.target.onerror = null;
-        e.target.src = `${imageBaseURL}/images/site/not_found.png`;
+        e.target.src = getImageUrl('images/site/not_found.png');
     };
 
     const [saving, setSaving] = useState(false);
@@ -67,11 +67,11 @@ const Users = () => {
             });
             let data = res.data;
 
-            if (searchTerm) {
+            if (searchTerm && Array.isArray(data)) {
                 const term = searchTerm.toLowerCase();
                 data = data.filter(u =>
                     safeString(u.username).toLowerCase().includes(term) ||
-                    u.email.toLowerCase().includes(term)
+                    (u.email || '').toLowerCase().includes(term)
                 );
             }
 
@@ -218,7 +218,7 @@ const Users = () => {
                 <div className="d-flex align-items-center gap-3">
                     {row.profile_image ? (
                         <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle overflow-hidden border shadow-sm" style={{ width: '40px', height: '40px' }}>
-                            <img src={`${imageBaseURL}/${row.profile_image}`} alt={safeString(row.username)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageError} />
+                            <img src={getImageUrl(row.profile_image)} alt={safeString(row.username)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageError} />
                         </div>
                     ) : (
                         <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle shadow-sm" style={{ width: '40px', height: '40px' }}>
@@ -423,7 +423,7 @@ const Users = () => {
                                         </div>
                                     ) : selectedUser?.profile_image ? (
                                         <div className="rounded-circle border overflow-hidden shadow-sm" style={{ width: '80px', height: '80px' }}>
-                                            <img src={`${imageBaseURL}/${selectedUser.profile_image}`} alt="Current" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageError} />
+                                            <img src={getImageUrl(selectedUser.profile_image)} alt="Current" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageError} />
                                         </div>
                                     ) : (
                                         <div className="rounded-circle border bg-light d-flex align-items-center justify-content-center shadow-sm" style={{ width: '80px', height: '80px' }}>

@@ -56,28 +56,20 @@ const CategoriesPage = () => {
 
             <Container fluid className="px-md-5 px-3">
                 {loading ? (
-                    <div className="category-grid" style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(6, 1fr)',
-                        gap: '20px'
-                    }}>
+                    <div className="vinted-category-grid">
                         {[...Array(6)].map((_, i) => (
                             <div key={i} className="skeleton-box" style={{
                                 height: '160px',
                                 backgroundColor: '#f1f5f9',
                                 borderRadius: '16px',
-                                animation: 'skeleton-blink 1.5s infinite ease-in-out'
+                                animation: 'sk-blink 1.5s infinite ease-in-out'
                             }}></div>
                         ))}
                     </div>
                 ) : (
                     <>
                         {/* 6-column fixed grid */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(6, 1fr)',
-                            gap: '16px',
-                        }}>
+                        <div className="vinted-category-grid">
                             {categories.map(cat => (
                                 <Link key={cat._id} to={`/categories/${cat.slug}`} style={{ textDecoration: 'none' }}>
                                     <div

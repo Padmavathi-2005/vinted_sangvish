@@ -1,39 +1,49 @@
 import React, { useState, useEffect, useCallback, useRef, useContext } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Offcanvas, Button, Badge, Accordion } from 'react-bootstrap';
-import { FaSearch, FaAngleLeft, FaAngleRight, FaFilter } from 'react-icons/fa';
+import { Row, Col, Offcanvas, Button, Badge } from 'react-bootstrap';
+import {
+    FaSearch, FaAngleLeft, FaAngleRight, FaFilter, FaTimes,
+    FaSortAmountDown, FaLayerGroup, FaTags, FaPalette, FaHistory,
+    FaCheckCircle, FaRulerCombined, FaChevronDown, FaChevronUp,
+    FaSlidersH, FaTimesCircle
+} from 'react-icons/fa';
+import { BiCategoryAlt } from 'react-icons/bi';
+import { IoPricetagsOutline } from 'react-icons/io5';
 import axios from '../utils/axios';
-import FilterPill from '../components/common/FilterPill';
 import CurrencyContext from '../context/CurrencyContext';
 import ItemCard from '../components/common/ItemCard';
+import SkeletonCard from '../components/common/SkeletonCard';
 import Meta from '../components/common/Meta';
+import { getImageUrl } from '../utils/constants';
+import '../styles/Products.css';
 
-const SkeletonLoader = () => (
-    <div className="skeleton-item" style={{
-        width: '100%',
-        marginBottom: '20px',
-        animation: 'skeleton-blink 1.5s infinite ease-in-out'
-    }}>
-        <div style={{
-            width: '100%',
-            aspectRatio: '3/4',
-            backgroundColor: '#f1f5f9',
-            borderRadius: '12px',
-            marginBottom: '12px'
-        }}></div>
-        <div style={{ width: '60%', height: '14px', backgroundColor: '#f1f5f9', borderRadius: '4px', marginBottom: '8px' }}></div>
-        <div style={{ width: '40%', height: '12px', backgroundColor: '#f1f5f9', borderRadius: '4px' }}></div>
-        <style>{`
-            @keyframes skeleton-blink {
-                0% { opacity: 0.5; }
-                50% { opacity: 1; }
-                100% { opacity: 0.5; }
-            }
-        `}</style>
-    </div>
+
+/* ── Collapsible filter group ────────────────────────────── */
+const FilterGroup = ({ title, icon, defaultOpen = true, children }) => {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+        <div className="filter-group">
+            <button className="filter-group-header" onClick={() => setOpen(o => !o)}>
+                <span className="filter-group-left">
+                    <span className="filter-group-icon">{icon}</span>
+                    <span className="filter-group-title">{title}</span>
+                </span>
+                {open ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
+            </button>
+            {open && <div className="filter-group-body">{children}</div>}
+        </div>
+    );
+};
+
+/* ── Active filter pill ──────────────────────────────────── */
+const ActivePill = ({ label, onClear }) => (
+    <span className="active-filter-pill" onClick={onClear}>
+        {label} <FaTimes size={9} />
+    </span>
 );
 
+/* ══════════════════════════════════════════════════════════ */
 const Products = () => {
     const { t } = useTranslation();
     const [items, setItems] = useState([]);
@@ -42,19 +52,19 @@ const Products = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [paginationMode, setPaginationMode] = useState('scroll'); // 'scroll' or 'number'
+    const [paginationMode, setPaginationMode] = useState('scroll');
 
     const location = useLocation();
     const navigate = useNavigate();
+    const { slug, subSlug } = useParams();
     const { currentCurrency } = useContext(CurrencyContext);
     const queryParams = new URLSearchParams(location.search);
 
-    const categorySlug = queryParams.get('category');
-    const subcategorySlug = queryParams.get('subcategory');
+    const categorySlug = slug || queryParams.get('category');
+    const subcategorySlug = subSlug === 'all' ? '' : (subSlug || queryParams.get('subcategory'));
     const itemTypeSlug = queryParams.get('itemType');
     const search = queryParams.get('search');
-    
-    // New Filters
+
     const [size, setSize] = useState(queryParams.get('size') || '');
     const [brand, setBrand] = useState(queryParams.get('brand') || '');
     const [condition, setCondition] = useState(queryParams.get('condition') || '');
@@ -62,25 +72,29 @@ const Products = () => {
     const [minPrice, setMinPrice] = useState(queryParams.get('minPrice') || '');
     const [maxPrice, setMaxPrice] = useState(queryParams.get('maxPrice') || '');
     const [material, setMaterial] = useState(queryParams.get('material') || '');
-    const [sort, setSort] = useState(queryParams.get('sort') || 'popular');
+    const [sort, setSort] = useState(queryParams.get('sort') || 'newest');
 
+    const [currentCategory, setCurrentCategory] = useState(null);
+    const [currentSubcategory, setCurrentSubcategory] = useState(null);
     const [categories, setCategories] = useState([]);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
 
     const observer = useRef();
 
-    // Fetch filters available (categories)
+    const activeFiltersCount = [search, size, brand, condition, color,
+        (minPrice || maxPrice) ? 'price' : '',
+        (sort && sort !== 'newest') ? sort : ''
+    ].filter(Boolean).length;
+
+    /* ── Fetch categories ──────────────────────────────────── */
     useEffect(() => {
-        const fetchMeta = async () => {
-            try {
-                const { data } = await axios.get('/api/categories/full');
-                setCategories(data);
-            } catch (err) { console.error('Error fetching categories:', err); }
-        };
-        fetchMeta();
+        axios.get('/api/categories/full')
+            .then(({ data }) => setCategories(data))
+            .catch(err => console.error(err));
     }, []);
 
-    // Sync state with URL params (handles back button and direct navigation)
+    /* ── Sync state with URL ───────────────────────────────── */
     useEffect(() => {
         setSize(queryParams.get('size') || '');
         setBrand(queryParams.get('brand') || '');
@@ -89,10 +103,23 @@ const Products = () => {
         setMinPrice(queryParams.get('minPrice') || '');
         setMaxPrice(queryParams.get('maxPrice') || '');
         setMaterial(queryParams.get('material') || '');
-        setSort(queryParams.get('sort') || 'popular');
-    }, [queryParams]);
+        setSort(queryParams.get('sort') || 'newest');
+    }, [location.search]);
 
-    // Reset items only when actual search parameters change or currency changes
+    /* ── Current category ─────────────────────────────────── */
+    useEffect(() => {
+        if (!categories.length) return;
+        const cat = categories.find(c => c.slug === categorySlug);
+        setCurrentCategory(cat || null);
+        if (cat && subcategorySlug) {
+            const sub = (cat.subcategories || []).find(s => s.slug === subcategorySlug);
+            setCurrentSubcategory(sub || null);
+        } else {
+            setCurrentSubcategory(null);
+        }
+    }, [categorySlug, subcategorySlug, categories]);
+
+    /* ── Reset on filter change ───────────────────────────── */
     useEffect(() => {
         setItems([]);
         setPage(1);
@@ -100,39 +127,25 @@ const Products = () => {
         setPaginationMode('scroll');
     }, [categorySlug, subcategorySlug, itemTypeSlug, search, sort, size, brand, condition, color, minPrice, maxPrice, material, currentCurrency]);
 
-    // Fetch items
+    /* ── Fetch items ──────────────────────────────────────── */
     const fetchItems = useCallback(async (pageNum, isScroll = false) => {
         try {
             setLoading(true);
             const params = {
-                page: pageNum,
-                limit: 12,
-                category: categorySlug,
-                subcategory: subcategorySlug,
-                itemType: itemTypeSlug,
-                search: search,
-                sort,
-                size,
-                brand,
-                condition,
-                color,
-                minPrice,
-                maxPrice,
-                material,
+                page: pageNum, limit: 12,
+                category: categorySlug, subcategory: subcategorySlug,
+                itemType: itemTypeSlug, search, sort, size, brand,
+                condition, color, minPrice, maxPrice, material,
                 user_exchange_rate: currentCurrency?.exchange_rate || 1
             };
-
-            const response = await axios.get('/api/items', { params });
-            const { items: newItems, totalCount, totalPages } = response.data;
-
+            const { data } = await axios.get('/api/items', { params });
+            const { items: newItems, totalCount, totalPages } = data;
             setTotalCount(totalCount);
             setTotalPages(totalPages);
-
             if (isScroll) {
                 setItems(prev => {
-                    const existingIds = new Set(prev.map(i => i._id));
-                    const uniqueNew = newItems.filter(i => !existingIds.has(i._id));
-                    return [...prev, ...uniqueNew];
+                    const ids = new Set(prev.map(i => i._id));
+                    return [...prev, ...newItems.filter(i => !ids.has(i._id))];
                 });
             } else {
                 setItems(newItems);
@@ -145,63 +158,35 @@ const Products = () => {
         }
     }, [categorySlug, subcategorySlug, itemTypeSlug, search, sort, size, brand, condition, color, minPrice, maxPrice, material, currentCurrency]);
 
-    // Initial fetch and Number Pagination change
     useEffect(() => {
-        if (paginationMode === 'number') {
-            fetchItems(page, false);
-        } else {
-            // In scroll mode, fetch page 1 if just switched or reset
-            if (page === 1) fetchItems(1, true);
-        }
+        if (paginationMode === 'number') fetchItems(page, false);
+        else if (page === 1) fetchItems(1, true);
     }, [page, paginationMode, fetchItems]);
 
-
-    // Infinite Scroll Observer
-    const lastItemElementRef = useCallback(node => {
-        if (loading) return;
-        if (paginationMode === 'number') return;
+    const lastItemRef = useCallback(node => {
+        if (loading || paginationMode === 'number') return;
         if (observer.current) observer.current.disconnect();
-
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && page < totalPages) {
-                setPage(prevPage => prevPage + 1);
-            }
+            if (entries[0].isIntersecting && page < totalPages) setPage(p => p + 1);
         });
-
         if (node) observer.current.observe(node);
     }, [loading, paginationMode, page, totalPages]);
 
-    // Handle Scroll logic: When page increments in scroll mode, fetch new items
     useEffect(() => {
-        if (paginationMode === 'scroll' && page > 1) {
-            fetchItems(page, true);
-        }
+        if (paginationMode === 'scroll' && page > 1) fetchItems(page, true);
     }, [page, paginationMode, fetchItems]);
 
+    /* ── Filter handler ───────────────────────────────────── */
     const handleFilterChange = (key, val) => {
-        const newParams = new URLSearchParams(location.search);
-        
+        const p = new URLSearchParams(location.search);
         if (typeof val === 'object' && val !== null) {
-            // Special case for price range { min: x, max: y }
-            Object.keys(val).forEach(k => {
-                const paramKey = k === 'min' ? 'minPrice' : 'maxPrice';
-                if (val[k]) newParams.set(paramKey, val[k]);
-                else newParams.delete(paramKey);
-            });
-            setMinPrice(val.min || '');
-            setMaxPrice(val.max || '');
+            const paramKey = { min: 'minPrice', max: 'maxPrice' };
+            Object.keys(val).forEach(k => val[k] ? p.set(paramKey[k], val[k]) : p.delete(paramKey[k]));
+            setMinPrice(val.min || ''); setMaxPrice(val.max || '');
         } else {
-            if (val) newParams.set(key, val);
-            else newParams.delete(key);
-            
-            // Update local state for immediate feedback
-            if (key === 'category') {
-                // When category changes, reset subcategory
-                newParams.delete('subcategory');
-                newParams.delete('itemType');
-            }
-            if (key === 'subcategory') newParams.delete('itemType');
-            
+            val ? p.set(key, val) : p.delete(key);
+            if (key === 'category') { p.delete('subcategory'); p.delete('itemType'); }
+            if (key === 'subcategory') p.delete('itemType');
             if (key === 'size') setSize(val);
             if (key === 'brand') setBrand(val);
             if (key === 'condition') setCondition(val);
@@ -209,603 +194,399 @@ const Products = () => {
             if (key === 'material') setMaterial(val);
             if (key === 'sort') setSort(val);
         }
-        
-        newParams.set('page', '1');
-        navigate(`/products?${newParams.toString()}`);
+        if (slug) {
+            const base = subSlug ? `/categories/${slug}/${subSlug}` : `/categories/${slug}`;
+            p.delete('category');
+            navigate(`${base}?${p.toString()}`);
+        } else {
+            p.set('page', '1');
+            navigate(`/products?${p.toString()}`);
+        }
     };
 
     const clearAllFilters = () => {
-        navigate('/products');
-        setSize(''); setBrand(''); setCondition(''); setColor(''); setMinPrice(''); setMaxPrice(''); setMaterial(''); setSort('popular');
+        if (slug) navigate(subSlug ? `/categories/${slug}/${subSlug}` : `/categories/${slug}`);
+        else navigate('/products');
+        setSize(''); setBrand(''); setCondition(''); setColor('');
+        setMinPrice(''); setMaxPrice(''); setMaterial(''); setSort('newest');
     };
 
-    const handleModeSwitch = (mode) => {
-        if (mode === paginationMode) return;
-        setItems([]); // Clear explicitly to avoid mixing
-        setPage(1);
-        setPaginationMode(mode);
-    };
+    const formatSlug = s => s ? s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+    const pageTitle = search
+        ? `Results for "${search}"`
+        : subcategorySlug ? (currentSubcategory?.name || formatSlug(subcategorySlug))
+            : categorySlug ? (currentCategory?.name || formatSlug(categorySlug))
+                : t('products.shop_collection', 'Shop Collection');
 
-    // Helpers for Breadcrumbs
-    const formatSlug = (slug) => slug ? slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+    /* ── Filter Panel (shared desktop + offcanvas) ─────────── */
+    const FilterPanel = ({ inOffcanvas = false }) => (
+        <div className={`filter-panel-inner ${inOffcanvas ? 'in-offcanvas' : ''}`}>
 
-    const renderBreadcrumbs = () => {
-        // "if popular section newest section was clciked then this searched field is hide show the counts of search results"
-        // Wait, user said "if popular... just hide this show nothing". 
-        // Showing "nothing" means hiding the entire context line?
-        // "simialry if catgory name -> then all was selected then just show category name"
-
-        if (sort === 'popular') return null;
-
-        const parts = [];
-        // Determine what to show
-        if (search) {
-            // If search text exists
-            return <span className="text-muted">"{search}"</span>;
-        }
-
-        // Categories
-        if (categorySlug) parts.push(formatSlug(categorySlug));
-        if (subcategorySlug) parts.push(formatSlug(subcategorySlug));
-        if (itemTypeSlug) parts.push(formatSlug(itemTypeSlug));
-
-        if (parts.length === 0) return null; // Hide if no filters
-
-        return (
-            <span className="text-muted">
-                {parts.join(' -> ')}
-            </span>
-        );
-    };
-
-    const breadcrumbs = renderBreadcrumbs();
-
-    return (
-        <div style={{ backgroundColor: '#fff', minHeight: '80vh' }}> {/* "background white" */}
-            <Meta 
-                title={search ? `Results for "${search}"` : (categorySlug ? formatSlug(categorySlug) : "All Products")}
-                description={`Explore our collection of ${search ? `"${search}"` : (categorySlug ? formatSlug(categorySlug) : "fashion")} items. Find unique pieces, brand names, and affordable style.`}
-            />
-            <div className="container-fluid px-md-5 px-3 py-5"> {/* "same padding for all pages" */}
-
-                {/* Attractive Centered Heading */}
-                <h1 className="text-center mb-4 fw-bold" style={{ color: '#1a2332', letterSpacing: '-0.5px' }}>
-                    {t('products.shop_collection')}
-                </h1>
-
-                {/* Filters Bar - Desktop */}
-                <div className="filter-bar d-none d-md-flex flex-wrap gap-2 mb-4 p-3 bg-white shadow-sm" style={{ borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-                    {search && (
-                        <FilterPill 
-                            label={`Search: "${search}"`} 
-                            value={search} 
-                            onChange={() => {}} 
-                            onClear={() => handleFilterChange('search', '')} 
-                        />
-                    )}
-
-                    <FilterPill 
-                        label="Sort" 
-                        value={sort} 
-                        options={[
-                            { value: 'popular', label: 'Relevance' },
-                            { value: 'price_asc', label: 'Price: Low to High' },
-                            { value: 'price_desc', label: 'Price: High to Low' },
-                            { value: 'discounted', label: 'Sale Items' },
-                            { value: 'oldest', label: 'Oldest First' }
-                        ]}
-                        onChange={(val) => handleFilterChange('sort', val)}
-                        onClear={() => handleFilterChange('sort', 'popular')}
-                    />
-
-                    <FilterPill 
-                        label="Category" 
-                        value={categorySlug} 
-                        options={categories.map(c => ({ value: c.slug, label: c.name }))}
-                        onChange={(val) => handleFilterChange('category', val)}
-                        onClear={() => handleFilterChange('category', '')}
-                    />
-
-                    <FilterPill 
-                        label="Style & Type" 
-                        value={subcategorySlug} 
-                        options={
-                            categorySlug 
-                            ? (categories.find(c => c.slug === categorySlug)?.subcategories || []).map(s => ({ value: s.slug, label: s.name }))
-                            : []
-                        }
-                        onChange={(val) => handleFilterChange('subcategory', val)}
-                        onClear={() => handleFilterChange('subcategory', '')}
-                    />
-
-                    <FilterPill 
-                        label="Size" 
-                        value={size} 
-                        options={[
-                            { value: 'XS', label: 'XS' }, { value: 'S', label: 'S' }, { value: 'M', label: 'M' }, 
-                            { value: 'L', label: 'L' }, { value: 'XL', label: 'XL' }, { value: 'XXL', label: 'XXL' }
-                        ]}
-                        onChange={(val) => handleFilterChange('size', val)}
-                        onClear={() => handleFilterChange('size', '')}
-                    />
-
-                    <FilterPill 
-                        label="Color" 
-                        type="color"
-                        value={color} 
-                        options={[
-                            { value: 'Black', label: 'Black' }, { value: 'White', label: 'White' },
-                            { value: 'Red', label: 'Red' }, { value: 'Blue', label: 'Blue' },
-                            { value: 'Green', label: 'Green' }, { value: 'Yellow', label: 'Yellow' }
-                        ]}
-                        onChange={(val) => handleFilterChange('color', val)}
-                        onClear={() => handleFilterChange('color', '')}
-                    />
-
-                    <FilterPill 
-                        label="Condition" 
-                        value={condition} 
-                        options={[
-                            { value: 'New', label: 'New' }, { value: 'Very Good', label: 'Very Good' },
-                            { value: 'Good', label: 'Good' }, { value: 'Fair', label: 'Fair' }
-                        ]}
-                        onChange={(val) => handleFilterChange('condition', val)}
-                        onClear={() => handleFilterChange('condition', '')}
-                    />
-
-                    <FilterPill 
-                        label={`Price (${currentCurrency?.symbol || ''})`} 
-                        type="price"
-                        placeholder="Price"
-                        value={minPrice || maxPrice ? (minPrice && maxPrice ? `${minPrice}-${maxPrice}` : (minPrice ? `>${minPrice}` : `<${maxPrice}`)) : ''} 
-                        onChange={(val) => handleFilterChange('price', val)}
-                        onClear={() => handleFilterChange('price', { min: '', max: '' })}
-                    />
-
-                    <FilterPill 
-                        label="Brand" 
-                        value={brand} 
-                        options={[
-                            { value: 'Nike', label: 'Nike' }, { value: 'Adidas', label: 'Adidas' },
-                            { value: 'Zara', label: 'Zara' }, { value: 'H&M', label: 'H&M' }
-                        ]}
-                        onChange={(val) => handleFilterChange('brand', val)}
-                        onClear={() => handleFilterChange('brand', '')}
-                    />
-
-                    <FilterPill 
-                        label="Material" 
-                        value={material} 
-                        options={[
-                            { value: 'Cotton', label: 'Cotton' }, { value: 'Wool', label: 'Wool' },
-                            { value: 'Silk', label: 'Silk' }, { value: 'Denim', label: 'Denim' }
-                        ]}
-                        onChange={(val) => handleFilterChange('material', val)}
-                        onClear={() => handleFilterChange('material', '')}
-                    />
-
-                    {(search || size || brand || condition || color || minPrice || maxPrice || material || subcategorySlug || (sort && sort !== 'popular')) && (
-                        <button 
-                            className="btn btn-link btn-sm text-danger text-decoration-none fw-bold ms-auto" 
-                            style={{ whiteSpace: 'nowrap' }}
-                            onClick={clearAllFilters}
-                        >
-                            {t('products.clear_all', 'Clear All')}
-                        </button>
-                    )}
-                </div>
-
-                {/* Filters Mobile - Full Width Button */}
-                <div className="d-md-none mb-4 d-flex flex-column gap-2">
-                    <Button 
-                        variant="outline-dark" 
-                        className="w-100 rounded-pill px-4 d-flex align-items-center justify-content-center gap-2"
-                        onClick={() => setShowMobileFilters(true)}
-                        style={{ border: '1px solid #e2e8f0', fontWeight: '600', height: '48px' }}
+            {/* SORT BY */}
+            <FilterGroup title={t('products.sort_by', 'Sort By')} icon={<FaSortAmountDown size={13} />}>
+                {[
+                    { value: 'popular', label: 'Relevance' },
+                    { value: 'price_asc', label: 'Price: Low to High' },
+                    { value: 'price_desc', label: 'Price: High to Low' },
+                    { value: 'newest', label: 'Newest First' },
+                    { value: 'discounted', label: 'Sale Items' }
+                ].map(opt => (
+                    <div
+                        key={opt.value}
+                        className={`filter-option ${sort === opt.value ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('sort', opt.value)}
                     >
-                        <FaFilter size={14} /> {t('products.filters', 'Filters')}
-                        {(search || size || brand || condition || color || minPrice || maxPrice || material || subcategorySlug || (sort && sort !== 'popular')) && (
-                            <Badge bg="primary" pill className="ms-1" style={{ fontSize: '0.7rem' }}>
-                                Active
-                            </Badge>
-                        )}
-                    </Button>
-                </div>
+                        <span>{opt.label}</span>
+                        {sort === opt.value && <FaCheckCircle size={11} className="filter-check" />}
+                    </div>
+                ))}
+            </FilterGroup>
 
-                <Offcanvas show={showMobileFilters} onHide={() => setShowMobileFilters(false)} placement="end" style={{ width: '85%' }}>
-                    <Offcanvas.Header closeButton style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <Offcanvas.Title className="fw-bold">{t('products.filters', 'Filters')}</Offcanvas.Title>
-                    </Offcanvas.Header>
-                    <Offcanvas.Body className="p-0">
-                        <Accordion flush defaultActiveKey="0">
-                            {/* Sorting */}
-                            <Accordion.Item eventKey="sort">
-                                <Accordion.Header><span className="fw-bold">Sort By</span></Accordion.Header>
-                                <Accordion.Body>
-                                    <div className="d-flex flex-column gap-2">
-                                        {[
-                                            { value: 'popular', label: 'Relevance' },
-                                            { value: 'price_asc', label: 'Price: Low to High' },
-                                            { value: 'price_desc', label: 'Price: High to Low' },
-                                            { value: 'discounted', label: 'Sale Items' }
-                                        ].map(opt => (
-                                            <div 
-                                                key={opt.value} 
-                                                className={`p-3 rounded-3 cursor-pointer ${sort === opt.value ? 'bg-primary text-white shadow-sm' : 'bg-light'}`}
-                                                onClick={() => handleFilterChange('sort', opt.value)}
-                                            >
-                                                {opt.label}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
+            {/* CATEGORY */}
+            <FilterGroup title={t('products.category', 'Category')} icon={<BiCategoryAlt size={15} />}>
+                {[{ slug: '', name: 'All Categories' }, ...categories].map(c => (
+                    <div
+                        key={c._id || 'all'}
+                        className={`filter-option ${(c.slug === '' ? !categorySlug : categorySlug === c.slug) ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('category', c.slug)}
+                    >
+                        <span>{c.name}</span>
+                        {(c.slug === '' ? !categorySlug : categorySlug === c.slug) && <FaCheckCircle size={11} className="filter-check" />}
+                    </div>
+                ))}
+            </FilterGroup>
 
-                            {/* Category */}
-                            <Accordion.Item eventKey="category">
-                                <Accordion.Header><span className="fw-bold">Category</span></Accordion.Header>
-                                <Accordion.Body className="p-0">
-                                    <div className="list-group list-group-flush">
-                                        <button 
-                                            className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${!categorySlug ? 'bg-primary text-white shadow-sm' : ''}`}
-                                            onClick={() => handleFilterChange('category', '')}
-                                        >
-                                            All Categories
-                                        </button>
-                                        {categories.map(c => (
-                                            <button 
-                                                key={c._id}
-                                                className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${categorySlug === c.slug ? 'bg-primary text-white shadow-sm' : ''}`}
-                                                onClick={() => handleFilterChange('category', c.slug)}
-                                            >
-                                                {c.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Subcategory */}
-                            <Accordion.Item eventKey="subcategory">
-                                <Accordion.Header><span className="fw-bold">Subcategory</span></Accordion.Header>
-                                <Accordion.Body className="p-0">
-                                    <div className="list-group list-group-flush">
-                                        {!categorySlug ? (
-                                            <div className="p-4 text-center text-muted small">Please select a category first</div>
-                                        ) : (
-                                            <>
-                                                <button 
-                                                    className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${!subcategorySlug ? 'bg-primary text-white shadow-sm' : ''}`}
-                                                    onClick={() => handleFilterChange('subcategory', '')}
-                                                >
-                                                    All Subcategories
-                                                </button>
-                                                {(categories.find(c => c.slug === categorySlug)?.subcategories || []).map(s => (
-                                                    <button 
-                                                        key={s._id}
-                                                        className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${subcategorySlug === s.slug ? 'bg-primary text-white shadow-sm' : ''}`}
-                                                        onClick={() => handleFilterChange('subcategory', s.slug)}
-                                                    >
-                                                        {s.name}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Item Type */}
-                            <Accordion.Item eventKey="itemType">
-                                <Accordion.Header><span className="fw-bold">Item Type / Style</span></Accordion.Header>
-                                <Accordion.Body className="p-0">
-                                    <div className="list-group list-group-flush">
-                                        {!subcategorySlug ? (
-                                            <div className="p-4 text-center text-muted small">Please select a subcategory first</div>
-                                        ) : (
-                                            <>
-                                                <button 
-                                                    className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${!itemTypeSlug ? 'bg-primary text-white shadow-sm' : ''}`}
-                                                    onClick={() => handleFilterChange('itemType', '')}
-                                                >
-                                                    All Types
-                                                </button>
-                                                {(categories.find(c => c.slug === categorySlug)?.subcategories.find(s => s.slug === subcategorySlug)?.items || []).map(i => (
-                                                    <button 
-                                                        key={i._id}
-                                                        className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${itemTypeSlug === i.slug ? 'bg-primary text-white shadow-sm' : ''}`}
-                                                        onClick={() => handleFilterChange('itemType', i.slug)}
-                                                    >
-                                                        {i.name}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Price */}
-                            <Accordion.Item eventKey="price">
-                                <Accordion.Header><span className="fw-bold">Price Range</span></Accordion.Header>
-                                <Accordion.Body>
-                                    <div className="d-flex gap-2 align-items-center mb-3">
-                                        <div className="flex-1">
-                                            <input type="number" placeholder="Min" className="form-control" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-                                        </div>
-                                        <span>-</span>
-                                        <div className="flex-1">
-                                            <input type="number" placeholder="Max" className="form-control" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <Button variant="primary" size="sm" className="w-100" onClick={() => handleFilterChange('price', { min: minPrice, max: maxPrice })}>
-                                        Apply Range
-                                    </Button>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Size */}
-                            <Accordion.Item eventKey="size">
-                                <Accordion.Header><span className="fw-bold">Size</span></Accordion.Header>
-                                <Accordion.Body>
-                                    <div className="d-flex flex-wrap gap-2">
-                                        {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map(s => (
-                                            <div 
-                                                key={s} 
-                                                className={`p-2 px-3 border rounded-pill cursor-pointer ${size === s ? 'bg-primary text-white' : 'bg-white'}`}
-                                                onClick={() => handleFilterChange('size', s)}
-                                            >
-                                                {s}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Color */}
-                            <Accordion.Item eventKey="color">
-                                <Accordion.Header><span className="fw-bold">Color</span></Accordion.Header>
-                                <Accordion.Body>
-                                    <div className="d-flex flex-wrap gap-2">
-                                        {['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow'].map(c => (
-                                            <div 
-                                                key={c} 
-                                                className={`p-2 px-3 border rounded-pill cursor-pointer d-flex align-items-center gap-2 ${color === c ? 'bg-primary text-white' : 'bg-white'}`}
-                                                onClick={() => handleFilterChange('color', c)}
-                                            >
-                                                <span 
-                                                    style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: c.toLowerCase(), border: '1px solid #ddd' }}
-                                                ></span>
-                                                {c}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Brand */}
-                            <Accordion.Item eventKey="brand">
-                                <Accordion.Header><span className="fw-bold">Brand</span></Accordion.Header>
-                                <Accordion.Body className="p-0">
-                                    <div className="list-group list-group-flush">
-                                        {['Nike', 'Adidas', 'Zara', 'H&M'].map(b => (
-                                            <button 
-                                                key={b}
-                                                className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${brand === b ? 'bg-primary text-white shadow-sm' : ''}`}
-                                                onClick={() => handleFilterChange('brand', b)}
-                                            >
-                                                {b}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Material */}
-                            <Accordion.Item eventKey="material">
-                                <Accordion.Header><span className="fw-bold">Material</span></Accordion.Header>
-                                <Accordion.Body className="p-0">
-                                    <div className="list-group list-group-flush">
-                                        {['Cotton', 'Wool', 'Silk', 'Denim'].map(m => (
-                                            <button 
-                                                key={m}
-                                                className={`list-group-item list-group-item-action border-0 p-3 mx-2 my-1 rounded-3 ${material === m ? 'bg-primary text-white shadow-sm' : ''}`}
-                                                onClick={() => handleFilterChange('material', m)}
-                                            >
-                                                {m}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-
-                            {/* Condition */}
-                            <Accordion.Item eventKey="condition">
-                                <Accordion.Header><span className="fw-bold">Condition</span></Accordion.Header>
-                                <Accordion.Body>
-                                    <div className="d-flex flex-column gap-2">
-                                        {['New', 'Very Good', 'Good', 'Fair'].map(c => (
-                                            <div 
-                                                key={c} 
-                                                className={`p-3 border rounded-3 cursor-pointer d-flex justify-content-between align-items-center ${condition === c ? 'bg-primary text-white shadow-sm' : 'bg-light'}`}
-                                                onClick={() => handleFilterChange('condition', c)}
-                                            >
-                                                {c}
-                                                {condition === c && <FaFilter size={12} />}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </Accordion.Body>
-                            </Accordion.Item>
-                        </Accordion>
-
-                        <div className="p-4 border-top bg-white sticky-bottom">
-                            <Button variant="primary" className="w-100 rounded-pill py-2 shadow-sm" onClick={() => setShowMobileFilters(false)}>
-                                Show Results
-                            </Button>
-                            <Button variant="link" className="w-100 mt-2 text-danger text-decoration-none" onClick={() => { clearAllFilters(); setShowMobileFilters(false); }}>
-                                {t('products.clear_all', 'Reset Filters')}
-                            </Button>
+            {/* SUBCATEGORY */}
+            {categorySlug && (currentCategory?.subcategories || []).length > 0 && (
+                <FilterGroup title={t('products.style_type', 'Style & Type')} icon={<FaLayerGroup size={13} />}>
+                    {[{ slug: '', name: `All ${currentCategory?.name || 'Items'}` }, ...(currentCategory?.subcategories || [])].map(s => (
+                        <div
+                            key={s._id || 'all'}
+                            className={`filter-option ${(s.slug === '' ? !subcategorySlug : subcategorySlug === s.slug) ? 'active' : ''}`}
+                            onClick={() => handleFilterChange('subcategory', s.slug)}
+                        >
+                            <span>{s.name}</span>
+                            {(s.slug === '' ? !subcategorySlug : subcategorySlug === s.slug) && <FaCheckCircle size={11} className="filter-check" />}
                         </div>
-                    </Offcanvas.Body>
-                </Offcanvas>
+                    ))}
+                </FilterGroup>
+            )}
 
-                {/* Header / Context Bar */}
-                {/* "remove the line" -> no border-bottom */}
-                <div className="d-flex flex-column flex-md-row justify-content-between align-items-end mb-4">
+            {/* PRICE */}
+            <FilterGroup title={t('products.price_range', 'Price Range')} icon={<IoPricetagsOutline size={15} />}>
+                <div className="price-range-inputs">
+                    <div className="price-input-wrap">
+                        <span className="price-sym">{currentCurrency?.symbol}</span>
+                        <input type="number" placeholder="Min" className="price-input" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+                    </div>
+                    <span className="price-dash">—</span>
+                    <div className="price-input-wrap">
+                        <span className="price-sym">{currentCurrency?.symbol}</span>
+                        <input type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+                    </div>
+                </div>
+                <button className="apply-price-btn" onClick={() => handleFilterChange('price', { min: minPrice, max: maxPrice })}>
+                    Apply Range
+                </button>
+            </FilterGroup>
 
-                    {/* Left: Context */}
-                    <div>
-                        <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>{t('products.search_results')}</span>
-                            <span style={{ color: '#0ea5e9', fontWeight: 'bold' }}>{totalCount}</span>
+            {/* SIZE */}
+            <FilterGroup title={t('products.size', 'Size')} icon={<FaRulerCombined size={13} />} defaultOpen={false}>
+                <div className="size-grid">
+                    {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map(s => (
+                        <div
+                            key={s}
+                            className={`size-chip ${size === s ? 'active' : ''}`}
+                            onClick={() => handleFilterChange('size', size === s ? '' : s)}
+                        >
+                            {s}
+                        </div>
+                    ))}
+                </div>
+            </FilterGroup>
 
-                            {!(sort === 'popular') && breadcrumbs && (
-                                <>
-                                    <div style={{ borderLeft: '2px solid #cbd5e1', height: '20px', margin: '0 10px' }}></div>
-                                    <span>{t('products.searched_for')}</span>
-                                    {breadcrumbs}
-                                </>
+            {/* COLOR */}
+            <FilterGroup title={t('products.color', 'Color')} icon={<FaPalette size={13} />} defaultOpen={false}>
+                <div className="color-grid">
+                    {[
+                        { name: 'Black', hex: '#1a1a1a' },
+                        { name: 'White', hex: '#f5f5f5' },
+                        { name: 'Red', hex: '#ef4444' },
+                        { name: 'Blue', hex: '#3b82f6' },
+                        { name: 'Green', hex: '#22c55e' },
+                        { name: 'Yellow', hex: '#eab308' },
+                        { name: 'Pink', hex: '#ec4899' },
+                        { name: 'Brown', hex: '#92400e' },
+                    ].map(c => (
+                        <button
+                            key={c.name}
+                            className={`color-chip ${color === c.name ? 'active' : ''}`}
+                            title={c.name}
+                            onClick={() => handleFilterChange('color', color === c.name ? '' : c.name)}
+                            style={{ '--chip-color': c.hex }}
+                        >
+                            <span className="color-dot" style={{ background: c.hex }} />
+                            {color === c.name && <FaCheckCircle className="color-check" size={8} />}
+                        </button>
+                    ))}
+                </div>
+            </FilterGroup>
+
+            {/* BRAND */}
+            <FilterGroup title={t('products.brand', 'Brand')} icon={<FaTags size={13} />} defaultOpen={false}>
+                {['Nike', 'Adidas', 'Zara', 'H&M', 'Puma', 'Levi\'s'].map(b => (
+                    <div
+                        key={b}
+                        className={`filter-option ${brand === b ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('brand', brand === b ? '' : b)}
+                    >
+                        <span>{b}</span>
+                        {brand === b && <FaCheckCircle size={11} className="filter-check" />}
+                    </div>
+                ))}
+            </FilterGroup>
+
+            {/* CONDITION */}
+            <FilterGroup title={t('products.condition', 'Condition')} icon={<FaHistory size={13} />} defaultOpen={false}>
+                {['New', 'Very Good', 'Good', 'Fair'].map(c => (
+                    <div
+                        key={c}
+                        className={`filter-option ${condition === c ? 'active' : ''}`}
+                        onClick={() => handleFilterChange('condition', condition === c ? '' : c)}
+                    >
+                        <span>{c}</span>
+                        {condition === c && <FaCheckCircle size={11} className="filter-check" />}
+                    </div>
+                ))}
+            </FilterGroup>
+        </div>
+    );
+
+    /* ── Render ───────────────────────────────────────────── */
+    return (
+        <div className="products-page">
+            <Meta
+                title={search ? `Results for "${search}"` : (categorySlug ? formatSlug(categorySlug) : 'All Products')}
+                description={`Explore our collection of ${search ? `"${search}"` : categorySlug ? formatSlug(categorySlug) : 'items'}`}
+            />
+
+            <div className="products-layout">
+                {/* ── Desktop Sidebar ── */}
+                <aside className={`filter-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+                    {/* Sidebar header */}
+                    <div className="filter-sidebar-header">
+                        <div className="filter-sidebar-title">
+                            <div className="filter-sidebar-icon-wrap"><FaFilter size={12} className="text-primary" /></div>
+                            <span>{t('products.filter', 'Filter')}</span>
+                            {activeFiltersCount > 0 && (
+                                <span className="filter-active-badge">{activeFiltersCount}</span>
                             )}
                         </div>
+                        <button className="sidebar-collapse-btn" onClick={() => setSidebarOpen(false)} title="Close filters">
+                            <FaTimes size={13} />
+                        </button>
                     </div>
 
-                    {/* Right: Pagination Mode Toggle */}
-                    <div className="d-flex align-items-center gap-2 mt-3 mt-md-0">
-                        {totalCount > 12 && (
-                            <div className="pagination-mode-toggle d-flex align-items-center gap-2">
-                                <div className="btn-group shadow-sm" role="group">
-                                    <button
-                                        type="button"
-                                        className="btn btn-sm"
-                                        style={{
-                                            backgroundColor: paginationMode === 'scroll' ? '#0ea5e9' : 'white',
-                                            color: paginationMode === 'scroll' ? 'white' : '#64748b',
-                                            border: '1px solid #e2e8f0',
-                                            borderRadius: '8px 0 0 8px',
-                                            fontWeight: '500'
-                                        }}
-                                        onClick={() => handleModeSwitch('scroll')}
-                                    >
-                                        {t('products.scroll')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn btn-sm"
-                                        style={{
-                                            backgroundColor: paginationMode === 'number' ? '#0ea5e9' : 'white',
-                                            color: paginationMode === 'number' ? 'white' : '#64748b',
-                                            border: '1px solid #e2e8f0',
-                                            borderRadius: '0 8px 8px 0',
-                                            fontWeight: '500',
-                                            borderLeft: 'none'
-                                        }}
-                                        onClick={() => handleModeSwitch('number')}
-                                    >
-                                        {t('products.page')}
-                                    </button>
+                    {/* Scrollable filter body */}
+                    <div className="filter-sidebar-body">
+                        <FilterPanel />
+                    </div>
+
+                    {/* Reset footer */}
+                    <div className="filter-sidebar-footer">
+                        <button
+                            className="reset-filters-btn"
+                            onClick={clearAllFilters}
+                            disabled={activeFiltersCount === 0}
+                        >
+                            <FaTimesCircle size={12} /> {t('products.reset_all', 'Reset All Filters')}
+                        </button>
+                    </div>
+                </aside>
+
+                {/* ── Main content ── */}
+                <main className="products-main">
+                    {/* ── Top bar ── */}
+                    <div className="products-topbar">
+                        {/* Left: open sidebar OR mobile filter btn */}
+                        <div className="topbar-left">
+                            {!sidebarOpen && (
+                                <button className="open-filters-btn d-none d-lg-flex" onClick={() => setSidebarOpen(true)}>
+                                    <FaFilter size={12} className="text-primary" /> {t('products.filter', 'Filter')}
+                                    {activeFiltersCount > 0 && <span className="filter-active-badge sm">{activeFiltersCount}</span>}
+                                </button>
+                            )}
+                            {/* Mobile filter button */}
+                            <button className="open-filters-btn d-flex d-lg-none" onClick={() => setShowMobileFilters(true)}>
+                                <FaFilter size={13} /> {t('products.filters', 'Filters')}
+                                {activeFiltersCount > 0 && <span className="filter-active-badge sm">{activeFiltersCount}</span>}
+                            </button>
+                        </div>
+
+                        {/* Middle: breadcrumb & title */}
+                        <div className="topbar-center">
+                            <div className="products-breadcrumb">
+                                <Link to="/" className="bc-link">Home</Link>
+                                <span className="bc-sep">/</span>
+                                {search ? (
+                                    <span className="bc-current">Results for "{search}"</span>
+                                ) : categorySlug ? (
+                                    <>
+                                        <Link to="/products" className="bc-link">All</Link>
+                                        <span className="bc-sep">/</span>
+                                        <span className="bc-current">{currentCategory?.name || formatSlug(categorySlug)}</span>
+                                        {subcategorySlug && (
+                                            <>
+                                                <span className="bc-sep">/</span>
+                                                <span className="bc-current">{currentSubcategory?.name || formatSlug(subcategorySlug)}</span>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    <span className="bc-current">All Products</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Right: result count */}
+                        <div className="topbar-right">
+                            <span className="result-count">{totalCount} items</span>
+                        </div>
+                    </div>
+
+                    {/* ── Page heading area ── */}
+                    <div className="products-heading-area">
+                        {/* Category image */}
+                        {categorySlug && (currentSubcategory?.image || currentCategory?.image) && (
+                            <div className="cat-img-box d-none d-md-flex">
+                                <img
+                                    src={getImageUrl(currentSubcategory?.image || currentCategory?.image)}
+                                    alt={pageTitle}
+                                    onError={e => e.target.parentElement.style.display = 'none'}
+                                />
+                            </div>
+                        )}
+                        <div>
+                            <h1 className="products-page-title">{pageTitle}</h1>
+                        </div>
+                    </div>
+
+                    {/* ── Active filter pills ── */}
+                    {activeFiltersCount > 0 && (
+                        <div className="active-filters-bar">
+                            <span className="active-filters-label">ACTIVE:</span>
+                            <div className="active-pills-list">
+                                {search && <ActivePill label={`"${search}"`} onClear={() => handleFilterChange('search', '')} />}
+                                {size && <ActivePill label={`Size: ${size}`} onClear={() => handleFilterChange('size', '')} />}
+                                {brand && <ActivePill label={`Brand: ${brand}`} onClear={() => handleFilterChange('brand', '')} />}
+                                {color && <ActivePill label={`Color: ${color}`} onClear={() => handleFilterChange('color', '')} />}
+                                {condition && <ActivePill label={condition} onClear={() => handleFilterChange('condition', '')} />}
+                                {(minPrice || maxPrice) && (
+                                    <ActivePill
+                                        label={`${currentCurrency?.symbol || ''}${minPrice || '0'}–${currentCurrency?.symbol || ''}${maxPrice || '∞'}`}
+                                        onClear={() => handleFilterChange('price', { min: '', max: '' })}
+                                    />
+                                )}
+                                {sort && sort !== 'newest' && (
+                                    <ActivePill label={`Sort: ${sort.replace('_', ' ')}`} onClear={() => handleFilterChange('sort', 'newest')} />
+                                )}
+                                <button className="clear-all-btn" onClick={clearAllFilters}>Clear All</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Grid ── */}
+                    <div className="products-grid-area">
+                        {loading && items.length === 0 ? (
+                            <div className="vinted-product-grid">
+                                {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
+                            </div>
+                        ) : items.length > 0 ? (
+                            <>
+                                <div className={`vinted-product-grid ${sidebarOpen ? 'sidebar-open' : ''}`}>
+                                    {items.map((item, idx) => (
+                                        <div
+                                            key={item._id}
+                                            ref={idx === items.length - 1 && paginationMode === 'scroll' ? lastItemRef : null}
+                                            className="product-grid-item fade-in"
+                                        >
+                                            <ItemCard item={item} />
+                                        </div>
+                                    ))}
                                 </div>
+
+                                {/* Scroll loader */}
+                                {loading && paginationMode === 'scroll' && (
+                                    <div className="scroll-loader">
+                                        <div className="scroll-dot" /><div className="scroll-dot" /><div className="scroll-dot" />
+                                    </div>
+                                )}
+
+                                {/* Numbered pagination */}
+                                {paginationMode === 'number' && totalPages > 1 && (
+                                    <div className="pagination-row">
+                                        <button className="page-btn" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                                            <FaAngleLeft /> Prev
+                                        </button>
+                                        <span className="page-info">Page {page} of {totalPages}</span>
+                                        <button className="page-btn" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                                            Next <FaAngleRight />
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        ) : !loading && (
+                            <div className="products-empty">
+                                <div className="products-empty-icon"><FaSearch size={28} /></div>
+                                <h3>No Items Found</h3>
+                                <p>Try adjusting your filters or search for something else.</p>
+                                <button className="reset-filters-btn-lg" onClick={clearAllFilters}>Reset All Filters</button>
                             </div>
                         )}
                     </div>
+                </main>
+            </div>
+
+            {/* ══ Mobile Filter Offcanvas ══ */}
+            <Offcanvas
+                show={showMobileFilters}
+                onHide={() => setShowMobileFilters(false)}
+                placement="start"
+                className="filter-offcanvas"
+            >
+                {/* Offcanvas header */}
+                <div className="filter-offcanvas-header">
+                    <div className="filter-offcanvas-title">
+                        <div className="filter-sidebar-icon-wrap"><FaSlidersH size={13} /></div>
+                        <span>{t('products.filters_and_sort', 'Filters & Sort')}</span>
+                        {activeFiltersCount > 0 && (
+                            <span className="filter-active-badge">{activeFiltersCount}</span>
+                        )}
+                    </div>
+                    <button className="oc-close-btn" onClick={() => setShowMobileFilters(false)}>
+                        <FaTimes size={15} />
+                    </button>
                 </div>
 
-                {/* Loading State (Initial) */}
-                {loading && items.length === 0 && (
-                    <Row className="g-4">
-                        {[...Array(8)].map((_, i) => (
-                            <Col key={i} xs={6} md={4} lg={3}>
-                                <SkeletonLoader />
-                            </Col>
-                        ))}
-                    </Row>
-                )}
+                {/* Offcanvas scrollable body */}
+                <div className="filter-offcanvas-body">
+                    <FilterPanel inOffcanvas />
+                </div>
 
-                {/* Grid */}
-                <Row className="g-4">
-                    {items.map((item, index) => {
-                        if (items.length === index + 1 && paginationMode === 'scroll') {
-                            return (
-                                <Col ref={lastItemElementRef} key={item._id} xs={6} md={4} lg={3} xl={3} className="d-flex align-items-stretch fade-in">
-                                    <ItemCard item={item} />
-                                </Col>
-                            );
-                        } else {
-                            return (
-                                <Col key={item._id} xs={6} md={4} lg={3} xl={3} className="d-flex align-items-stretch fade-in">
-                                    <ItemCard item={item} />
-                                </Col>
-                            );
-                        }
-                    })}
-                </Row>
-
-                {/* Empty State */}
-                {!loading && items.length === 0 && !error && (
-                    <div className="text-center py-5 fade-in" style={{ background: '#f8fafc', borderRadius: '24px', margin: '40px 0' }}>
-                        <div style={{ marginBottom: '20px' }}>
-                            <div style={{ 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                width: '100px',
-                                height: '100px',
-                                borderRadius: '50%',
-                                background: 'white',
-                                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)',
-                                color: '#94a3b8'
-                            }}>
-                                <FaSearch size={40} />
-                            </div>
-                        </div>
-                        <h3 className="fw-bold text-dark mb-2">{t('products.no_items_found', 'We couldn\'t find any matches')}</h3>
-                        <p className="text-muted mb-4 mx-auto" style={{ maxWidth: '400px' }}>
-                            {t('products.adjust_search', 'Try adjusting your filters or searching for something else to find what you\'re looking for.')}
-                        </p>
-                        <button 
-                            className="btn btn-primary px-4 py-2 fw-bold" 
-                            style={{ borderRadius: '12px' }}
-                            onClick={clearAllFilters}
-                        >
-                            {t('products.clear_all_filters', 'Clear All Filters')}
-                        </button>
-                    </div>
-                )}
-
-                {/* Scroll Loading Indicator */}
-                {loading && paginationMode === 'scroll' && items.length > 0 && (
-                    <div className="text-center py-4">
-                        <div className="spinner-grow spinner-grow-sm text-primary mx-1" role="status" />
-                        <div className="spinner-grow spinner-grow-sm text-primary mx-1" role="status" />
-                        <div className="spinner-grow spinner-grow-sm text-primary mx-1" role="status" />
-                    </div>
-                )}
-
-                {/* Number Pagination Controls */}
-                {paginationMode === 'number' && totalPages > 1 && (
-                    <div className="d-flex justify-content-center align-items-center gap-2 mt-5">
-                        <button
-                            className="btn btn-outline-secondary btn-sm"
-                            disabled={page === 1}
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                        >
-                            <FaAngleLeft /> {t('products.prev')}
-                        </button>
-
-                        <span style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                            {t('products.page_of', { current: page, total: totalPages })}
-                        </span>
-
-                        <button
-                            className="btn btn-outline-secondary btn-sm"
-                            disabled={page === totalPages}
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        >
-                            {t('products.next')} <FaAngleRight />
-                        </button>
-                    </div>
-                )}
-            </div>
+                {/* Footer actions */}
+                <div className="filter-offcanvas-footer">
+                    <button
+                        className="oc-reset-btn"
+                        onClick={() => { clearAllFilters(); setShowMobileFilters(false); }}
+                        disabled={activeFiltersCount === 0}
+                    >
+                        {t('products.reset', 'Reset')}
+                    </button>
+                    <button className="oc-apply-btn" onClick={() => setShowMobileFilters(false)}>
+                        Show {totalCount > 0 ? `${totalCount} ` : ''}Results
+                    </button>
+                </div>
+            </Offcanvas>
         </div>
     );
 };

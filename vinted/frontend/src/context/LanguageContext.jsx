@@ -80,6 +80,11 @@ export const LanguageProvider = ({ children }) => {
         let i18nCode = language.code;
         if (i18nCode === 'zh') i18nCode = 'zh-CN';
         i18n.changeLanguage(i18nCode);
+
+        // Update document direction (RTL/LTR)
+        const dir = language.direction || 'ltr';
+        document.documentElement.dir = dir;
+        localStorage.setItem('user_direction', dir);
     };
 
     const td = useCallback((key, fallback) => {
@@ -117,6 +122,10 @@ export const LanguageProvider = ({ children }) => {
             let i18nCode = currentLanguage.code;
             if (i18nCode === 'zh') i18nCode = 'zh-CN';
             i18n.changeLanguage(i18nCode);
+
+            // Update document direction
+            const dir = currentLanguage.direction || 'ltr';
+            document.documentElement.dir = dir;
         }
     }, [currentLanguage, i18n]);
 

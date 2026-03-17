@@ -1599,7 +1599,7 @@
 
 .id-horizontal-card {
     flex-shrink: 0;
-    width: 240px;
+    width: 185px;
     scroll-snap-align: start;
 }
 
@@ -1633,7 +1633,7 @@
     }
 
     .id-horizontal-card {
-        width: 200px;
+        width: 160px;
     }
 
     .id-section-title {

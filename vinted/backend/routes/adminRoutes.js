@@ -47,7 +47,8 @@ import {
     updateWithdrawalRequest,
     getAdminNotifications,
     getAdminNotificationCount,
-    markNotificationAsRead
+    markNotificationAsRead,
+    seedShippingCompanies
 } from '../controllers/adminController.js';
 import {
     getSubscribers,
@@ -64,6 +65,7 @@ router.use(adminProtect);
 
 router.get('/verify', verifyAdmin);
 router.get('/dashboard', getDashboardStats);
+router.get('/seed-shipping', seedShippingCompanies);
 router.get('/reports', getReports);
 
 // User Management
@@ -75,7 +77,7 @@ router.delete('/users/:id', deleteUser);
 // Item Management
 router.get('/items/options', getItemOptions);
 router.get('/items', getItems);
-router.post('/items', createItem);
+router.post('/items', upload.array('images', 20), createItem);
 router.put('/items/:id', upload.array('images', 20), updateItem);
 router.delete('/items/:id', deleteItem);
 

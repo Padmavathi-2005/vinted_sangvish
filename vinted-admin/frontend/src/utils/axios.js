@@ -11,37 +11,36 @@ export const imageBaseURL = import.meta.env.VITE_IMAGE_BASE_URL || 'http://local
 // Add interceptors to handle authentication tokens
 instance.interceptors.request.use(
     (config) => {
-        // If it's an admin, settings, or frontend-content route, use the admin token
-        if (config.url.includes('/api/admin') || config.url.includes('/api/settings') || config.url.includes('/api/frontend-content')) {
-            const adminInfo = localStorage.getItem('admin') || sessionStorage.getItem('admin');
+        // If it's the admin dashboard axios instance, we prioritize the admin token
+        const adminInfo = localStorage.getItem('admin') || sessionStorage.getItem('admin');
+        const userInfo = localStorage.getItem('user') || sessionStorage.getItem('user');
 
-            if (adminInfo) {
-                try {
-                    const { token } = JSON.parse(adminInfo);
-                    if (token) {
-                        config.headers = config.headers || {};
-                        config.headers.Authorization = `Bearer ${token}`;
-                    } else {
-                        console.error('Axios Interceptor: Admin token was empty in localStorage.');
-                    }
-                } catch (e) {
-                    console.error('Axios Interceptor: Failed parsing adminInfo', e);
+        if (adminInfo) {
+            try {
+                const { token } = JSON.parse(adminInfo);
+                if (token) {
+                    config.headers = config.headers || {};
+                    config.headers.Authorization = `Bearer ${token}`;
+                    return config;
                 }
-            }
-        } else {
-            // Regular user token logic...
-            const userInfo = localStorage.getItem('user') || sessionStorage.getItem('user');
-            if (userInfo) {
-                try {
-                    const { token } = JSON.parse(userInfo);
-                    if (token) {
-                        config.headers.Authorization = `Bearer ${token}`;
-                    }
-                } catch (e) {
-                    // Error parsing user info
-                }
+            } catch (e) {
+                console.error('Axios Interceptor: Failed parsing adminInfo', e);
             }
         }
+
+        // Fallback to user token if no admin token is found
+        if (userInfo) {
+            try {
+                const { token } = JSON.parse(userInfo);
+                if (token) {
+                    config.headers = config.headers || {};
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+            } catch (e) {
+                // Error parsing user info
+            }
+        }
+
         return config;
     },
     (error) => Promise.reject(error)
@@ -52,7 +51,7 @@ instance.interceptors.response.use(
     (response) => response,
     (error) => {
         // Handle 401 errors for admin and settings routes
-        if (error.response && error.response.status === 401 && (error.config.url.includes('/api/admin') || error.config.url.includes('/api/settings'))) {
+        if (error.response && error.response.status === 401) {
             const isLoginRequest = error.config.url.includes('/api/admin/login');
 
             console.log('Admin 401 Error:', {
@@ -66,7 +65,6 @@ instance.interceptors.response.use(
                 console.log('Admin session invalid - clearing and redirecting');
                 clearAdminInfo();
                 if (window.location.pathname !== '/login') {
-                    // Restore redirect after bug fix
                     window.location.href = '/login';
                 }
             }

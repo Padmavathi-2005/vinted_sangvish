@@ -3,12 +3,15 @@ import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import Notification from '../models/Notification.js';
+import Conversation from '../models/Conversation.js';
+import Message from '../models/Message.js';
+import Setting from '../models/Setting.js';
 
 // @desc    Register new user
 // @route   POST /api/users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, email, password, first_name, last_name } = req.body;
 
     if (!username || !email || !password) {
         res.status(400);
@@ -29,20 +32,23 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     // Create user
-    // The pre-save hook in User model will hash the password
     const user = await User.create({
         username,
         email,
         password_hash: password,
+        first_name: first_name || '',
+        last_name: last_name || '',
     });
 
     if (user) {
+        const userName = user.display_name || (user.first_name || user.last_name ? `${user.first_name} ${user.last_name}`.trim() : user.username);
+
         // 1. Send Welcome Notification to the User
         await Notification.create({
             user_id: user._id,
             on_model: 'User',
-            title: 'Welcome to Vinted!',
-            message: `Hello ${user.username}, thanks for joining us! We hope you have a great experience buying and selling.`,
+            title: 'Welcome!',
+            message: `Hello ${userName}, thanks for joining us! We hope you have a great experience buying and selling.`,
             type: 'info',
             link: '/profile'
         });
@@ -54,16 +60,64 @@ const registerUser = asyncHandler(async (req, res) => {
                 user_id: admin._id,
                 on_model: 'Admin',
                 title: 'New User Registered',
-                message: `A new user ${user.username} (${user.email}) has just registered.`,
+                message: `A new user ${userName} (${user.email}) has just registered.`,
                 type: 'info',
                 link: '/users'
             });
         }
 
+        // 3. Send Welcome Message from Admin (System)
+        try {
+            const settings = await Setting.findOne({ type: 'general_settings' });
+            const siteName = settings?.site_name || 'Vinted';
+            // Get the plain string if it's a map/object
+            const displaySiteName = typeof siteName === 'object' ? (Object.values(siteName)[0] || 'Vinted') : siteName;
+
+            const welcomeAdmin = await Admin.findOne({ is_active: true });
+            if (welcomeAdmin) {
+                const welcomeText = `Hello ${userName}, welcome to ${displaySiteName}! 🌟 We're thrilled to have you join our community. Feel free to explore, buy, or start selling your items. If you need any help, we're here for you!`;
+                
+                const conversation = await Conversation.create({
+                    participants: [
+                        { user: welcomeAdmin._id, on_model: 'Admin' },
+                        { user: user._id, on_model: 'User' }
+                    ],
+                    status: 'accepted',
+                    initiator_id: welcomeAdmin._id,
+                    initiator_model: 'Admin',
+                    last_message: welcomeText,
+                    last_message_at: Date.now(),
+                });
+
+                await Message.create({
+                    conversation_id: conversation._id,
+                    sender_id: welcomeAdmin._id,
+                    sender_model: 'Admin',
+                    receiver_id: user._id,
+                    receiver_model: 'User',
+                    message: welcomeText,
+                    message_type: 'text'
+                });
+
+                // 3b. Send Notification to User for the Welcome Message
+                await Notification.create({
+                    user_id: user._id,
+                    on_model: 'User',
+                    title: `Welcome to ${displaySiteName}!`,
+                    message: `You have a new message from our support team.`,
+                    type: 'message',
+                    link: '/profile?tab=messages'
+                });
+            }
+        } catch (err) {
+            console.error('Welcome message error:', err);
+            // Don't fail the whole registration if welcome message fails
+        }
+
         const userJSON = user.toJSON();
         userJSON.token = generateToken(user._id);
         userJSON.id = user._id;
-        userJSON.name = user.username;
+        userJSON.name = user.display_name || (user.first_name || user.last_name ? `${user.first_name} ${user.last_name}`.trim() : user.username);
         res.status(201).json(userJSON);
     } else {
         res.status(400);
@@ -102,7 +156,6 @@ const loginUser = asyncHandler(async (req, res) => {
         const userJSON = user.toJSON();
         userJSON.token = generateToken(user._id);
         userJSON.id = user._id;
-        userJSON.username = user.username; // Explicitly ensure username is here
         userJSON.name = user.username;
         res.json(userJSON);
     } else {
@@ -173,6 +226,16 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     const updateData = {};
     if (req.body.username) updateData.username = req.body.username;
     if (req.body.bio !== undefined) updateData.bio = req.body.bio;
+    if (req.body.first_name !== undefined) updateData.first_name = req.body.first_name;
+    if (req.body.last_name !== undefined) updateData.last_name = req.body.last_name;
+    
+    // Nested Address Update
+    if (req.body.address) {
+        updateData.address = typeof req.body.address === 'string' 
+            ? JSON.parse(req.body.address) 
+            : req.body.address;
+    }
+
     if (req.body.bundle_discounts) {
         try {
             updateData.bundle_discounts = typeof req.body.bundle_discounts === 'string' 
@@ -196,6 +259,14 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         }
         user.username = updateData.username || user.username;
         user.bio = updateData.bio !== undefined ? updateData.bio : user.bio;
+        user.first_name = updateData.first_name !== undefined ? updateData.first_name : user.first_name;
+        user.last_name = updateData.last_name !== undefined ? updateData.last_name : user.last_name;
+        user.display_name = updateData.display_name !== undefined ? updateData.display_name : user.display_name;
+        
+        if (updateData.address) {
+            user.address = { ...user.address, ...updateData.address };
+        }
+
         user.profile_image = updateData.profile_image || user.profile_image;
         if (updateData.bundle_discounts) {
             user.bundle_discounts = updateData.bundle_discounts;
@@ -206,7 +277,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         const userJSON = updatedUser.toJSON();
         userJSON.token = generateToken(updatedUser._id);
         userJSON.id = updatedUser._id;
-        userJSON.name = updatedUser.username;
+        userJSON.name = updatedUser.display_name || (updatedUser.first_name || updatedUser.last_name ? `${updatedUser.first_name} ${updatedUser.last_name}`.trim() : updatedUser.username);
         return res.json(userJSON);
     }
 
@@ -220,7 +291,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         const userJSON = updatedUser.toJSON();
         userJSON.token = generateToken(updatedUser._id);
         userJSON.id = updatedUser._id;
-        userJSON.name = updatedUser.username;
+        userJSON.name = updatedUser.display_name || (updatedUser.first_name || updatedUser.last_name ? `${updatedUser.first_name} ${updatedUser.last_name}`.trim() : updatedUser.username);
         res.json(userJSON);
     } else {
         res.status(404);
@@ -278,7 +349,7 @@ const pingActivity = asyncHandler(async (req, res) => {
 // @access  Public
 const getPublicUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id)
-        .select('username profile_image bio rating_avg rating_count created_at location is_deleted is_blocked');
+        .select('username first_name last_name profile_image bio rating_avg rating_count created_at location is_deleted is_blocked');
 
     if (!user || user.is_deleted || user.is_blocked) {
         res.status(404);

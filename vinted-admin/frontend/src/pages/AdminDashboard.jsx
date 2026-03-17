@@ -83,7 +83,7 @@ const AdminDashboard = () => {
                                     <Link to="/users" className="stat-card-link">
                                         <div className="stat-card bg-r-blue">
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.users.total)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.users?.total)}</div>
                                                 <div className="stat-label">{t('dashboard.users.total')}</div>
                                             </div>
                                             <div className="stat-icon"><FaUsers /></div>
@@ -94,7 +94,7 @@ const AdminDashboard = () => {
                                     <Link to="/users?filter=today" className="stat-card-link">
                                         <div className="stat-card bg-r-teal" style={{ background: 'linear-gradient(135deg, #20c997, #198754)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.users.today)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.users?.today)}</div>
                                                 <div className="stat-label">{t('dashboard.users.today')}</div>
                                             </div>
                                             <div className="stat-icon"><FaUserPlus /></div>
@@ -105,7 +105,7 @@ const AdminDashboard = () => {
                                     <Link to="/users?filter=buyer" className="stat-card-link">
                                         <div className="stat-card bg-r-orange">
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.users.buyers)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.users?.buyers)}</div>
                                                 <div className="stat-label">{t('dashboard.users.buyers')}</div>
                                             </div>
                                             <div className="stat-icon"><FaShoppingCart /></div>
@@ -116,7 +116,7 @@ const AdminDashboard = () => {
                                     <Link to="/users?filter=seller" className="stat-card-link">
                                         <div className="stat-card bg-r-purple">
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.users.sellers)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.users?.sellers)}</div>
                                                 <div className="stat-label">{t('dashboard.users.sellers')}</div>
                                             </div>
                                             <div className="stat-icon"><FaStore /></div>
@@ -131,7 +131,7 @@ const AdminDashboard = () => {
                                     <Link to="/listings" className="stat-card-link">
                                         <div className="stat-card bg-r-green">
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.property.total)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.property?.total)}</div>
                                                 <div className="stat-label">{t('dashboard.listings.total')}</div>
                                             </div>
                                             <div className="stat-icon"><FaTshirt /></div>
@@ -142,7 +142,7 @@ const AdminDashboard = () => {
                                     <Link to="/listings?filter=today" className="stat-card-link">
                                         <div className="stat-card bg-r-indigo">
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.property.today)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.property?.today)}</div>
                                                 <div className="stat-label">{t('dashboard.listings.today')}</div>
                                             </div>
                                             <div className="stat-icon"><FaTshirt /></div>
@@ -199,7 +199,7 @@ const AdminDashboard = () => {
                                     <Link to="/reports" className="stat-card-link">
                                         <div className="stat-card" style={{ background: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatPrice(stats.revenue.total)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatPrice(stats?.revenue?.total)}</div>
                                                 <div className="stat-label">{t('dashboard.revenue.total_income')}</div>
                                             </div>
                                             <div className="stat-icon"><FaMoneyBillAlt /></div>
@@ -210,7 +210,7 @@ const AdminDashboard = () => {
                                     <Link to="/reports?filter=today" className="stat-card-link">
                                         <div className="stat-card" style={{ background: 'linear-gradient(135deg, #d946ef, #a21caf)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatPrice(stats.revenue.today)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatPrice(stats?.revenue?.today)}</div>
                                                 <div className="stat-label">{t('dashboard.revenue.today_income')}</div>
                                             </div>
                                             <div className="stat-icon"><FaMoneyBillAlt /></div>
@@ -221,7 +221,7 @@ const AdminDashboard = () => {
                                     <Link to="/reports" className="stat-card-link">
                                         <div className="stat-card" style={{ background: 'linear-gradient(135deg, #f43f5e, #be123c)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.revenue.count)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.revenue?.count)}</div>
                                                 <div className="stat-label">{t('dashboard.revenue.total_sales')}</div>
                                             </div>
                                             <div className="stat-icon"><FaShoppingBag /></div>
@@ -232,7 +232,7 @@ const AdminDashboard = () => {
                                     <Link to="/reports?filter=today" className="stat-card-link">
                                         <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.revenue.todayCount)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.revenue?.todayCount)}</div>
                                                 <div className="stat-label">{t('dashboard.revenue.today_sales')}</div>
                                             </div>
                                             <div className="stat-icon"><FaShoppingBag /></div>
@@ -247,7 +247,7 @@ const AdminDashboard = () => {
                                     <Link to="/orders" className="stat-card-link">
                                         <div className="stat-card" style={{ background: 'linear-gradient(135deg, #10b981, #047857)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.reservation.total)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.reservation?.total)}</div>
                                                 <div className="stat-label">{t('dashboard.orders.total')}</div>
                                             </div>
                                             <div className="stat-icon"><FaTruck /></div>
@@ -258,7 +258,7 @@ const AdminDashboard = () => {
                                     <Link to="/orders?filter=today" className="stat-card-link">
                                         <div className="stat-card" style={{ background: 'linear-gradient(135deg, #eab308, #a16207)' }}>
                                             <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.reservation.today)}</div>
+                                                <div className="stat-number">{loading ? '...' : formatTotal(stats?.reservation?.today)}</div>
                                                 <div className="stat-label">{t('dashboard.orders.today')}</div>
                                             </div>
                                             <div className="stat-icon"><FaTruck /></div>
@@ -275,7 +275,7 @@ const AdminDashboard = () => {
                                 <Col sm={12}>
                                     <div className="stat-card bg-r-commission">
                                         <div className="stat-content">
-                                            <div className="stat-number">{loading ? '...' : formatPrice(stats.commission.total)}</div>
+                                            <div className="stat-number">{loading ? '...' : formatPrice(stats?.commission?.total)}</div>
                                             <div className="stat-label">{t('dashboard.commission.total_income')}</div>
                                         </div>
                                         <div className="stat-icon"><FaChartLine /></div>
@@ -294,7 +294,7 @@ const AdminDashboard = () => {
                                     <h5 className="fw-bold mb-0">{t('dashboard.revenue_chart')}</h5>
                                     <Link to="/reports" className="more-info text-decoration-none d-flex align-items-center gap-1">{t('dashboard.full_analysis')} <FaArrowRight size={12} /></Link>
                                 </div>
-                                <div className="text-muted small">{t('dashboard.revenue_summary', { amount: formatPrice(stats.revenue.total), count: stats.revenue.count })}</div>
+                                <div className="text-muted small">{t('dashboard.revenue_summary', { amount: formatPrice(stats?.revenue?.total), count: stats?.revenue?.count })}</div>
 
                                 <div className="rental-static-chart light-mode">
                                     <div className="chart-grid-text" style={{ bottom: '0%' }}>0</div>
@@ -386,7 +386,7 @@ const AdminDashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {stats.latestBookings.length === 0 ? (
+                                            {!stats?.latestBookings || stats.latestBookings.length === 0 ? (
                                                 <tr><td colSpan="3" className="text-center text-muted py-4">{t('dashboard.no_recent_bookings')}</td></tr>
                                             ) : stats.latestBookings.map((order, idx) => (
                                                 <tr key={idx} className="border-bottom">
@@ -419,7 +419,7 @@ const AdminDashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {stats.latestProperties.length === 0 ? (
+                                            {!stats?.latestProperties || stats.latestProperties.length === 0 ? (
                                                 <tr><td colSpan="4" className="text-center text-muted py-4">{t('dashboard.no_recent_listings')}</td></tr>
                                             ) : stats.latestProperties.map((item, idx) => (
                                                 <tr key={idx} className="border-bottom">

@@ -1,3 +1,5 @@
+import ShippingCompany from '../models/ShippingCompany.js';
+
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import asyncHandler from 'express-async-handler';
@@ -16,6 +18,7 @@ import WithdrawalRequest from '../models/WithdrawalRequest.js';
 import Notification from '../models/Notification.js';
 import Wallet from '../models/Wallet.js';
 import Delivery from '../models/Delivery.js';
+import UserPayoutMethod from '../models/UserPayoutMethod.js';
 
 
 
@@ -332,36 +335,36 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const totalUsers = await User.countDocuments();
-    const todayUsers = await User.countDocuments({ created_at: { $gte: today } });
+    const totalUsers = (await User.countDocuments()) || 0;
+    const todayUsers = (await User.countDocuments({ created_at: { $gte: today } })) || 0;
 
     const revenueAggr = await Order.aggregate([{ $group: { _id: null, total: { $sum: "$total_amount" } } }]);
-    const totalRevenue = revenueAggr.length > 0 ? revenueAggr[0].total : 0;
+    const totalRevenue = revenueAggr.length > 0 ? (revenueAggr[0].total || 0) : 0;
 
     const todayRevenueAggr = await Order.aggregate([
         { $match: { created_at: { $gte: today } } },
         { $group: { _id: null, total: { $sum: "$total_amount" } } }
     ]);
-    const todayRevenue = todayRevenueAggr.length > 0 ? todayRevenueAggr[0].total : 0;
+    const todayRevenue = todayRevenueAggr.length > 0 ? (todayRevenueAggr[0].total || 0) : 0;
 
 
-    const totalOrders = await Order.countDocuments();
-    const todayOrders = await Order.countDocuments({ created_at: { $gte: today } });
+    const totalOrders = (await Order.countDocuments()) || 0;
+    const todayOrders = (await Order.countDocuments({ created_at: { $gte: today } })) || 0;
 
-    const totalListings = await Item.countDocuments();
-    const todayListings = await Item.countDocuments({ created_at: { $gte: today } });
+    const totalListings = (await Item.countDocuments()) || 0;
+    const todayListings = (await Item.countDocuments({ created_at: { $gte: today } })) || 0;
 
-    const totalCategories = await Category.countDocuments();
+    const totalCategories = (await Category.countDocuments()) || 0;
     
-    const pendingWithdrawalsCount = await WithdrawalRequest.countDocuments({ status: 'pending' });
-    const pendingItemsCount = await Item.countDocuments({ status: 'pending' });
+    const pendingWithdrawalsCount = (await WithdrawalRequest.countDocuments({ status: 'pending' })) || 0;
+    const pendingItemsCount = (await Item.countDocuments({ status: 'pending' })) || 0;
 
     // Commission transactions
     const commissionAggr = await Transaction.aggregate([
         { $match: { purpose: 'commission', type: 'credit' } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
-    const totalCommission = commissionAggr.length > 0 ? commissionAggr[0].total : 0;
+    const totalCommission = commissionAggr.length > 0 ? (commissionAggr[0].total || 0) : 0;
 
     // Latest lists
     const latestOrders = await Order.find({})
@@ -1124,11 +1127,66 @@ const getWithdrawalRequests = asyncHandler(async (req, res) => {
 });
 
 const updateWithdrawalRequest = asyncHandler(async (req, res) => {
-    const request = await WithdrawalRequest.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { status, admin_note } = req.body;
+    const request = await WithdrawalRequest.findById(req.params.id);
+
     if (!request) {
         res.status(404);
         throw new Error('Request not found');
     }
+
+    // Capture old status
+    const oldStatus = request.status;
+    
+    // Update the request
+    request.status = status || request.status;
+    request.admin_note = admin_note || request.admin_note;
+    request.processed_at = new Date();
+    request.processed_by = req.user._id;
+
+    await request.save();
+
+    // 1. Sync Transaction status
+    const transaction = await Transaction.findOne({
+        reference_id: request._id,
+        reference_model: 'WithdrawalRequest'
+    });
+
+    if (transaction) {
+        if (request.status === 'completed' || request.status === 'approved') {
+            transaction.status = 'completed';
+        } else if (request.status === 'rejected') {
+            transaction.status = 'failed';
+        }
+        await transaction.save();
+    }
+
+    // 2. Handle Refund if rejected (if it wasn't already rejected)
+    if (request.status === 'rejected' && oldStatus !== 'rejected') {
+        const wallet = await Wallet.findOne({ owner_id: request.user_id, owner_type: 'User' });
+        if (wallet) {
+            wallet.balance += request.amount;
+            await wallet.save();
+
+            // Create a refund transaction
+            await Transaction.create({
+                user_id: request.user_id,
+                user_type: 'User',
+                wallet_id: wallet._id,
+                amount: request.amount,
+                type: 'credit',
+                purpose: 'withdrawal_refund',
+                reference_id: request._id,
+                reference_model: 'WithdrawalRequest',
+                status: 'completed',
+                description: `Refund for rejected withdrawal request #${request._id.toString().slice(-6).toUpperCase()}`
+            });
+            
+            // Also update User model balance if redundant
+            await User.findByIdAndUpdate(request.user_id, { $inc: { balance: request.amount } });
+        }
+    }
+
     res.json(request);
 });
 
@@ -1209,6 +1267,14 @@ const getNotificationCount = asyncHandler(async (req, res) => {
 
     res.json({ count: dbCount + withdrawalCount + userCount });
 });
+    
+// @desc    Get all user payout methods
+// @route   GET /api/admin/payout-methods
+// @access  Private (Admin)
+const getPayoutMethods = asyncHandler(async (req, res) => {
+    const methods = await UserPayoutMethod.find({}).populate('user_id', 'username email').sort({ created_at: -1 });
+    res.json(methods);
+});
 
 // @desc    Mark notification as read
 // @route   PUT /api/admin/notifications/:id/read
@@ -1230,6 +1296,41 @@ const markNotificationAsRead = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Notification not found');
     }
+});
+
+const seedShippingCompanies = asyncHandler(async (req, res) => {
+    const companies = [
+        {
+            company_name: 'DHL',
+            tracking_url: 'https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=%tracking_id%',
+            status: 'active'
+        },
+        {
+            company_name: 'FedEx',
+            tracking_url: 'https://www.fedex.com/fedextrack/?trknbr=%tracking_id%',
+            status: 'active'
+        },
+        {
+            company_name: 'UPS',
+            tracking_url: 'https://www.ups.com/track?loc=en_US&tracknum=%tracking_id%',
+            status: 'active'
+        },
+        {
+            company_name: 'USPS',
+            tracking_url: 'https://tools.usps.com/go/TrackConfirmAction?tLabels=%tracking_id%',
+            status: 'active'
+        }
+    ];
+
+    for (const company of companies) {
+        await ShippingCompany.findOneAndUpdate(
+            { company_name: company.company_name },
+            company,
+            { upsert: true, new: true }
+        );
+    }
+
+    res.json({ message: 'Shipping companies seeded successfully' });
 });
 
 export {
@@ -1279,4 +1380,6 @@ export {
     getNotifications,
     getNotificationCount,
     markNotificationAsRead,
+    getPayoutMethods,
+    seedShippingCompanies
 };

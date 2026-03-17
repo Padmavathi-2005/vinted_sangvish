@@ -34,14 +34,19 @@ export const LocalizationProvider = ({ children }) => {
                     axios.get('/api/admin/currencies')
                 ]);
 
-                const activeLangs = langRes.data.length > 0 ? langRes.data.filter(l => l.is_active) : [
-                    { name: 'English', code: 'en', native_name: 'English', is_active: true },
-                    { name: 'French', code: 'fr', native_name: 'Français', is_active: true }
-                ];
-                const activeCurrs = currRes.data.length > 0 ? currRes.data.filter(c => c.is_active) : [
-                    { name: 'US Dollar', code: 'USD', symbol: '$', exchange_rate: 1, decimal_places: 2, is_active: true },
-                    { name: 'Euro', code: 'EUR', symbol: '€', exchange_rate: 0.92, decimal_places: 2, is_active: true }
-                ];
+                const activeLangs = Array.isArray(langRes.data) && langRes.data.length > 0
+                    ? langRes.data.filter(l => l.is_active)
+                    : [
+                        { name: 'English', code: 'en', native_name: 'English', is_active: true },
+                        { name: 'French', code: 'fr', native_name: 'Français', is_active: true }
+                    ];
+
+                const activeCurrs = Array.isArray(currRes.data) && currRes.data.length > 0
+                    ? currRes.data.filter(c => c.is_active)
+                    : [
+                        { name: 'US Dollar', code: 'USD', symbol: '$', exchange_rate: 1, decimal_places: 2, is_active: true },
+                        { name: 'Euro', code: 'EUR', symbol: '€', exchange_rate: 0.92, decimal_places: 2, is_active: true }
+                    ];
 
                 setAvailableLanguages(activeLangs);
                 setAvailableCurrencies(activeCurrs);
@@ -84,12 +89,23 @@ export const LocalizationProvider = ({ children }) => {
             }
         };
         loadTranslations();
-    }, [language]);
+
+        // Also update initial direction
+        const langObj = availableLanguages.find(l => l.code === language);
+        if (langObj) {
+            document.documentElement.dir = langObj.direction || 'ltr';
+        }
+    }, [language, availableLanguages]);
 
     const changeLanguage = (code) => {
         setLanguage(code);
         localStorage.setItem('adminLanguage', code);
-        // In a real app, you might trigger i18n change here
+        
+        // Find the language object to get direction
+        const langObj = availableLanguages.find(l => l.code === code);
+        if (langObj) {
+            document.documentElement.dir = langObj.direction || 'ltr';
+        }
     };
 
     const changeCurrency = (code) => {

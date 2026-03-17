@@ -103,6 +103,8 @@ const settingSchema = mongoose.Schema(
         // Gateway translations (Mixed for localized names/descriptions)
         stripe_translations: { type: mongoose.Schema.Types.Mixed },
         paypal_translations: { type: mongoose.Schema.Types.Mixed },
+        // AI Settings
+        gemini_api_key: { type: String },
     },
     {
         timestamps: {

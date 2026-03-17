@@ -23,7 +23,92 @@ const getStripe = (secretKey) => {
 // @route   GET /api/payment-methods
 // @access  Public
 const getPaymentMethods = asyncHandler(async (req, res) => {
-    const methods = await PaymentMethod.find({ is_active: true }).sort('sort_order');
+    // 1. Fetch custom payment methods from DB
+    const dbMethods = await PaymentMethod.find({ is_active: true }).sort('sort_order');
+    
+    // 2. Fetch gateway settings
+    const setting = await Setting.findOne({ type: 'payment_settings' });
+    
+    let methods = [...dbMethods];
+    
+    if (setting) {
+        // Stripe Sync
+        if (setting.stripe_enabled) {
+            const stripeIdx = methods.findIndex(m => m.key === 'stripe');
+            const stripeData = {
+                key: 'stripe',
+                is_active: true,
+                // Transform translations to Map format {en: '...', ...}
+                name: {},
+                description: {}
+            };
+            
+            // Map settings-style translations to model-style
+            if (setting.stripe_translations) {
+                Object.keys(setting.stripe_translations).forEach(lang => {
+                    if (setting.stripe_translations[lang].name) {
+                        stripeData.name[lang] = setting.stripe_translations[lang].name;
+                    }
+                    if (setting.stripe_translations[lang].description) {
+                        stripeData.description[lang] = setting.stripe_translations[lang].description;
+                    }
+                });
+            }
+            
+            // Fallback to default name if no translations provide one
+            if (Object.keys(stripeData.name).length === 0) {
+                stripeData.name = { en: 'Credit / Debit Card' };
+            }
+
+            if (stripeIdx === -1) {
+                methods.push(stripeData);
+            } else {
+                // Merge/Override
+                methods[stripeIdx] = { ...methods[stripeIdx].toObject(), ...stripeData };
+            }
+        } else {
+            // Explicitly remove if disabled in settings
+            methods = methods.filter(m => m.key !== 'stripe');
+        }
+
+        // PayPal Sync
+        if (setting.paypal_enabled) {
+            const paypalIdx = methods.findIndex(m => m.key === 'paypal');
+            const paypalData = {
+                key: 'paypal',
+                is_active: true,
+                name: {},
+                description: {}
+            };
+            
+            if (setting.paypal_translations) {
+                Object.keys(setting.paypal_translations).forEach(lang => {
+                    if (setting.paypal_translations[lang].name) {
+                        paypalData.name[lang] = setting.paypal_translations[lang].name;
+                    }
+                    if (setting.paypal_translations[lang].description) {
+                        paypalData.description[lang] = setting.paypal_translations[lang].description;
+                    }
+                });
+            }
+
+            if (Object.keys(paypalData.name).length === 0) {
+                paypalData.name = { en: 'PayPal' };
+            }
+
+            if (paypalIdx === -1) {
+                methods.push(paypalData);
+            } else {
+                methods[paypalIdx] = { ...methods[paypalIdx].toObject(), ...paypalData };
+            }
+        } else {
+            methods = methods.filter(m => m.key !== 'paypal');
+        }
+    }
+    
+    // Final sort by sort_order
+    methods.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
     res.json(methods);
 });
 
@@ -33,18 +118,37 @@ const getPaymentMethods = asyncHandler(async (req, res) => {
 const createStripeIntent = asyncHandler(async (req, res) => {
     // Fetch Stripe secret from settings
     const setting = await Setting.findOne({ type: 'payment_settings' });
-    let secretKey = process.env.STRIPE_SECRET_KEY;
-
+    console.log(`[Stripe Debug] Initial Settings: Enabled=${setting?.stripe_enabled}, Mode=${setting?.stripe_test_mode}, SecretSet=${!!setting?.stripe_test_secret_key}`);
+    
+    const isTest = (setting && setting.stripe_test_mode === false) ? false : true; 
+    // ^ Modified logic to default to true unless explicitly false
+    
+    // Determine the candidate key from settings or environment
+    let candidateKey = null;
     if (setting) {
-        const isTest = setting.stripe_test_mode !== false;
-        secretKey = isTest ? setting.stripe_test_secret_key : setting.stripe_live_secret_key;
+        candidateKey = isTest ? setting.stripe_test_secret_key : setting.stripe_live_secret_key;
+        console.log(`[Stripe Debug] Candidate from DB (${isTest ? 'TEST' : 'LIVE'}): ${candidateKey ? candidateKey.substring(0, 7) + '...' : 'NONE'}`);
+    }
+    
+    // Fallback to environment variable if setting key is missing
+    if (!candidateKey || candidateKey.trim() === '') {
+        candidateKey = process.env.STRIPE_SECRET_KEY;
+        console.log(`[Stripe Debug] Falling back to .env: ${candidateKey ? candidateKey.substring(0, 7) + '...' : 'NONE'}`);
     }
 
-    const stripe = getStripe(secretKey);
-    if (!stripe) {
-        res.status(500).json({ message: 'Stripe is not configured correctly on the server.' });
-        return;
+    // Safety Check: A secret key MUST start with 'sk_' or 'rk_'
+    const finalKey = (candidateKey && (candidateKey.startsWith('sk_') || candidateKey.startsWith('rk_'))) ? candidateKey : null;
+    
+    console.log(`[Stripe] Mode: ${isTest ? 'TEST' : 'LIVE'}. Using Key: ${finalKey ? finalKey.substring(0, 7) + '...' + (finalKey.length > 10 ? finalKey.substring(finalKey.length - 4) : '') : 'MISSING/INVALID'}`);
+
+    if (!finalKey) {
+        console.error('[Stripe] Initialization failed - Provided key is either missing or is a Publishable Key instead of a Secret Key.');
+        console.error('[Stripe] Full Candidate Key value:', candidateKey); // Only logs in terminal
+        res.status(500);
+        throw new Error('Stripe is not configured correctly. The backend requires a SECRET KEY (starting with sk_), but a publishable key (pk_) or nothing was found.');
     }
+
+    let stripe = getStripe(finalKey);
 
     const { amount, currency } = req.body;
     console.log('Stripe Intent Request:', { amount, currency });
@@ -64,14 +168,22 @@ const createStripeIntent = asyncHandler(async (req, res) => {
             },
         });
 
+        console.log('[Stripe] Intent created successfully:', paymentIntent.id);
+
         res.json({
             clientSecret: paymentIntent.client_secret,
         });
     } catch (error) {
-        console.error('Stripe Error:', error.message);
-        res.status(400).json({
+        console.error('[Stripe Error]', error.message);
+        console.error('[Stripe Full Error Detail]:', JSON.stringify(error, null, 2));
+
+        // Use a more appropriate status code if provided by Stripe
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({
             message: error.message || 'Payment provider error',
-            type: error.type
+            type: error.type,
+            code: error.code,
+            param: error.param
         });
     }
 });

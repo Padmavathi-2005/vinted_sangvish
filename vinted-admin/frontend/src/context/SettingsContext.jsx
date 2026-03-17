@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from '../utils/axios';
+import axios, { imageBaseURL } from '../utils/axios';
 import { getAdminInfo } from '../utils/auth';
 import { safeString } from '../utils/constants';
 
@@ -72,7 +72,7 @@ export const SettingsProvider = ({ children }) => {
                 link.rel = 'icon';
                 document.head.appendChild(link);
             }
-            link.href = faviconString.startsWith('http') ? faviconString : `${axios.defaults.baseURL}/${faviconString}`;
+            link.href = faviconString.startsWith('http') ? faviconString : `${imageBaseURL.endsWith('/') ? imageBaseURL.slice(0, -1) : imageBaseURL}/${faviconString.startsWith('/') ? faviconString.substring(1) : faviconString}`;
         }
     };
 
@@ -87,7 +87,7 @@ export const SettingsProvider = ({ children }) => {
         try {
             // Get types for sidebar
             const { data: types } = await axios.get('/api/settings/types');
-            setSettingTypes(types.length > 0 ? types : ['general_settings', 'site_settings']);
+            setSettingTypes(Array.isArray(types) && types.length > 0 ? types : ['general_settings', 'site_settings']);
 
             // Get default settings (general and site)
             const [generalRes, siteRes] = await Promise.allSettled([

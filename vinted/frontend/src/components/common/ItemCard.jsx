@@ -76,7 +76,11 @@ const ItemCard = ({ item, onEdit }) => {
         e.preventDefault(); // Prevent card navigation
         e.stopPropagation();
 
-        if (mode !== 'buyer') return; // Guard for seller mode
+        // Guard: Prevent liking own items if logged in
+        if (user && item.seller_id && String(user._id) === String(item.seller_id._id || item.seller_id)) {
+            // Optional: show a message that you can't like your own items
+            return;
+        }
 
         if (!user) {
             navigate('/login');
@@ -134,37 +138,35 @@ const ItemCard = ({ item, onEdit }) => {
                     }}
                 />
 
-                {/* Favorites Button - ONLY SHOW IN BUYER MODE */}
-                {mode === 'buyer' && (
-                    <button
-                        className="favorite-btn"
-                        onClick={handleHeartClick}
-                        title={isFav ? "Remove from wishlist" : "Add to wishlist"}
-                        style={{
-                            position: 'absolute',
-                            top: '12px',
-                            right: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '2px',
-                            background: 'none',
-                            border: 'none',
-                            zIndex: 5,
-                            cursor: 'pointer'
-                        }}
-                    >
-                        {isFav ? <FaHeart style={{ color: '#ef4444', fontSize: '1.2rem' }} /> : <FaRegHeart style={{ color: 'white', fontSize: '1.2rem' }} />}
-                        <span style={{
-                            color: 'white',
-                            fontSize: '0.65rem',
-                            fontWeight: '400',
-                            textShadow: '0 1px 4px rgba(0,0,0,0.8)'
-                        }}>
-                            {localLikes} likes
-                        </span>
-                    </button>
-                )}
+                {/* Favorites Button - SHOW FOR ALL MODES */}
+                <button
+                    className="favorite-btn"
+                    onClick={handleHeartClick}
+                    title={isFav ? "Remove from wishlist" : "Add to wishlist"}
+                    style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px',
+                        background: 'none',
+                        border: 'none',
+                        zIndex: 20, // Increased zIndex to stay above most badges/overlays
+                        cursor: 'pointer'
+                    }}
+                >
+                    {isFav ? <FaHeart style={{ color: '#ef4444', fontSize: '1.2rem' }} /> : <FaRegHeart style={{ color: 'white', fontSize: '1.2rem' }} />}
+                    <span style={{
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        fontWeight: '400',
+                        textShadow: '0 1px 4px rgba(0,0,0,0.8)'
+                    }}>
+                        {localLikes} likes
+                    </span>
+                </button>
 
                 {onEdit && (
                     <div className="edit-overlay">

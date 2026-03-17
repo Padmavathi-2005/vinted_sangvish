@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/errorMiddleware.js';
 import connectDB from './config/db.js';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // Admin API Routes
@@ -15,6 +16,7 @@ import settingRoutes from './routes/settingRoutes.js';
 import pageRoutes from './routes/pageRoutes.js';
 import frontendContentRoutes from './routes/frontendContentRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import shippingCompanyRoutes from './routes/shippingCompanyRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,9 +47,14 @@ const startServer = async () => {
         app.use('/api/pages', pageRoutes);
         app.use('/api/frontend-content', frontendContentRoutes);
         app.use('/api/admin-messages', messageRoutes);
+        app.use('/api/shipping-companies', shippingCompanyRoutes);
 
-        // Serve static images locally
-        app.use('/images', express.static(path.join(__dirname, 'images')));
+        // Serve images (fallback for local development)
+        const imagesPath = path.join(__dirname, 'images');
+        app.use('/images', express.static(imagesPath));
+        if (!fs.existsSync(imagesPath)) {
+            console.log('Note: images folder not found locally, ensure it is symlinked or handled by Nginx proxy.');
+        }
 
         app.get('/', (req, res) => {
             res.send('Admin API is running...');

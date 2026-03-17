@@ -30,6 +30,38 @@ const getOrCreateWallet = async (ownerId, ownerType) => {
     return wallet;
 };
 
+// @desc    Deduct total order amount from buyer's wallet
+const deductBuyerWallet = async (buyerId, amount, orderNumbers) => {
+    const buyer = await User.findById(buyerId);
+    if (!buyer) throw new Error('User not found');
+    
+    // Use Number() to ensure math is correct
+    const totalAmount = Number(amount);
+    const currentBalance = Number(buyer.balance || 0);
+
+    if (currentBalance < totalAmount) {
+        throw new Error(`Insufficient wallet balance. Needed: ${totalAmount}, Available: ${currentBalance}`);
+    }
+
+    const buyerWallet = await getOrCreateWallet(buyerId, 'User');
+    buyerWallet.balance -= totalAmount;
+    await buyerWallet.save();
+
+    await User.findByIdAndUpdate(buyerId, { $set: { balance: buyerWallet.balance } });
+
+    await Transaction.create({
+        user_id: buyerId,
+        user_type: 'User',
+        wallet_id: buyerWallet._id,
+        amount: totalAmount,
+        type: 'debit',
+        purpose: 'order_payment',
+        description: `Payment for order(s): ${Array.isArray(orderNumbers) ? orderNumbers.join(', ') : orderNumbers}`
+    });
+
+    return buyerWallet.balance;
+};
+
 // @desc    Process order payment split
 const processOrderPaymentSplit = async (orderData) => {
     const { seller_id, item_price, shipping_fee, order_id } = orderData;
@@ -280,5 +312,6 @@ export {
     processOrderPaymentSplit,
     reverseOrderPayment,
     processRefundSplit,
-    getOrCreateWallet
+    getOrCreateWallet,
+    deductBuyerWallet
 };

@@ -14,6 +14,7 @@ import PaymentMethod from '../models/PaymentMethod.js';
 import Transaction from '../models/Transaction.js';
 import WithdrawalRequest from '../models/WithdrawalRequest.js';
 import Notification from '../models/Notification.js';
+import ShippingCompany from '../models/ShippingCompany.js';
 
 
 // @desc    Get all categories
@@ -318,10 +319,21 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const totalOrders = await Order.countDocuments();
     const todayOrders = await Order.countDocuments({ created_at: { $gte: today } });
 
+    // Today Revenue
+    const todayRevenueAggr = await Order.aggregate([
+        { $match: { created_at: { $gte: today } } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } }
+    ]);
+    const todayRevenue = todayRevenueAggr.length > 0 ? todayRevenueAggr[0].total : 0;
+
     const totalListings = await Item.countDocuments();
     const todayListings = await Item.countDocuments({ created_at: { $gte: today } });
 
     const totalCategories = await Category.countDocuments();
+
+    // Content stats for front panels
+    const pendingWithdrawals = await WithdrawalRequest.countDocuments({ status: 'pending' });
+    const pendingItems = await Item.countDocuments({ status: 'pending' });
 
     // Commission transactions
     const commissionAggr = await Transaction.aggregate([
@@ -437,11 +449,16 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     res.json({
         users: { total: totalUsers, today: todayUsers, buyers: buyersArray.length, sellers: sellersArray.length },
-        revenue: { total: totalRevenue, count: totalOrders },
+        revenue: { total: totalRevenue, today: todayRevenue, count: totalOrders, todayCount: todayOrders },
         property: { total: totalListings, today: todayListings },
         experience: { total: totalCategories, today: 0 },
         reservation: { total: totalOrders, today: todayOrders },
         commission: { total: totalCommission },
+        content: {
+            pendingWithdrawals,
+            pendingItems,
+            categories: totalCategories
+        },
         latestBookings: latestOrders,
         latestProperties: latestListings,
         monthlySales: monthlySales,
@@ -822,19 +839,53 @@ const getItemOptions = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/items
 // @access  Private (Admin)
 const createItem = asyncHandler(async (req, res) => {
-    // For now allow simple creation with placeholders if empty
-    const item = await Item.create({
-        title: req.body.title,
-        price: req.body.price || 0,
-        status: req.body.status || 'active',
-        seller_id: req.body.seller_id || req.user._id, // fallback to admin ID if needed, though they shouldn't sell
-        category_id: req.body.category_id || null, // Will fail if required, just basic handling
-        subcategory_id: req.body.subcategory_id || null,
-        currency_id: req.body.currency_id || null,
-        condition: 'New',
-        description: 'Created by Admin',
-    });
-    res.status(201).json(item);
+    const { 
+        title, price, description, brand, condition, status,
+        category_id, subcategory_id, item_type_id, seller_id, currency_id 
+    } = req.body;
+
+    // Robust validation for required fields
+    if (!title || !price || !category_id || !subcategory_id) {
+        res.status(400);
+        throw new Error('Please provide title, price, category, and subcategory');
+    }
+
+    // Default currency if none provided
+    let finalCurrencyId = currency_id;
+    if (!finalCurrencyId || finalCurrencyId === 'null' || finalCurrencyId === '') {
+        const defaultCurrency = await Currency.findOne({ is_active: true }) || await Currency.findOne();
+        finalCurrencyId = defaultCurrency ? defaultCurrency._id : null;
+    }
+
+    // Handle Images
+    let itemImages = [];
+    if (req.files && req.files.length > 0) {
+        itemImages = req.files.map(file => `images/items/${file.filename}`);
+    }
+
+    try {
+        const item = await Item.create({
+            title,
+            price: parseFloat(price),
+            description: description || 'Created by Admin',
+            brand: brand || '',
+            condition: condition || 'New',
+            status: status || 'active',
+            seller_id: (seller_id && seller_id !== 'null') ? seller_id : req.user._id,
+            category_id,
+            subcategory_id,
+            item_type_id: (item_type_id && item_type_id !== '' && item_type_id !== 'null') ? item_type_id : null,
+            currency_id: finalCurrencyId,
+            images: itemImages,
+            original_price: parseFloat(price)
+        });
+
+        res.status(201).json(item);
+    } catch (error) {
+        console.error("[Admin Create Item] Error:", error.name, "-", error.message);
+        res.status(500);
+        throw error;
+    }
 });
 
 // @desc    Update an item
@@ -849,11 +900,13 @@ const updateItem = asyncHandler(async (req, res) => {
 
     const { 
         title, price, description, brand, condition, status, is_deleted, 
-        category_id, subcategory_id, item_type_id, existingImages 
+        category_id, subcategory_id, item_type_id, existingImages, existing_images, seller_id, currency_id
     } = req.body;
 
+    const actualExistingImages = existingImages || existing_images;
+
     if (title !== undefined) item.title = title;
-    if (price !== undefined) item.price = price;
+    if (price !== undefined) item.price = parseFloat(price);
     if (description !== undefined) item.description = description;
     if (brand !== undefined) item.brand = brand;
     if (condition !== undefined) item.condition = condition;
@@ -875,18 +928,24 @@ const updateItem = asyncHandler(async (req, res) => {
         item.is_deleted = is_deleted === 'true' || is_deleted === true;
     }
 
-    if (category_id && category_id !== '') item.category_id = category_id;
-    if (subcategory_id && subcategory_id !== '') item.subcategory_id = subcategory_id;
-    if (item_type_id !== undefined) item.item_type_id = (item_type_id && item_type_id !== '') ? item_type_id : null;
+    if (category_id && category_id !== '' && category_id !== 'null') item.category_id = category_id;
+    if (subcategory_id && subcategory_id !== '' && subcategory_id !== 'null') item.subcategory_id = subcategory_id;
+    if (item_type_id !== undefined) item.item_type_id = (item_type_id && item_type_id !== '' && item_type_id !== 'null') ? item_type_id : null;
+    if (seller_id && seller_id !== '' && seller_id !== 'null') item.seller_id = seller_id;
+    if (currency_id && currency_id !== '' && currency_id !== 'null') item.currency_id = currency_id;
 
-    // Handle Images (Similar to itemController)
+    // Handle Images
     let updatedImages = [];
-    if (existingImages) {
+    if (actualExistingImages !== undefined) {
         try {
-            const parsedExisting = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages;
+            const parsedExisting = typeof actualExistingImages === 'string' ? JSON.parse(actualExistingImages) : actualExistingImages;
             if (Array.isArray(parsedExisting)) {
                 updatedImages = parsedExisting.map(img => {
                     if (typeof img !== 'string') return img;
+                    // Robust normalization: extract only the filename or the relative path
+                    if (img.includes('images/items/')) {
+                        return img.substring(img.indexOf('images/items/'));
+                    }
                     const parts = img.split('/');
                     const filename = parts[parts.length - 1];
                     return `images/items/${filename}`;
@@ -903,12 +962,18 @@ const updateItem = asyncHandler(async (req, res) => {
     }
 
     // Only update images if we have something or existingImages was explicitly sent
-    if (existingImages !== undefined || (req.files && req.files.length > 0)) {
+    if (actualExistingImages !== undefined || (req.files && req.files.length > 0)) {
         item.images = updatedImages;
     }
 
-    const updatedItem = await item.save();
-    res.json(updatedItem);
+    try {
+        const updatedItem = await item.save();
+        res.json(updatedItem);
+    } catch (error) {
+        console.error("[Admin Update Item] Error:", error.name, "-", error.message);
+        res.status(500);
+        throw error;
+    }
 });
 
 // @desc    Delete an item
@@ -1057,11 +1122,66 @@ const getWithdrawalRequests = asyncHandler(async (req, res) => {
 });
 
 const updateWithdrawalRequest = asyncHandler(async (req, res) => {
-    const request = await WithdrawalRequest.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { status, admin_note } = req.body;
+    const request = await WithdrawalRequest.findById(req.params.id);
+
     if (!request) {
         res.status(404);
         throw new Error('Request not found');
     }
+
+    // Capture old status
+    const oldStatus = request.status;
+    
+    // Update the request
+    request.status = status || request.status;
+    request.admin_note = admin_note || request.admin_note;
+    request.processed_at = new Date();
+    request.processed_by = req.user._id;
+
+    await request.save();
+
+    // 1. Sync Transaction status
+    const transaction = await Transaction.findOne({
+        reference_id: request._id,
+        reference_model: 'WithdrawalRequest'
+    });
+
+    if (transaction) {
+        if (request.status === 'completed' || request.status === 'approved') {
+            transaction.status = 'completed';
+        } else if (request.status === 'rejected') {
+            transaction.status = 'failed';
+        }
+        await transaction.save();
+    }
+
+    // 2. Handle Refund if rejected (if it wasn't already rejected)
+    if (request.status === 'rejected' && oldStatus !== 'rejected') {
+        const wallet = await Wallet.findOne({ owner_id: request.user_id, owner_type: 'User' });
+        if (wallet) {
+            wallet.balance += request.amount;
+            await wallet.save();
+
+            // Create a refund transaction
+            await Transaction.create({
+                user_id: request.user_id,
+                user_type: 'User',
+                wallet_id: wallet._id,
+                amount: request.amount,
+                type: 'credit',
+                purpose: 'refund',
+                reference_id: request._id,
+                reference_model: 'WithdrawalRequest',
+                status: 'completed',
+                description: `Refund for rejected withdrawal request #${request._id.toString().slice(-6).toUpperCase()}`
+            });
+            
+            // Also update User model balance if redundant
+            await User.findByIdAndUpdate(request.user_id, { $inc: { balance: request.amount } });
+        }
+    }
+
     res.json(request);
 });
 
@@ -1158,6 +1278,41 @@ const markNotificationAsRead = asyncHandler(async (req, res) => {
     }
 });
 
+const seedShippingCompanies = asyncHandler(async (req, res) => {
+    const companies = [
+        {
+            company_name: 'DHL',
+            tracking_url: 'https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=%tracking_id%',
+            status: 'active'
+        },
+        {
+            company_name: 'FedEx',
+            tracking_url: 'https://www.fedex.com/fedextrack/?trknbr=%tracking_id%',
+            status: 'active'
+        },
+        {
+            company_name: 'UPS',
+            tracking_url: 'https://www.ups.com/track?loc=en_US&tracknum=%tracking_id%',
+            status: 'active'
+        },
+        {
+            company_name: 'USPS',
+            tracking_url: 'https://tools.usps.com/go/TrackConfirmAction?tLabels=%tracking_id%',
+            status: 'active'
+        }
+    ];
+
+    for (const company of companies) {
+        await ShippingCompany.findOneAndUpdate(
+            { company_name: company.company_name },
+            company,
+            { upsert: true, new: true }
+        );
+    }
+
+    res.json({ message: 'Shipping companies seeded successfully' });
+});
+
 export {
     loginAdmin,
     getDashboardStats,
@@ -1204,5 +1359,6 @@ export {
     updateWithdrawalRequest,
     getAdminNotifications,
     getAdminNotificationCount,
-    markNotificationAsRead
+    markNotificationAsRead,
+    seedShippingCompanies
 };

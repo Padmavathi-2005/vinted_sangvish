@@ -5,8 +5,11 @@ import { getImageUrl, safeString } from '../utils/constants';
 const SettingsContext = createContext();
 
 export const SettingsProvider = ({ children }) => {
-    const [settings, setSettings] = useState({
-        site_name: 'Marketplace',
+    // Try to get cached settings from localStorage for instant load
+    const cachedSettings = JSON.parse(localStorage.getItem('site_settings') || 'null');
+
+    const [settings, setSettings] = useState(cachedSettings ? { ...cachedSettings, loading: true } : {
+        site_name: '',
         site_url: window.location.origin,
         site_logo: '',
         primary_color: '#0ea5e9',
@@ -18,11 +21,15 @@ export const SettingsProvider = ({ children }) => {
             try {
                 const { data } = await axios.get('/api/settings');
                 if (data) {
-                    setSettings({
+                    const updatedSettings = {
                         ...data,
                         site_url: data.site_url || window.location.origin,
                         loading: false
-                    });
+                    };
+                    setSettings(updatedSettings);
+                    
+                    // Cache the settings for the next visit
+                    localStorage.setItem('site_settings', JSON.stringify(updatedSettings));
                     
                     // Set CSS variable globally
                     if (data.primary_color) {

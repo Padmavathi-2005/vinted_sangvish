@@ -8,7 +8,8 @@ import {
 } from 'react-icons/fa';
 import '../../styles/NotificationsContent.css';
 import { useTranslation } from 'react-i18next';
-import { safeString } from '../../utils/constants';
+import { getImageUrl, safeString } from '../../utils/constants';
+import { useSettings } from '../../context/SettingsContext';
 
 const typeConfig = {
     success: { icon: FaCheckCircle, color: '#22c55e', bg: '#f0fdf4', labelKey: 'notifications.accepted' },
@@ -50,6 +51,7 @@ const NotificationsContent = () => {
     const { t } = useTranslation();
     const { notifications, loading, markAsRead, markAllAsRead, fetchNotifications } = useContext(NotificationContext);
     const { user } = useContext(AuthContext);
+    const { settings } = useSettings();
     const navigate = useNavigate();
 
     const [search, setSearch] = useState('');
@@ -144,8 +146,20 @@ const NotificationsContent = () => {
                                     className={`nc-list-item ${isActive ? 'active' : ''} ${!notif.is_read ? 'unread' : ''}`}
                                     onClick={() => handleSelect(notif)}
                                 >
-                                    <div className="nc-item-icon" style={{ background: cfg.bg, color: cfg.color }}>
-                                        <Icon />
+                                    <div className="nc-item-icon" style={{ 
+                                        background: notif.type === 'info' ? `${settings.primary_color}18` : cfg.bg, 
+                                        color: notif.type === 'info' ? settings.primary_color : cfg.color,
+                                        overflow: 'hidden'
+                                    }}>
+                                        {(settings.site_favicon || settings.site_logo) ? (
+                                            <img 
+                                                src={getImageUrl(settings.site_favicon || settings.site_logo)} 
+                                                alt="" 
+                                                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}
+                                            />
+                                        ) : (
+                                            <Icon />
+                                        )}
                                     </div>
                                     <div className="nc-item-body">
                                         <div className="nc-item-title">{safeString(notif.title)}</div>
@@ -168,9 +182,21 @@ const NotificationsContent = () => {
                     const showMsgLink = isMessageNotif(activeNotif);
                     return (
                         <div className="nc-detail-content">
-                            <div className="nc-detail-header" style={{ borderLeft: `4px solid ${cfg.color}` }}>
-                                <div className="nc-detail-icon-wrap" style={{ background: cfg.bg, color: cfg.color }}>
-                                    <Icon size={28} />
+                            <div className="nc-detail-header" style={{ borderLeft: `4px solid ${activeNotif.type === 'info' ? settings.primary_color : cfg.color}` }}>
+                                <div className="nc-detail-icon-wrap" style={{ 
+                                    background: activeNotif.type === 'info' ? `${settings.primary_color}18` : cfg.bg, 
+                                    color: activeNotif.type === 'info' ? settings.primary_color : cfg.color,
+                                    overflow: 'hidden'
+                                }}>
+                                    {(settings.site_favicon || settings.site_logo) ? (
+                                        <img 
+                                            src={getImageUrl(settings.site_favicon || settings.site_logo)} 
+                                            alt="" 
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }}
+                                        />
+                                    ) : (
+                                        <Icon size={28} />
+                                    )}
                                 </div>
                                 <div className="nc-detail-meta">
                                     <span className="nc-detail-type-label" style={{ background: cfg.bg, color: cfg.color }}>

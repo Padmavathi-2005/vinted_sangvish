@@ -6,7 +6,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { FaLock } from 'react-icons/fa';
 
-const StripePaymentForm = ({ onPaymentSuccess, amount, billingDetails, validateForm }) => {
+const StripePaymentForm = ({ onPaymentSuccess, amount, formattedAmount, billingDetails, validateForm }) => {
     const stripe = useStripe();
     const elements = useElements();
 
@@ -31,7 +31,7 @@ const StripePaymentForm = ({ onPaymentSuccess, amount, billingDetails, validateF
             elements,
             confirmParams: {
                 // Return URL can be a success page
-                return_url: window.location.origin + '/checkout/success',
+                return_url: window.location.origin + '/profile?tab=orders&success=true',
                 payment_method_data: {
                     billing_details: billingDetails
                 },
@@ -70,7 +70,7 @@ const StripePaymentForm = ({ onPaymentSuccess, amount, billingDetails, validateF
                 {isLoading ? (
                     <><span className="checkout-spinner" /> Processing...</>
                 ) : (
-                    <><FaLock /> Pay and Place Order</>
+                    <><FaLock /> Pay and Place Order {formattedAmount && `(${formattedAmount})`}</>
                 )}
             </button>
         </form>

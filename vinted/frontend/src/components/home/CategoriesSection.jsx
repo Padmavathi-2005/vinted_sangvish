@@ -7,9 +7,13 @@ import {
 } from 'react-icons/fa';
 import axios from '../../utils/axios';
 import { useTranslation } from 'react-i18next';
-import { safeString } from '../../utils/constants';
+import { safeString, getImageUrl } from '../../utils/constants';
+import LanguageContext from '../../context/LanguageContext';
+import { useContext } from 'react';
 
 const CategoriesSection = () => {
+    const { currentLanguage } = useContext(LanguageContext);
+    const isRTL = currentLanguage?.direction === 'rtl';
     const { t } = useTranslation();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -71,7 +75,12 @@ const CategoriesSection = () => {
         e.preventDefault();
         const x = e.pageX - scrollRef.current.offsetLeft;
         const walk = (x - startX) * 2; // scroll speed
-        scrollRef.current.scrollLeft = scrollLeft - walk;
+        
+        if (isRTL) {
+            scrollRef.current.scrollLeft = scrollLeft + walk;
+        } else {
+            scrollRef.current.scrollLeft = scrollLeft - walk;
+        }
     };
 
     // Create a duplicated list for infinite look
@@ -111,7 +120,7 @@ const CategoriesSection = () => {
                                     <div className="category-icon">
                                         {cat.image ? (
                                             <img
-                                                src={`${axios.defaults.baseURL || ''}/${cat.image.replace(/^\/+/, '')}`}
+                                                src={getImageUrl(cat.image)}
                                                 alt={safeString(cat.name)}
                                                 className="cat-img"
                                                 onError={(e) => {

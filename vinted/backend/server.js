@@ -34,6 +34,8 @@ import frontendContentRoutes from './routes/frontendContentRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import shippingRoutes from './routes/shippingRoutes.js';
+import shippingCompanyRoutes from './routes/shippingCompanyRoutes.js';
 import { applyDiscount, removeDiscount } from './controllers/itemController.js';
 import { protect } from './middleware/authMiddleware.js';
 import startDiscountReminderJob from './jobs/discountReminderJob.js';
@@ -126,6 +128,8 @@ const startServer = async () => {
         app.use('/api/newsletter', newsletterRoutes);
         app.use('/api/auth', authRoutes);
         app.use('/api/ai', aiRoutes);
+        app.use('/api/shipping', shippingRoutes);
+        app.use('/api/shipping-companies', shippingCompanyRoutes);
 
         // Start scheduled jobs
         startDiscountReminderJob();

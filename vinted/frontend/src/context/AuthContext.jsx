@@ -29,10 +29,6 @@ export const AuthProvider = ({ children }) => {
             }
         }
         
-        // Initialize Mode
-        const storedMode = localStorage.getItem('mode');
-        if (storedMode) setMode(storedMode);
-        
         setLoading(false);
     }, []);
 
@@ -99,7 +95,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
-    const [mode, setMode] = useState('buyer');
+    const [mode, setMode] = useState(() => localStorage.getItem('mode') || 'buyer');
 
     const toggleMode = () => {
         setMode(prev => {
@@ -109,8 +105,13 @@ export const AuthProvider = ({ children }) => {
         });
     };
 
+    const changeMode = (newMode) => {
+        setMode(newMode);
+        localStorage.setItem('mode', newMode);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, mode, toggleMode }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, mode, toggleMode, setMode: changeMode }}>
             {children}
         </AuthContext.Provider>
     );

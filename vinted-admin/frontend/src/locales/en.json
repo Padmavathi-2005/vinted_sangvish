@@ -146,7 +146,11 @@
         "toast": {
             "create_success": "Listing created successfully",
             "update_success": "Listing updated successfully",
-            "delete_success": "Listing deleted successfully"
+            "delete_success": "Listing deleted successfully",
+            "status_update_success": "Listing status updated successfully",
+            "status_update_error": "Failed to update listing status",
+            "save_error": "Failed to save listing details",
+            "delete_error": "Failed to delete listing"
         },
         "table": {
             "item": "Item",
@@ -237,7 +241,8 @@
             "title": "Wallet",
             "withdrawal_requests": "Withdrawal Requests",
             "transactions": "Transactions",
-            "payment_methods": "Payment Methods"
+            "payment_methods": "Payment Methods",
+            "payout_methods": "User Payout Methods"
         },
         "categories": {
             "title": "Categories",
@@ -255,6 +260,9 @@
             "site_settings": "Site Settings",
             "payment_settings": "Payment Settings",
             "social_settings": "Social Settings",
+            "api_settings": "API Settings",
+            "cookie_settings": "Cookie Settings",
+            "social_login_settings": "Social Login Settings",
             "notification_settings": "Notification Settings"
         },
         "notifications": "Notifications",

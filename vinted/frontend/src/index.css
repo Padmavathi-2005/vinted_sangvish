@@ -36,7 +36,6 @@
   margin: 0;
   padding: 0;
 }
-
 body {
   font-family: var(--font-family);
   background-color: var(--bg-color);
@@ -44,6 +43,14 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
   transition: background-color 0.3s, color 0.3s;
+}
+
+.menu-open, 
+.menu-open body {
+  overflow: hidden !important;
+  height: 100vh !important;
+  position: fixed;
+  width: 100%;
 }
 
 a {
@@ -65,9 +72,82 @@ button {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 20px;
+}
+
+/* Standardized Responsive Product Grid */
+.vinted-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 24px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .vinted-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vinted-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+/* Category Grid */
+.vinted-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .vinted-category-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vinted-category-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+/* Skeleton Loader */
+.vinted-skeleton-card {
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  width: 100%;
+  animation: sk-blink 1.5s infinite ease-in-out;
+}
+
+.vinted-skeleton-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.vinted-skeleton-line {
+  height: 12px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+@keyframes sk-blink {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 /* Card Styles */
@@ -111,6 +191,11 @@ button {
   }
 }
 
-.fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+.hide-scrollbar-modern {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.hide-scrollbar-modern::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }

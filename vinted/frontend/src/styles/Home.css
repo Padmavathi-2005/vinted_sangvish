@@ -7,7 +7,7 @@
 /* Hero Section */
 .hero-section {
     background-image:
-        linear-gradient(to right, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0.2) 100%),
+        linear-gradient(to var(--direction-to, right), rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0.2) 100%),
         url('https://images.unsplash.com/photo-1556740758-90de374c12ad?w=1200&q=80');
     background-size: cover;
     background-position: center;
@@ -549,6 +549,11 @@
     width: max-content;
     animation: marquee-scroll 60s linear infinite;
     will-change: transform;
+    flex-direction: row; /* Force LTR for marquee track content to keep consistent scroll math */
+}
+
+[dir="rtl"] .categories-marquee-track {
+    animation: marquee-scroll-rtl 60s linear infinite;
 }
 
 .categories-marquee-container:hover .categories-marquee-track {
@@ -576,6 +581,16 @@
 
     100% {
         transform: translateX(-50%);
+    }
+}
+
+@keyframes marquee-scroll-rtl {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(50%);
     }
 }
 
@@ -723,11 +738,8 @@
     border-radius: 24px;
     padding: 60px;
     position: relative;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    text-align: inherit;
+    display: block;
 }
 
 .banner-title {
@@ -741,7 +753,7 @@
     color: #495057;
     line-height: 1.6;
     max-width: 600px;
-    margin: 0 auto;
+    margin: 0 0 40px 0 !important;
 }
 
 .btn-black {
@@ -825,13 +837,14 @@
 
 @media (max-width: 991px) {
     .sustainability-banner {
-        text-align: center;
+        text-align: left;
         padding: 40px !important;
     }
 
     .banner-text {
-        margin: 0 auto 24px;
+        margin: 0 0 24px 0 !important;
         max-width: 100%;
+        text-align: left !important;
     }
 
     .banner-images {
