@@ -1,7 +1,7 @@
 import { MongoClient } from 'mongodb';
 
 const sourceUri = "mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted";
-const targetUri = "mongodb+srv://abinayashri1985_db_user:PftqY4RcbGP1g30U@vinted.fndp02j.mongodb.net/vinted_db?appName=vinted";
+const targetUri = "mongodb+srv://support_db_uuser:gyhkuN-jammy8-voxqub@vinted.ek5p4it.mongodb.net/vinted_db?appName=vinted";
 
 async function migrate() {
     console.log("Connecting to databases...");

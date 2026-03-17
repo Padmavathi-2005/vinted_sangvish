@@ -275,48 +275,76 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     if (order.seller_id.toString() !== req.user._id.toString()) {
         res.status(401);
         throw new Error('Not authorized to update this order status');
+    }    const prevStatus = order.order_status;
+    
+    // Status Guard: Cannot update if already reached terminal state
+    if (['delivered', 'cancelled', 'returned'].includes(prevStatus)) {
+        res.status(400);
+        throw new Error(`Cannot update order status from ${prevStatus}`);
     }
 
-    const prevStatus = order.order_status;
     order.order_status = status;
+    
+    // Handle Cancellation Reason if provided
+    if (status === 'cancelled' && req.body.cancel_reason) {
+        order.cancel_reason = req.body.cancel_reason;
+    }
+
     const updatedOrder = await order.save();
 
     // Populate for notifications
     const populatedOrder = await Order.findById(order._id).populate('item_id', 'title');
 
     // Notify buyer on status changes
-    if (status === 'dispatched') {
+    if (status === 'shipped' || status === 'dispatched') {
         await Notification.create({
             user_id: order.buyer_id,
             on_model: 'User',
-            title: 'Order Dispatched!',
-            message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) has been dispatched by the seller.`,
+            title: 'Order Shipped!',
+            message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) has been shipped.`,
             type: 'order',
             link: '/profile?tab=orders'
         });
-    } else if (status === 'on_the_way') {
+    } else if (status === 'out_for_delivery' || status === 'on_the_way') {
         await Notification.create({
             user_id: order.buyer_id,
             on_model: 'User',
-            title: 'Order On The Way!',
-            message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) is on its way to you.`,
+            title: 'Order Out for Delivery!',
+            message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) is out for delivery.`,
             type: 'order',
             link: '/profile?tab=orders'
         });
     } else if (status === 'delivered') {
+        const title = 'Order Delivered! ⭐';
+        const message = `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) has been delivered! Please rate the seller and share your experience.`;
+        
         await Notification.create({
             user_id: order.buyer_id,
             on_model: 'User',
-            title: 'Order Delivered! ⭐',
-            message: `Your order "${populatedOrder.item_id?.title}" has been delivered! Please rate the seller and share your experience.`,
+            title,
+            message,
             type: 'order',
             link: '/profile?tab=orders'
         });
-        // Set delivered_at timestamp
-        if (order.delivered_at == null) {
-            order.delivered_at = new Date();
-            await order.save();
+
+        // Cascade timestamps: If we reached a later stage, fill in previous stages if null
+        if (status === 'delivered') {
+            if (!order.delivered_at) order.delivered_at = new Date();
+            if (!order.out_for_delivery_at) order.out_for_delivery_at = new Date();
+            if (!order.shipped_at) order.shipped_at = new Date();
+            if (!order.packed_at) order.packed_at = new Date();
+        } else if (status === 'out_for_delivery') {
+            if (!order.out_for_delivery_at) order.out_for_delivery_at = new Date();
+            if (!order.shipped_at) order.shipped_at = new Date();
+            if (!order.packed_at) order.packed_at = new Date();
+        } else if (status === 'shipped') {
+            if (!order.shipped_at) order.shipped_at = new Date();
+            if (!order.packed_at) order.packed_at = new Date();
+        } else if (status === 'packed') {
+            if (!order.packed_at) order.packed_at = new Date();
         }
+        
+        await order.save();
 
         // Also send system message in conversation
         try {
@@ -363,15 +391,17 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         await reverseOrderPayment(order._id);
 
         // Also mark item as available again
-        await Item.findByIdAndUpdate(order.item_id, { status: 'available', is_sold: false });
+        for (const item of (order.is_bundle ? order.items : [{ item_id: order.item_id }])) {
+            await Item.findByIdAndUpdate(item.item_id, { status: 'available', is_sold: false });
+        }
 
         // Notify Buyer
         await Notification.create({
             user_id: order.buyer_id,
             on_model: 'User',
-            title: 'Order Cancelled',
-            message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) has been cancelled by the seller. A refund has been processed to your wallet.`,
-            type: 'error',
+            title: 'Order Cancelled by Seller',
+            message: `Your order "${populatedOrder.item_id?.title}" (#${order.order_number}) has been cancelled by the seller. Reason: ${order.cancel_reason || 'N/A'}. A full refund has been processed.`,
+            type: 'alert',
             link: '/profile?tab=orders'
         });
     }
@@ -396,26 +426,30 @@ const cancelOrder = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to cancel this order');
     }
 
-    // Can only cancel if still in 'placed' status
-    if (order.order_status !== 'placed') {
+    // Can only cancel if still in 'pending', 'confirmed' or 'packed' status (before 'shipped')
+    if (['shipped', 'dispatched', 'on_the_way', 'out_for_delivery', 'delivered', 'cancelled', 'returned'].includes(order.order_status)) {
         res.status(400);
-        throw new Error('Order cannot be cancelled as it is already being processed or shipped');
+        throw new Error('Order cannot be cancelled as it is already shipped or completed');
     }
 
     order.order_status = 'cancelled';
+    order.cancel_reason = req.body.reason || 'Cancelled by buyer';
+    order.cancelled_at = new Date();
     await order.save();
 
     await reverseOrderPayment(order._id);
 
-    // Mark item as available again
-    await Item.findByIdAndUpdate(order.item_id, { status: 'available', is_sold: false });
+    // Mark items as available again
+    for (const item of (order.is_bundle ? order.items : [{ item_id: order.item_id }])) {
+        await Item.findByIdAndUpdate(item.item_id, { status: 'available', is_sold: false });
+    }
 
     // Notify Seller
     await Notification.create({
         user_id: order.seller_id,
         on_model: 'User',
-        title: 'Order Cancelled',
-        message: `Order #${order.order_number} has been cancelled by the buyer.`,
+        title: 'Order Cancelled by Buyer',
+        message: `Order #${order.order_number} has been cancelled by the buyer. Reason: ${order.cancel_reason}`,
         type: 'info',
         link: `/profile?tab=orders`
     });
@@ -479,6 +513,7 @@ const requestReturn = asyncHandler(async (req, res) => {
 
     order.order_status = 'return_requested';
     order.return_reason = reason;
+    order.return_requested_at = new Date();
     await order.save();
 
     // Notify Seller

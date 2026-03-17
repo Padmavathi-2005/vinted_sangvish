@@ -194,13 +194,17 @@ const imageSearch = asyncHandler(async (req, res) => {
         console.error(error);
         if (req.file) await fs.promises.unlink(req.file.path).catch(() => {});
 
-        let tip = "We're having trouble with visual search. Try describing the item in the search bar!";
-        if (error.message?.includes('quota')) tip = "Image search limit reached for today. Try again later!";
+        let statusCode = 500;
+        let message = "Visual search failed. Please try again with a clearer image.";
+        
+        if (error.message?.includes('quota') || error.message?.includes('429')) {
+            message = "Image search limit completed for today. Please try again later!";
+            statusCode = 429;
+        } else if (error.message?.includes('key') || error.message?.includes('API_KEY_INVALID')) {
+            message = "AI service configuration error. Please contact administrator.";
+        }
 
-        res.status(500).json({
-            message: "Visual Search Error: " + error.message,
-            tip: tip
-        });
+        res.status(statusCode).json({ message });
     }
 });
 

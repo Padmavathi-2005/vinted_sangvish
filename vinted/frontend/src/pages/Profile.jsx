@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from '../utils/axios';
 import AuthContext from '../context/AuthContext';
 import CurrencyContext from '../context/CurrencyContext';
-import { FaListAlt, FaBoxOpen, FaHeart, FaWallet, FaCheckCircle, FaUserEdit, FaAngleLeft, FaAngleRight, FaEnvelope, FaBell, FaTruck, FaClock, FaCreditCard, FaMoneyBillWave, FaBars, FaTimes, FaStar, FaTag, FaLightbulb } from 'react-icons/fa';
+import { FaListAlt, FaBoxOpen, FaHeart, FaWallet, FaCheckCircle, FaExclamationTriangle, FaUserEdit, FaAngleLeft, FaAngleRight, FaEnvelope, FaBell, FaTruck, FaClock, FaCreditCard, FaMoneyBillWave, FaBars, FaTimes, FaStar, FaTag, FaLightbulb } from 'react-icons/fa';
 import '../styles/Profile.css';
 import EditProfileModal from '../components/common/EditProfileModal';
 import EditItemModal from '../components/common/EditItemModal';
@@ -28,7 +28,7 @@ const Profile = () => {
         const queryParams = new URLSearchParams(window.location.search);
         const tabParam = queryParams.get('tab');
         if (tabParam) return tabParam;
-        
+
         return localStorage.getItem('profileActiveTab') || 'dashboard';
     });
 
@@ -99,6 +99,19 @@ const Profile = () => {
     });
     const [isDispatching, setIsDispatching] = useState(false);
 
+    // Custom Action Modal State
+    const [actionModal, setActionModal] = useState({
+        show: false,
+        type: '', // 'cancel', 'return', 'refund_partial', 'success', 'error'
+        title: '',
+        message: '',
+        confirmLabel: 'Confirm',
+        onConfirm: null,
+        inputValue: '',
+        inputValue2: '', // for partial refund amount
+        isLoading: false
+    });
+
     // Tab label helper
     const getTabLabel = (tab) => {
         const labels = {
@@ -123,10 +136,12 @@ const Profile = () => {
         // Map legacy 'booked' to 'pending'
         if (orderSubTab === 'booked' && (order.order_status === 'pending' || order.order_status === 'placed')) return true;
         // Map legacy 'dispatched' to 'shipped'
-        if (orderSubTab === 'dispatched' && (order.order_status === 'shipped' || order.order_status === 'dispatched')) return true;
+        if (orderSubTab === 'dispatched' && (order.order_status === 'shipped' || order.order_status === 'dispatched' || order.order_status === 'packed')) return true;
         // Map legacy 'on_the_way' to 'out_for_delivery'
         if (orderSubTab === 'on_the_way' && (order.order_status === 'out_for_delivery' || order.order_status === 'on_the_way')) return true;
-        
+        // Handle Returns (Requested or Completed)
+        if (orderSubTab === 'returns' && (order.order_status === 'returned' || order.order_status === 'return_requested')) return true;
+
         return order.order_status === orderSubTab;
     });
 
@@ -143,7 +158,7 @@ const Profile = () => {
         if (urlMode && (urlMode === 'buyer' || urlMode === 'seller')) {
             if (mode !== urlMode) setMode(urlMode);
         }
-        
+
         if (tab && activeTab !== tab) {
             setActiveTab(tab);
             localStorage.setItem('profileActiveTab', tab);
@@ -161,18 +176,20 @@ const Profile = () => {
             navigate(`/profile?tab=${activeTab}&mode=${mode}`, { replace: true });
         }
 
-        // Tab-to-Mode Enforcement (Hard Guard)
-        if (activeTab === 'listings' && mode !== 'seller') {
-            setMode('seller');
-        } else if (activeTab === 'favorites' && mode !== 'buyer') {
-            setMode('buyer');
+        // Mode-to-Tab Protection: If the mode changes to one that doesn't support the current tab, redirect to dashboard
+        if (mode === 'seller' && ['favorites'].includes(activeTab)) {
+            setActiveTab('dashboard');
+            localStorage.setItem('profileActiveTab', 'dashboard');
+        } else if (mode === 'buyer' && ['listings', 'bundle_settings'].includes(activeTab)) {
+            setActiveTab('dashboard');
+            localStorage.setItem('profileActiveTab', 'dashboard');
         }
     }, [mode, activeTab, navigate, location.pathname]);
 
     // Persist Tab Change
     const handleTabChange = (tab) => {
         let newMode = mode;
-        
+
         // Determine the required mode for this tab
         if (['listings', 'bundle_settings'].includes(tab)) {
             newMode = 'seller';
@@ -189,15 +206,6 @@ const Profile = () => {
         navigate(`/profile?tab=${tab}&mode=${newMode}`, { replace: true });
     };
 
-    // Redirect logic removed because we want to allow viewing tabs in any mode 
-    // or at least not reset to dashboard on every mode toggle if possible.
-    // However, if we must guard:
-    useEffect(() => {
-        if (mode === 'seller' && activeTab === 'favorites') {
-            // Keep it for now as favorites are usually buyer features, 
-            // but don't reset unless strictly necessary.
-        }
-    }, [mode, activeTab]);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -320,7 +328,7 @@ const Profile = () => {
         const labels = {
             'pending': 'PENDING',
             'confirmed': 'CONFIRMED',
-            'packed': 'PACKED',
+            'packed': 'PACKED / DISPATCHED',
             'shipped': 'SHIPPED',
             'out_for_delivery': 'OUT FOR DELIVERY',
             'delivered': 'DELIVERED',
@@ -337,61 +345,181 @@ const Profile = () => {
         return labels[status] || legacyLabels[status] || (status || 'PENDING').toUpperCase().replace(/_/g, ' ');
     };
 
-    const handleCancelOrder = async () => {
-        if (!window.confirm('Are you sure you want to cancel this order? You will receive a full refund in your wallet.')) return;
-        try {
-            await axios.post(`/api/orders/${selectedOrder._id}/cancel`);
-            fetchMyOrders();
-            setShowOrderModal(false);
-        } catch (err) {
-            console.error('Error cancelling order:', err);
-            alert(err.response?.data?.message || 'Failed to cancel order');
-        }
-    };
-
-    const handleRequestReturn = async () => {
-        const reason = window.prompt("Please enter the reason for your return request:");
-        if (!reason) return;
-        try {
-            const res = await axios.post(`/api/orders/${selectedOrder._id}/return`, { reason });
-            setSelectedOrder(res.data.order);
-            fetchMyOrders();
-            alert("Return requested successfully");
-        } catch (err) {
-            console.error(err);
-            alert(err.response?.data?.message || 'Failed to request return');
-        }
-    };
-
-    const handleProcessReturn = async (refundType) => {
-        let amount = 0;
-        let reason = '';
-        if (refundType === 'partial') {
-            const amountStr = window.prompt(`Enter amount to refund (Max: ${selectedOrder.total_amount}):`);
-            if (!amountStr) return;
-            amount = Number(amountStr);
-            if (isNaN(amount) || amount <= 0 || amount > selectedOrder.total_amount) {
-                return alert("Invalid amount");
+    const handleCancelOrder = () => {
+        setActionModal({
+            show: true,
+            type: 'cancel',
+            title: t('profile.cancel_order_title', 'Cancel Order'),
+            message: t('profile.cancel_order_confirm', 'Are you sure you want to cancel this order? You will receive a full refund in your wallet.'),
+            confirmLabel: t('profile.confirm_cancel', 'Confirm Cancellation'),
+            inputValue: '',
+            onConfirm: async (reason) => {
+                if (!reason.trim()) return alert('Reason is required for cancellation');
+                try {
+                    await axios.post(`/api/orders/${selectedOrder._id}/cancel`, { reason });
+                    fetchMyOrders();
+                    setShowOrderModal(false);
+                    setActionModal(prev => ({ ...prev, show: false }));
+                    // Success pop
+                    setTimeout(() => {
+                        setActionModal({
+                            show: true,
+                            type: 'success',
+                            title: 'Order Cancelled',
+                            message: 'Your order has been cancelled and a full refund was issued to your wallet.',
+                            confirmLabel: 'Got it'
+                        });
+                    }, 300);
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Failed to cancel order');
+                }
             }
-            reason = window.prompt("Enter reason for partial refund:");
-            if (!reason) return;
-        } else {
-            if (!window.confirm("Are you sure you want to issue a full refund?")) return;
-            reason = "Full Refund processed";
-        }
+        });
+    };
 
-        try {
-            const res = await axios.post(`/api/orders/${selectedOrder._id}/process-return`, { refundType, amount, reason });
-            setSelectedOrder(res.data.order);
-            fetchMyOrders();
-            alert("Return processed successfully");
-        } catch (err) {
-            console.error(err);
-            alert(err.response?.data?.message || 'Failed to process return');
+    const [returningOrderId, setReturningOrderId] = useState(null);
+
+    const handleRequestReturn = () => {
+        setActionModal({
+            show: true,
+            type: 'return',
+            title: 'Request Return',
+            message: 'Tell us why you would like to return this item. This will be sent to the seller for review.',
+            confirmLabel: 'Submit Request',
+            inputValue: '',
+            onConfirm: async (reason) => {
+                if (!reason.trim()) return alert('Please provide a reason for the return');
+                setReturningOrderId(selectedOrder._id);
+                try {
+                    const res = await axios.post(`/api/orders/${selectedOrder._id}/return`, { reason });
+                    setSelectedOrder(res.data.order);
+                    fetchMyOrders();
+                    setActionModal(prev => ({ ...prev, show: false }));
+                    // Success pop
+                    setTimeout(() => {
+                        setActionModal({
+                            show: true,
+                            type: 'success',
+                            title: 'Return Requested',
+                            message: 'Your return request has been sent to the seller.',
+                            confirmLabel: 'OK'
+                        });
+                    }, 300);
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Failed to request return');
+                } finally {
+                    setReturningOrderId(null);
+                }
+            }
+        });
+    };
+
+    const handleProcessReturn = (refundType) => {
+        if (refundType === 'partial') {
+            setActionModal({
+                show: true,
+                type: 'refund_partial',
+                title: 'Process Partial Refund',
+                message: `The buyer will receive a partial refund for their return.`,
+                confirmLabel: 'Process Refund',
+                inputValue: '', // reason
+                inputValue2: '', // amount
+                onConfirm: async (reason, amountStr) => {
+                    const amount = Number(amountStr);
+                    if (!amountStr || isNaN(amount) || amount <= 0 || amount > selectedOrder.total_amount) {
+                        return alert("Please enter a valid refund amount");
+                    }
+                    if (!reason.trim()) return alert("Please provide a reason for the partial refund");
+
+                    try {
+                        const res = await axios.post(`/api/orders/${selectedOrder._id}/process-return`, { refundType, amount, reason });
+                        setSelectedOrder(res.data.order);
+                        fetchMyOrders();
+                        setActionModal(prev => ({ ...prev, show: false }));
+
+                        setTimeout(() => {
+                            setActionModal({
+                                show: true,
+                                type: 'success',
+                                title: 'Refund Processed',
+                                message: `A partial refund of ${formatPrice(amount)} has been issued to the buyer.`,
+                                confirmLabel: 'Close'
+                            });
+                        }, 300);
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Failed to process return');
+                    }
+                }
+            });
+        } else {
+            setActionModal({
+                show: true,
+                type: 'confirm',
+                title: 'Process Full Refund',
+                message: `Are you sure you want to issue a full refund of ${formatPrice(selectedOrder.total_amount)} to the buyer? This action cannot be undone.`,
+                confirmLabel: 'Confirm Full Refund',
+                onConfirm: async () => {
+                    try {
+                        const res = await axios.post(`/api/orders/${selectedOrder._id}/process-return`, { refundType: 'full', amount: selectedOrder.total_amount, reason: 'Full Refund processed' });
+                        setSelectedOrder(res.data.order);
+                        fetchMyOrders();
+                        setActionModal(prev => ({ ...prev, show: false }));
+
+                        setTimeout(() => {
+                            setActionModal({
+                                show: true,
+                                type: 'success',
+                                title: 'Full Refund Issued',
+                                message: 'The buyer has been fully refunded and the item has been re-listed.',
+                                confirmLabel: 'Got it'
+                            });
+                        }, 300);
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Failed to process refund');
+                    }
+                }
+            });
         }
     };
 
     const handleStatusUpdate = async (newStatus) => {
+        let cancel_reason = '';
+        if (newStatus === 'cancelled') {
+            setActionModal({
+                show: true,
+                type: 'cancel',
+                title: 'Cancel Order',
+                message: 'Are you sure you want to cancel this order?',
+                confirmLabel: 'Cancel Order',
+                inputValue: '',
+                onConfirm: async (cancel_reason) => {
+                    if (!cancel_reason.trim()) return alert("Cancel reason is required");
+                    try {
+                        const res = await axios.put(`/api/orders/${selectedOrder._id}/status`, {
+                            status: newStatus,
+                            cancel_reason
+                        });
+                        setSelectedOrder(res.data);
+                        fetchMyOrders();
+                        setActionModal(prev => ({ ...prev, show: false }));
+
+                        setTimeout(() => {
+                            setActionModal({
+                                show: true,
+                                type: 'success',
+                                title: 'Order Cancelled',
+                                message: 'Order has been successfully cancelled and buyer has been notified.',
+                                confirmLabel: 'OK'
+                            });
+                        }, 300);
+                    } catch (err) {
+                        alert(err.response?.data?.message || 'Failed to cancel order');
+                    }
+                }
+            });
+            return;
+        }
+
         try {
             const res = await axios.put(`/api/orders/${selectedOrder._id}/status`, {
                 status: newStatus
@@ -406,7 +534,7 @@ const Profile = () => {
 
     const handleDispatchOrder = async (e) => {
         if (e) e.preventDefault();
-        
+
         if (!dispatchForm.shipping_company_id) return alert('Please select a shipping company');
         if (!dispatchForm.tracking_id) return alert('Please enter a tracking ID');
 
@@ -415,7 +543,7 @@ const Profile = () => {
             const res = await axios.put(`/api/shipping/dispatch/${selectedOrder._id}`, dispatchForm);
             setSelectedOrder(res.data);
             fetchMyOrders();
-            alert('Order dispatched successfully!');
+            alert('Tracking information updated successfully!');
         } catch (err) {
             console.error('Error dispatching order:', err);
             alert(err.response?.data?.message || 'Failed to dispatch order');
@@ -595,149 +723,153 @@ const Profile = () => {
 
             <div className="pd-container">
                 {/* ─── Top Navigation ─── */}
-                <div className="pd-nav">
-                    <div className="pd-nav-items">
-                        <div className={`pd-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}>{t('profile.dashboard')}</div>
-                        <div className={`pd-nav-item ${activeTab === 'profile_settings' ? 'active' : ''}`} onClick={() => handleTabChange('profile_settings')}>{t('user_menu.my_profile')}</div>
+                <div className="pd-header-full">
+                    <div className="pd-nav">
+                        <div className="pd-nav-items">
+                            <div className={`pd-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabChange('dashboard')}>{t('profile.dashboard')}</div>
+                            <div className={`pd-nav-item ${activeTab === 'profile_settings' ? 'active' : ''}`} onClick={() => handleTabChange('profile_settings')}>{t('user_menu.my_profile')}</div>
 
-                        {mode === 'buyer' && (
-                            <>
-                                <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('user_menu.my_orders', 'My Orders')}</div>
-                                <div className={`pd-nav-item ${activeTab === 'favorites' ? 'active' : ''}`} onClick={() => handleTabChange('favorites')}>{t('profile.favorites')}</div>
-                            </>
-                        )}
+                            {mode === 'buyer' && (
+                                <>
+                                    <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('user_menu.my_orders', 'My Orders')}</div>
+                                    <div className={`pd-nav-item ${activeTab === 'favorites' ? 'active' : ''}`} onClick={() => handleTabChange('favorites')}>{t('profile.favorites')}</div>
+                                </>
+                            )}
 
-                        {mode === 'seller' && (
-                            <>
-                                <div className={`pd-nav-item ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => handleTabChange('listings')}>{t('user_menu.manage_listings', 'Manage Listings')}</div>
-                                <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('profile.orders_received', 'Orders Received')}</div>
-                                <div className={`pd-nav-item ${activeTab === 'bundle_settings' ? 'active' : ''}`} onClick={() => handleTabChange('bundle_settings')}>Bundle Discounts</div>
-                            </>
-                        )}
+                            {mode === 'seller' && (
+                                <>
+                                    <div className={`pd-nav-item ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => handleTabChange('listings')}>{t('user_menu.manage_listings', 'Manage Listings')}</div>
+                                    <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('profile.orders_received', 'Orders Received')}</div>
+                                    <div className={`pd-nav-item ${activeTab === 'bundle_settings' ? 'active' : ''}`} onClick={() => handleTabChange('bundle_settings')}>Bundle Discounts</div>
+                                </>
+                            )}
 
-                        <div className={`pd-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => handleTabChange('messages')}>{t('user_menu.messages', 'Messages')}</div>
-                        <div className={`pd-nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => handleTabChange('notifications')}>{t('notifications.title', 'Notifications')}</div>
-                        <div className={`pd-nav-item ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => handleTabChange('payments')}>{t('profile.payment_account', 'Payment & Account')}</div>
-                    </div>
+                            <div className={`pd-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => handleTabChange('messages')}>{t('user_menu.messages', 'Messages')}</div>
+                            <div className={`pd-nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => handleTabChange('notifications')}>{t('notifications.title', 'Notifications')}</div>
+                            <div className={`pd-nav-item ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => handleTabChange('payments')}>{t('profile.payment_account', 'Payment & Account')}</div>
+                        </div>
 
-                    <div
-                        className={`pd-mode-toggle-wrapper ${mode === 'seller' ? 'seller-active' : ''}`}
-                        onClick={toggleMode}
-                        title={`Switch to ${mode === 'buyer' ? 'Seller' : 'Buyer'} Mode`}
-                    >
-                        <div className="pd-mode-toggle-slider" />
-                        <div className={`pd-mode-option ${mode === 'buyer' ? 'active' : ''}`}>{t('user_menu.buyer_mode', 'Buyer')}</div>
-                        <div className={`pd-mode-option ${mode === 'seller' ? 'active' : ''}`}>{t('user_menu.seller_mode', 'Seller')}</div>
+                        <div
+                            className={`pd-mode-toggle-wrapper ${mode === 'seller' ? 'seller-active' : ''}`}
+                            onClick={toggleMode}
+                            title={`Switch to ${mode === 'buyer' ? 'Seller' : 'Buyer'} Mode`}
+                        >
+                            <div className="pd-mode-toggle-slider" />
+                            <div className={`pd-mode-option ${mode === 'buyer' ? 'active' : ''}`}>{t('user_menu.buyer_mode', 'Buyer')}</div>
+                            <div className={`pd-mode-option ${mode === 'seller' ? 'active' : ''}`}>{t('user_menu.seller_mode', 'Seller')}</div>
+                        </div>
                     </div>
                 </div>
 
                 {/* ─── Sidebar ─── */}
                 <div className="pd-sidebar">
-                        <div className="pd-card pd-profile-card">
-                            <div className="pd-avatar-wrapper">
-                                {user.profile_image ? (
-                                    <img
-                                        src={getImageUrl(user.profile_image)}
-                                        alt="Profile"
-                                        className="pd-avatar"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.parentNode.innerHTML = `<div class="pd-avatar-placeholder" style="background-color: var(--primary-color); color: white;">${safeString(user.username || 'U').charAt(0).toUpperCase()}</div>`;
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="pd-avatar-placeholder" style={{ backgroundColor: 'var(--primary-color)', color: 'white' }}>
-                                        {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
-                                    </div>
-                                )}
-                                <div className="pd-avatar-upload-icon" onClick={() => handleTabChange('profile_settings')}><FaUserEdit /></div>
-                            </div>
-                            <div className="d-grid gap-2 mt-3">
-                                <button className="btn btn-outline-danger btn-sm rounded-pill py-2" onClick={logout}>{t('user_menu.logout', 'Logout')}</button>
-                            </div>
-                            <div className="mt-3 pt-3 border-top">
-                                <p className="text-muted extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em' }}>{t('profile.account_security', 'Account & Privacy')}</p>
-                                <button className="btn btn-link text-danger btn-sm text-decoration-none fw-bold p-0" style={{ fontSize: '0.8rem' }}>{t('profile.delete_account', 'Delete Account')}</button>
-                            </div>
-
-                            {/* Sub-menu Items (Now inside Profile Card for a cleaner look) */}
-                            {activeTab === 'orders' && (
-                                <div className="mt-3 pt-3 border-top">
-                                    <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>{t('profile.order_status', 'Order Status')}</p>
-                                    <div className="d-flex flex-column gap-1">
-                                        <div className={`pd-sidemenu-item ${orderSubTab === 'all' ? 'active' : ''}`} onClick={() => setOrderSubTab('all')}>{t('profile.all_orders', 'All Orders')}</div>
-                                        <div className={`pd-sidemenu-item ${orderSubTab === 'pending' ? 'active' : ''}`} onClick={() => setOrderSubTab('pending')}>{t('order_status.pending', 'Pending')}</div>
-                                        <div className={`pd-sidemenu-item ${orderSubTab === 'confirmed' ? 'active' : ''}`} onClick={() => setOrderSubTab('confirmed')}>{t('order_status.confirmed', 'Confirmed')}</div>
-                                        <div className={`pd-sidemenu-item ${orderSubTab === 'shipped' ? 'active' : ''}`} onClick={() => setOrderSubTab('shipped')}>{t('order_status.shipped', 'Shipped')}</div>
-                                        <div className={`pd-sidemenu-item ${orderSubTab === 'delivered' ? 'active' : ''}`} onClick={() => setOrderSubTab('delivered')}>{t('order_status.delivered', 'Delivered')}</div>
-                                        <div className={`pd-sidemenu-item ${orderSubTab === 'cancelled' ? 'active' : ''}`} onClick={() => setOrderSubTab('cancelled')}>{t('order_status.cancelled', 'Cancelled')}</div>
-                                    </div>
+                    <div className="pd-card pd-profile-card">
+                        <div className="pd-avatar-wrapper">
+                            {user.profile_image ? (
+                                <img
+                                    src={getImageUrl(user.profile_image)}
+                                    alt="Profile"
+                                    className="pd-avatar"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.parentNode.innerHTML = `<div class="pd-avatar-placeholder" style="background-color: var(--primary-color); color: white;">${safeString(user.username || 'U').charAt(0).toUpperCase()}</div>`;
+                                    }}
+                                />
+                            ) : (
+                                <div className="pd-avatar-placeholder" style={{ backgroundColor: 'var(--primary-color)', color: 'white' }}>
+                                    {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
                                 </div>
                             )}
-
-                            {activeTab === 'payments' && (
-                                <div className="mt-3 pt-3 border-top">
-                                    <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>{t('profile.payment_section', 'Payment Section')}</p>
-                                    <div className="d-flex flex-column gap-1">
-                                        <div className={`pd-sidemenu-item ${paymentSubTab === 'wallet' ? 'active' : ''}`} onClick={() => setPaymentSubTab('wallet')}>{t('profile.wallet', 'Wallet')}</div>
-                                        <div className={`pd-sidemenu-item ${paymentSubTab === 'transactions' ? 'active' : ''}`} onClick={() => setPaymentSubTab('transactions')}>{t('profile.transactions', 'Transactions')}</div>
-                                        <div className={`pd-sidemenu-item ${paymentSubTab === 'withdrawals' ? 'active' : ''}`} onClick={() => setPaymentSubTab('withdrawals')}>{t('profile.withdraw_requests', 'Withdraw Requests')}</div>
-                                        <div className={`pd-sidemenu-item ${paymentSubTab === 'payout-methods' ? 'active' : ''}`} onClick={() => setPaymentSubTab('payout-methods')}>{t('profile.payout_methods', 'Payout Methods')}</div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'listings' && (
-                                <div className="mt-3 pt-3 border-top text-start">
-                                    <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>Listings Summary</p>
-                                    <div className="d-flex flex-column gap-2">
-                                        <div className="small d-flex justify-content-between">
-                                            <span>Total Items</span>
-                                            <span className="fw-bold">{listingsTotalCount}</span>
-                                        </div>
-                                        <div className="small d-flex justify-content-between">
-                                            <span>Sold Items</span>
-                                            <span className="fw-bold text-success">{user.sold_count || 0}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'bundle_settings' && (
-                                <div className="mt-3 pt-3 border-top text-start">
-                                    <p className="extra-small mb-3 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>Bundle Tips</p>
-                                    <div className="pd-bundle-help-sidebar-card p-3 rounded-3 mb-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                                        <div className="d-flex align-items-center gap-2 mb-2">
-                                            <FaLightbulb className="text-warning" />
-                                            <span className="fw-bold small">Seller Tips</span>
-                                        </div>
-                                        <ul className="ps-3 mb-0 small text-muted" style={{ fontSize: '0.75rem' }}>
-                                            <li>Items with discounts get a special badge in search results.</li>
-                                            <li className="mt-1">Sellers with bundles enabled sell 3x faster on average.</li>
-                                            <li className="mt-1">All bundle items are shipped in a single package.</li>
-                                        </ul>
-                                    </div>
-                                    <div className="pd-bundle-preview-mini p-3 rounded-3" style={{ background: '#eff6ff', border: '1px solid #dbeafe' }}>
-                                        <div className="d-flex align-items-center gap-2">
-                                            <FaCheckCircle className="text-primary" />
-                                            <span className="fw-bold small text-primary">Live Now</span>
-                                        </div>
-                                        <p className="mb-0 mt-1 text-primary" style={{ fontSize: '0.7rem' }}>Discounts are applied automatically at checkout.</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'favorites' && (
-                                <div className="mt-3 pt-3 border-top text-start">
-                                    <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>FAVORITES SCORE</p>
-                                    <div className="small d-flex justify-content-between">
-                                        <span>Items Saved</span>
-                                        <span className="fw-bold text-primary">{favoritesTotalCount}</span>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="pd-avatar-upload-icon" onClick={() => handleTabChange('profile_settings')}><FaUserEdit /></div>
                         </div>
+                        <div className="d-grid gap-2 mt-3">
+                            <button className="btn btn-outline-danger btn-sm rounded-pill py-2" onClick={logout}>{t('user_menu.logout', 'Logout')}</button>
+                        </div>
+                        <div className="mt-3 pt-3 border-top">
+                            <p className="text-muted extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em' }}>{t('profile.account_security', 'Account & Privacy')}</p>
+                            <button className="btn btn-link text-danger btn-sm text-decoration-none fw-bold p-0" style={{ fontSize: '0.8rem' }}>{t('profile.delete_account', 'Delete Account')}</button>
+                        </div>
+
+                        {/* Sub-menu Items (Now inside Profile Card for a cleaner look) */}
+                        {activeTab === 'orders' && (
+                            <div className="mt-3 pt-3 border-top">
+                                <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>{t('profile.order_status', 'Order Status')}</p>
+                                <div className="d-flex flex-column gap-1">
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'all' ? 'active' : ''}`} onClick={() => setOrderSubTab('all')}>{t('profile.all_orders', 'All Orders')}</div>
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'pending' ? 'active' : ''}`} onClick={() => setOrderSubTab('pending')}>{t('order_status.pending', 'Pending')}</div>
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'confirmed' ? 'active' : ''}`} onClick={() => setOrderSubTab('confirmed')}>{t('order_status.confirmed', 'Confirmed')}</div>
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'packed' ? 'active' : ''}`} onClick={() => setOrderSubTab('packed')}>{t('order_status.packed', 'Packed')}</div>
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'shipped' ? 'active' : ''}`} onClick={() => setOrderSubTab('shipped')}>{t('order_status.shipped', 'Shipped')}</div>
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'delivered' ? 'active' : ''}`} onClick={() => setOrderSubTab('delivered')}>{t('order_status.delivered', 'Delivered')}</div>
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'returns' ? 'active' : ''}`} onClick={() => setOrderSubTab('returns')}>{t('order_status.returns', 'Returns')}</div>
+                                    <div className={`pd-sidemenu-item ${orderSubTab === 'cancelled' ? 'active' : ''}`} onClick={() => setOrderSubTab('cancelled')}>{t('order_status.cancelled', 'Cancelled')}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'payments' && (
+                            <div className="mt-3 pt-3 border-top">
+                                <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>{t('profile.payment_section', 'Payment Section')}</p>
+                                <div className="d-flex flex-column gap-1">
+                                    <div className={`pd-sidemenu-item ${paymentSubTab === 'wallet' ? 'active' : ''}`} onClick={() => setPaymentSubTab('wallet')}>{t('profile.wallet', 'Wallet')}</div>
+                                    <div className={`pd-sidemenu-item ${paymentSubTab === 'transactions' ? 'active' : ''}`} onClick={() => setPaymentSubTab('transactions')}>{t('profile.transactions', 'Transactions')}</div>
+                                    <div className={`pd-sidemenu-item ${paymentSubTab === 'withdrawals' ? 'active' : ''}`} onClick={() => setPaymentSubTab('withdrawals')}>{t('profile.withdraw_requests', 'Withdraw Requests')}</div>
+                                    <div className={`pd-sidemenu-item ${paymentSubTab === 'payout-methods' ? 'active' : ''}`} onClick={() => setPaymentSubTab('payout-methods')}>{t('profile.payout_methods', 'Payout Methods')}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'listings' && (
+                            <div className="mt-3 pt-3 border-top text-start">
+                                <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>Listings Summary</p>
+                                <div className="d-flex flex-column gap-2">
+                                    <div className="small d-flex justify-content-between">
+                                        <span>Total Items</span>
+                                        <span className="fw-bold">{listingsTotalCount}</span>
+                                    </div>
+                                    <div className="small d-flex justify-content-between">
+                                        <span>Sold Items</span>
+                                        <span className="fw-bold text-success">{user.sold_count || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'bundle_settings' && (
+                            <div className="mt-3 pt-3 border-top text-start">
+                                <p className="extra-small mb-3 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>Bundle Tips</p>
+                                <div className="pd-bundle-help-sidebar-card p-3 rounded-3 mb-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                    <div className="d-flex align-items-center gap-2 mb-2">
+                                        <FaLightbulb className="text-warning" />
+                                        <span className="fw-bold small">Seller Tips</span>
+                                    </div>
+                                    <ul className="ps-3 mb-0 small text-muted" style={{ fontSize: '0.75rem' }}>
+                                        <li>Items with discounts get a special badge in search results.</li>
+                                        <li className="mt-1">Sellers with bundles enabled sell 3x faster on average.</li>
+                                        <li className="mt-1">All bundle items are shipped in a single package.</li>
+                                    </ul>
+                                </div>
+                                <div className="pd-bundle-preview-mini p-3 rounded-3" style={{ background: '#eff6ff', border: '1px solid #dbeafe' }}>
+                                    <div className="d-flex align-items-center gap-2">
+                                        <FaCheckCircle className="text-primary" />
+                                        <span className="fw-bold small text-primary">Live Now</span>
+                                    </div>
+                                    <p className="mb-0 mt-1 text-primary" style={{ fontSize: '0.7rem' }}>Discounts are applied automatically at checkout.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'favorites' && (
+                            <div className="mt-3 pt-3 border-top text-start">
+                                <p className="extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em', color: '#64748b' }}>FAVORITES SCORE</p>
+                                <div className="small d-flex justify-content-between">
+                                    <span>Items Saved</span>
+                                    <span className="fw-bold text-primary">{favoritesTotalCount}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
+                </div>
 
                 {/* ─── Main Content ─── */}
                 <div className="pd-main">
@@ -920,9 +1052,9 @@ const Profile = () => {
                                     [...Array(6)].map((_, i) => <SkeletonCard key={i} />)
                                 ) : myListings.length > 0 ? (
                                     myListings.map(item => (
-                                        <ItemCard 
+                                        <ItemCard
                                             key={item._id}
-                                            item={item} 
+                                            item={item}
                                             onEdit={(it) => setEditingItem(it)}
                                         />
                                     ))
@@ -1009,12 +1141,18 @@ const Profile = () => {
 
                     {activeTab === 'orders' && (
                         <div className="pd-orders-container">
-                            <div className="d-flex justify-content-between align-items-center mb-4">
-                                <h2 className="fw-bold m-0" style={{ fontSize: '1.2rem' }}>
-                                    {mode === 'buyer' ? t('user_menu.my_orders', 'My Orders') : t('profile.orders_received', 'Orders Received')} ({filteredOrders.length})
-                                </h2>
-                                <div className="d-flex gap-2">
-                                    <button className="btn btn-light btn-sm rounded-pill px-3 border" onClick={fetchMyOrders}>{t('profile.refresh', 'Refresh')}</button>
+                            <div className="pd-orders-header mb-4">
+                                <div className="pd-orders-header-title">
+                                    <h2 className="m-0">
+                                        {mode === 'buyer' ? t('user_menu.my_orders', 'My Orders') : t('profile.orders_received', 'Orders Received')}
+                                        <span className="pd-badge-count">{filteredOrders.length}</span>
+                                    </h2>
+                                    <p className="text-muted small m-0">{mode === 'buyer' ? 'Track and manage your purchases' : 'Manage your sales and shipments'}</p>
+                                </div>
+                                <div className="pd-orders-header-actions">
+                                    <button className="btn btn-refresh" onClick={fetchMyOrders}>
+                                        <FaClock className="me-1" /> {t('profile.refresh', 'Refresh')}
+                                    </button>
                                 </div>
                             </div>
 
@@ -1043,33 +1181,64 @@ const Profile = () => {
                                                 });
                                             }}
                                         >
-                                            <div className="pd-oic-image-wrapper">
-                                                <img
-                                                    src={getItemImageUrl(order.item_id?.images?.[0])}
-                                                    alt={safeString(order.item_id?.title)}
-                                                />
-                                                <div className={`pd-oic-status-badge ${order.order_status || 'placed'}`}>
-                                                    {getStatusLabel(order.order_status)}
+                                            <div className="pd-oic-header">
+                                                <div className="pd-oic-order-ref">
+                                                    <span className="pd-oic-ref-label">Order</span>
+                                                    <span className="pd-oic-ref-value">#{order.order_number?.split('-')[1]}</span>
                                                 </div>
-                                                {order.payment_status === 'paid' && (
-                                                    <div className="pd-oic-payment-success">
-                                                        <FaCheckCircle /> PAID
-                                                    </div>
-                                                )}
+                                                <div className="pd-oic-order-date">
+                                                    {new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </div>
                                             </div>
-                                            <div className="pd-oic-details">
-                                                <div className="pd-oic-top">
-                                                    <h3 className="pd-oic-title">{safeString(order.item_id?.title) || 'Unknown Item'}</h3>
-                                                    <span className="pd-oic-price">{formatPrice(order.total_amount)}</span>
+
+                                            <div className="pd-oic-main">
+                                                <div className="pd-oic-image-wrapper">
+                                                    <img
+                                                        src={getItemImageUrl(order.item_id?.images?.[0])}
+                                                        alt={safeString(order.item_id?.title)}
+                                                    />
+                                                    <div className={`pd-oic-status-badge ${order.order_status || 'placed'}`}>
+                                                        {getStatusLabel(order.order_status)}
+                                                    </div>
                                                 </div>
-                                                <div className="pd-oic-meta">
-                                                    <span className="pd-oic-num">#{order.order_number?.split('-')[1]}</span>
-                                                    <span className="pd-oic-date">{new Date(order.created_at).toLocaleDateString()}</span>
+
+                                                <div className="pd-oic-body">
+                                                    <div className="pd-oic-info">
+                                                        <h3 className="pd-oic-title">{safeString(order.item_id?.title) || 'Unknown Item'}</h3>
+                                                        <div className="pd-oic-participant-mini">
+                                                            {mode === 'buyer' ? (
+                                                                <>
+                                                                    <div className="pd-oic-participant-icon buyer"><FaUserEdit /></div>
+                                                                    <span>Seller: <strong>{safeString(order.seller_id?.username)}</strong></span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="pd-oic-participant-icon seller"><FaCheckCircle /></div>
+                                                                    <span>Buyer: <strong>{safeString(order.buyer_id?.username)}</strong></span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pd-oic-financials">
+                                                        <div className="pd-oic-price-tag">
+                                                            <span className="pd-oic-price-label">Total Amount</span>
+                                                            <span className="pd-oic-price-value">{formatPrice(order.total_amount)}</span>
+                                                        </div>
+                                                        {order.payment_status === 'paid' && (
+                                                            <div className="pd-oic-payment-status paid">
+                                                                <FaCheckCircle /> <span>PAID</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="pd-oic-participant small text-muted mb-2">
-                                                    {mode === 'buyer' ? `${t('profile.seller', 'Seller')}: ${safeString(order.seller_id?.username)}` : `${t('profile.buyer', 'Buyer')}: ${safeString(order.buyer_id?.username)}`}
-                                                </div>
-                                                <button className="pd-oic-view-btn">{t('profile.view_tracking', 'View Tracking & Details')}</button>
+                                            </div>
+
+                                            <div className="pd-oic-footer">
+                                                <button className="pd-oic-view-btn">
+                                                    <span>View Details</span>
+                                                    <FaAngleRight />
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -1111,22 +1280,27 @@ const Profile = () => {
                                                     <div className="order-tracker-container">
                                                         <h4 className="detail-section-title">{t('profile.delivery_progress', 'Delivery Progress')}</h4>
                                                         <div className="order-tracker">
-                                                            {/* Step 1: Pending/Confirmed/Packed */}
-                                                            <div className={`tracker-step ${['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
+                                                            {/* Step 1: Confirmed */}
+                                                            <div className={`tracker-step ${['confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
                                                                 <div className="tracker-label">{t('order_status.confirmed', 'Confirmed')}</div>
                                                             </div>
-                                                            {/* Step 2: Shipped */}
+                                                            {/* Step 2: Packed / Dispatched */}
+                                                            <div className={`tracker-step ${['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
+                                                                <div className="tracker-dot"></div>
+                                                                <div className="tracker-label">{t('order_status.packed_dispatched', 'Packed / Dispatched')}</div>
+                                                            </div>
+                                                            {/* Step 3: Shipped */}
                                                             <div className={`tracker-step ${['shipped', 'out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
                                                                 <div className="tracker-label">{t('order_status.shipped', 'Shipped')}</div>
                                                             </div>
-                                                            {/* Step 3: Out for Delivery */}
+                                                            {/* Step 4: Out for Delivery */}
                                                             <div className={`tracker-step ${['out_for_delivery', 'delivered'].includes(selectedOrder.order_status) ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
                                                                 <div className="tracker-label">{t('order_status.out_for_delivery', 'Out for Delivery')}</div>
                                                             </div>
-                                                            {/* Step 4: Delivered */}
+                                                            {/* Step 5: Delivered */}
                                                             <div className={`tracker-step ${selectedOrder.order_status === 'delivered' ? 'completed' : ''}`}>
                                                                 <div className="tracker-dot"></div>
                                                                 <div className="tracker-label">{t('order_status.delivered', 'Delivered')}</div>
@@ -1223,6 +1397,85 @@ const Profile = () => {
                                                             </div>
                                                         )}
                                                     </div>
+
+                                                    <div className="detail-section mt-5">
+                                                        <h4 className="detail-section-title mb-3">{t('profile.purchased_item', 'Purchased Item')}</h4>
+                                                        <div className="detail-item-card p-3 bg-white border rounded-3 shadow-sm">
+                                                            <div className="d-flex align-items-center gap-4">
+                                                                <img className="rounded-3 shadow-sm" style={{ width: '80px', height: '80px', objectFit: 'cover' }} src={getItemImageUrl(selectedOrder.item_id?.images?.[0])} alt="" />
+                                                                <div className="flex-grow-1">
+                                                                    <h5 className="h6 fw-bold mb-1 text-dark">{safeString(selectedOrder.item_id?.title)}</h5>
+                                                                    <p className="text-muted extra-small mb-2 fw-bold text-uppercase">
+                                                                        {mode === 'buyer' ? `${t('profile.sold_by', 'Sold by:')} ${safeString(selectedOrder.seller_id?.username)}` : `${t('profile.bought_by', 'Bought by:')} ${safeString(selectedOrder.buyer_id?.username)}`}
+                                                                    </p>
+                                                                    <div className="d-flex align-items-center gap-2">
+                                                                        <span className="badge bg-primary-soft text-primary px-2 py-1 rounded-pill extra-small">Item Price</span>
+                                                                        <span className="fw-bold text-dark small">{formatPrice(selectedOrder.item_price)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {(selectedOrder.tracking_id || selectedOrder.shipping_company_id || selectedOrder.delivered_at) && (
+                                                        <div className="detail-section mt-5">
+                                                            <h4 className="detail-section-title mb-3">{t('profile.tracking_info', 'Delivery & Tracking History')}</h4>
+                                                            <div className="p-3 bg-white border rounded-3 shadow-sm tracker-history-box">
+                                                                <div className="d-flex justify-content-between mb-2">
+                                                                    <span className="text-muted small">Shipping Partner</span>
+                                                                    <span className="small fw-bold text-dark">{selectedOrder.shipping_company_id?.company_name || 'Standard Shipping'}</span>
+                                                                </div>
+                                                                <div className="d-flex justify-content-between mb-4">
+                                                                    <span className="text-muted small">Tracking Number</span>
+                                                                    <span className="small fw-bold text-dark text-uppercase">{selectedOrder.tracking_id || 'N/A'}</span>
+                                                                </div>
+
+                                                                <div className="timeline-trail pt-3 border-top">
+                                                                    {selectedOrder.created_at && (
+                                                                        <div className="timeline-milestone">
+                                                                            <span className="text-muted extra-small uppercase">Ordered</span>
+                                                                            <span className="small fw-bold text-dark">{new Date(selectedOrder.created_at).toLocaleDateString()}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {selectedOrder.packed_at && (
+                                                                        <div className="timeline-milestone">
+                                                                            <span className="text-muted extra-small uppercase">Packed</span>
+                                                                            <span className="small fw-bold text-dark">{new Date(selectedOrder.packed_at).toLocaleDateString()}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {selectedOrder.shipped_at && (
+                                                                        <div className="timeline-milestone">
+                                                                            <span className="text-muted extra-small uppercase">Shipped</span>
+                                                                            <span className="small fw-bold text-dark">{new Date(selectedOrder.shipped_at).toLocaleDateString()}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {selectedOrder.out_for_delivery_at && (
+                                                                        <div className="timeline-milestone">
+                                                                            <span className="text-muted extra-small uppercase">Out for Delivery</span>
+                                                                            <span className="small fw-bold text-dark">{new Date(selectedOrder.out_for_delivery_at).toLocaleDateString()}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {selectedOrder.delivered_at && (
+                                                                        <div className="timeline-milestone active">
+                                                                            <span className="text-success extra-small fw-bold uppercase">Delivered</span>
+                                                                            <span className="small fw-bold text-success">{new Date(selectedOrder.delivered_at).toLocaleDateString()}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {selectedOrder.shipping_company_id?.tracking_url && selectedOrder.tracking_id && (
+                                                                    <a
+                                                                        href={selectedOrder.shipping_company_id.tracking_url.replace('%tracking_id%', selectedOrder.tracking_id)}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="btn btn-primary btn-sm w-100 fw-bold mt-3 py-2"
+                                                                    >
+                                                                        {t('profile.track_package', 'Track External Package')}
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="order-detail-side">
@@ -1251,20 +1504,9 @@ const Profile = () => {
                                                         </div>
                                                     </div>
 
-                                                    <div className="detail-item-info-box">
-                                                        <h4 className="detail-section-title mb-3">{t('profile.purchased_item', 'Purchased Item')}</h4>
-                                                        <div className="d-flex gap-3">
-                                                            <img className="rounded shadow-sm" style={{ width: '60px', height: '60px', objectFit: 'cover' }} src={getItemImageUrl(selectedOrder.item_id?.images?.[0])} alt="" />
-                                                            <div>
-                                                                <p className="fw-bold small mb-1">{safeString(selectedOrder.item_id?.title)}</p>
-                                                                <p className="text-muted extra-small mb-0">
-                                                                    {mode === 'buyer' ? `${t('profile.sold_by', 'Sold by:')} ${safeString(selectedOrder.seller_id?.username)}` : `${t('profile.bought_by', 'Bought by:')} ${safeString(selectedOrder.buyer_id?.username)}`}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    {/* Item info moved to main column */}
 
-                                                    {mode === 'buyer' && selectedOrder.order_status === 'placed' && (
+                                                    {mode === 'buyer' && ['pending', 'confirmed', 'packed'].includes(selectedOrder.order_status) && (
                                                         <div className="pd-section-card mt-3 p-3 bg-light border">
                                                             <h3 className="detail-section-title mb-3">{t('profile.order_actions', 'Order Actions')}</h3>
                                                             <div className="d-grid gap-2">
@@ -1274,92 +1516,104 @@ const Profile = () => {
                                                         </div>
                                                     )}
 
+                                                    {selectedOrder.order_status === 'cancelled' && (
+                                                        <div className="pd-section-card mt-3 p-3 bg-danger-soft border-danger" style={{ borderLeft: '4px solid #ef4444' }}>
+                                                            <h4 className="detail-section-title text-danger mb-2">Order Cancelled</h4>
+                                                            <p className="small mb-1"><strong>Reason:</strong> {selectedOrder.cancel_reason || 'N/A'}</p>
+                                                            <p className="extra-small text-muted mb-0">Refund of {formatPrice(selectedOrder.total_amount)} has been credited back to the buyer's wallet.</p>
+                                                        </div>
+                                                    )}
+
                                                     {mode === 'buyer' && selectedOrder.order_status === 'delivered' && (
-                                                        <div className="pd-section-card mt-3 p-3 bg-light border">
-                                                            <h3 className="detail-section-title mb-3">Request Return</h3>
-                                                            <p className="text-muted extra-small mt-0 mb-3">You have 5 days from delivery to request a return if the item is not as described.</p>
-                                                            <div className="d-grid gap-2">
-                                                                <button className="btn btn-outline-warning btn-sm fw-bold" onClick={handleRequestReturn}>Request Return</button>
-                                                            </div>
+                                                        (() => {
+                                                            const deliveredAt = selectedOrder.delivered_at;
+                                                            if (!deliveredAt) return null;
+                                                            const deliveryDate = new Date(deliveredAt);
+                                                            const currentDate = new Date();
+                                                            const diffTime = Math.abs(currentDate - deliveryDate);
+                                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                            
+                                                            if (diffDays <= 5) {
+                                                                return (
+                                                                    <div className="pd-section-card mt-3 p-3 bg-light border">
+                                                                        <h3 className="detail-section-title mb-3">Request Return</h3>
+                                                                        <p className="text-muted extra-small mt-0 mb-3">You have {6 - diffDays} day(s) left to request a return if the item is not as described.</p>
+                                                                        <div className="d-grid gap-2">
+                                                                            <button 
+                                                                                className="btn btn-outline-warning btn-sm fw-bold" 
+                                                                                onClick={handleRequestReturn}
+                                                                                disabled={returningOrderId === selectedOrder._id}
+                                                                            >
+                                                                                {returningOrderId === selectedOrder._id ? 'Processing...' : 'Request Return'}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()
+                                                    )}
+
+                                                    {mode === 'buyer' && selectedOrder.order_status === 'return_requested' && (
+                                                        <div className="pd-section-card mt-3 p-3 bg-warning-soft border-warning" style={{ borderLeft: '4px solid #f59e0b' }}>
+                                                            <h4 className="detail-section-title text-warning mb-2">Return Request Sent</h4>
+                                                            <p className="small mb-1"><strong>Reason:</strong> {selectedOrder.return_reason || 'N/A'}</p>
+                                                            <p className="extra-small text-muted mb-0">The seller has been notified of your return request. Please wait for their approval.</p>
                                                         </div>
                                                     )}
 
                                                     {mode === 'seller' && selectedOrder.order_status === 'return_requested' && (
-                                                        <div className="pd-section-card mt-3 p-3 bg-light border">
-                                                            <h4 className="detail-section-title mb-3">Process Return</h4>
-                                                            <div className="alert alert-warning mb-3" style={{ fontSize: '0.85rem' }}>
-                                                                <strong>Reason:</strong> {selectedOrder.return_reason || 'No reason provided'}
+                                                        <div className="pd-section-card mt-3 p-3 bg-light border shadow-sm">
+                                                            <h4 className="detail-section-title mb-3">Process Return Request</h4>
+                                                            <div className="p-3 bg-warning-soft rounded-3 mb-3" style={{ border: '1px solid #fbbf24' }}>
+                                                                <p className="small fw-bold mb-1">Buyer's Return Reason:</p>
+                                                                <p className="small mb-0 italic">"{selectedOrder.return_reason || 'No reason provided'}"</p>
                                                             </div>
-                                                            <p className="text-muted extra-small mt-0 mb-3">Inspect the returned product. You can issue a partial refund (e.g. deduct shipping costs) or a full refund.</p>
+                                                            <p className="text-muted extra-small mt-0 mb-3">Please verify the returned product before processing. You can choose to refund the full amount or a partial amount (e.g. if the item condition changed).</p>
                                                             <div className="d-grid gap-2">
-                                                                <button className="btn btn-success btn-sm" onClick={() => handleProcessReturn('full')}>Issue Full Refund</button>
-                                                                <button className="btn btn-warning btn-sm" onClick={() => handleProcessReturn('partial')}>Issue Partial Refund</button>
+                                                                <button className="btn btn-success btn-sm fw-bold py-2" onClick={() => handleProcessReturn('full')}>Issue Full Refund</button>
+                                                                <button className="btn btn-outline-warning btn-sm fw-bold py-2" onClick={() => handleProcessReturn('partial')}>Issue Partial Refund</button>
                                                             </div>
                                                         </div>
                                                     )}
 
-                                                    {/* Tracking Info for Customer/Seller */}
-                                                    {(selectedOrder.tracking_id || selectedOrder.shipping_company_id) && (
-                                                        <div className="pd-section-card mt-3 p-3 bg-light border">
-                                                            <h4 className="detail-section-title mb-3">{t('profile.tracking_info', 'Tracking Information')}</h4>
-                                                            <div className="mb-2 d-flex justify-content-between">
-                                                                <span className="text-muted small">{t('profile.courier', 'Courier')}:</span>
-                                                                <span className="small fw-bold">{selectedOrder.shipping_company_id?.company_name || 'Generic Courier'}</span>
-                                                            </div>
-                                                            <div className="mb-2 d-flex justify-content-between">
-                                                                <span className="text-muted small">{t('profile.tracking_id', 'Tracking ID')}:</span>
-                                                                <span className="small fw-bold">{selectedOrder.tracking_id}</span>
-                                                            </div>
-                                                            {selectedOrder.dispatch_date && (
-                                                                <div className="mb-3 d-flex justify-content-between">
-                                                                    <span className="text-muted small">{t('profile.dispatch_date', 'Dispatch Date')}:</span>
-                                                                    <span className="small fw-bold">{new Date(selectedOrder.dispatch_date).toLocaleDateString()}</span>
-                                                                </div>
-                                                            )}
-                                                            {selectedOrder.shipping_company_id?.tracking_url && (
-                                                                <a 
-                                                                    href={selectedOrder.shipping_company_id.tracking_url.replace('%tracking_id%', selectedOrder.tracking_id)} 
-                                                                    target="_blank" 
-                                                                    rel="noopener noreferrer"
-                                                                    className="btn btn-primary btn-sm w-100 fw-bold"
-                                                                >
-                                                                    {t('profile.track_package', 'Track Package')}
-                                                                </a>
-                                                            )}
+                                                    {selectedOrder.order_status === 'returned' && (
+                                                        <div className="pd-section-card mt-3 p-3 bg-success-soft border-success" style={{ borderLeft: '4px solid #10b981' }}>
+                                                            <h4 className="detail-section-title text-success mb-2">Return Completed</h4>
+                                                            <p className="small mb-1"><strong>Refunded:</strong> {formatPrice(selectedOrder.refund_amount)}</p>
+                                                            <p className="small mb-1"><strong>Processing Note:</strong> {selectedOrder.partial_refund_reason || 'N/A'}</p>
+                                                            <p className="extra-small text-muted mb-0">The item has been successfully returned and payment settled.</p>
                                                         </div>
                                                     )}
+
+                                                    {/* Tracking Info for Customer/Seller */}
+                                                    {/* Tracking moved to main column */}
 
                                                     {/* Seller: Update Order Status / Dispatch */}
                                                     {mode === 'seller' && !['delivered', 'cancelled', 'returned'].includes(selectedOrder.order_status) && (
                                                         <div className="pd-section-card mt-3 p-3 bg-white border border-primary shadow-sm" style={{ borderLeftWidth: '4px' }}>
                                                             <h4 className="detail-section-title mb-3 d-flex align-items-center gap-2">
                                                                 <FaTruck className="text-primary" />
-                                                                {t('profile.shipping_management', 'Shipping Management')}
+                                                                {t('profile.shipping_management', 'Order Fulfillment')}
                                                             </h4>
-                                                            
+
                                                             <div className="d-grid gap-2">
-                                                                {/* Pending -> Confirmed */}
-                                                                {(selectedOrder.order_status === 'pending' || !selectedOrder.order_status) && (
-                                                                    <button className="btn btn-primary btn-sm fw-bold" onClick={() => handleStatusUpdate('confirmed')}>
-                                                                        {t('profile.confirm_order', 'Confirm Order')}
-                                                                    </button>
-                                                                )}
-                                                                
                                                                 {/* Confirmed -> Packed */}
-                                                                {selectedOrder.order_status === 'confirmed' && (
-                                                                    <button className="btn btn-primary btn-sm fw-bold" onClick={() => handleStatusUpdate('packed')}>
+                                                                {(['confirmed', 'pending'].includes(selectedOrder.order_status) || !selectedOrder.order_status) && (
+                                                                    <button className="btn btn-primary btn-sm fw-bold py-2 mb-2" onClick={() => handleStatusUpdate('packed')}>
                                                                         {t('profile.mark_as_packed', 'Mark as Packed')}
                                                                     </button>
                                                                 )}
 
-                                                                {/* Dispatch Flow (Requirement 3) */}
-                                                                {(selectedOrder.order_status === 'packed' || selectedOrder.order_status === 'confirmed') && (
-                                                                    <div className="mt-2 p-3 bg-light rounded-3 border">
-                                                                        <label className="form-label mb-1 extra-small fw-bold text-uppercase text-muted">{t('profile.courier_company', 'Courier Company')}</label>
-                                                                        <select 
+                                                                {/* Step: Update Tracking Information (Required before Shipping) */}
+                                                                {['confirmed', 'packed'].includes(selectedOrder.order_status) && (
+                                                                    <div className="mt-1 p-3 bg-light rounded-3 border">
+                                                                        <p className="extra-small fw-bold text-primary mb-2 text-uppercase">1. Set Tracking Details</p>
+                                                                        <label className="form-label mb-1 extra-small text-muted">{t('profile.courier_company', 'Courier Company')}</label>
+                                                                        <select
                                                                             className="form-select form-select-sm mb-2"
                                                                             value={dispatchForm.shipping_company_id}
-                                                                            onChange={(e) => setDispatchForm({...dispatchForm, shipping_company_id: e.target.value})}
+                                                                            onChange={(e) => setDispatchForm({ ...dispatchForm, shipping_company_id: e.target.value })}
                                                                         >
                                                                             <option value="">{t('profile.select_courier', '-- Select Courier --')}</option>
                                                                             {shippingCompanies.map(comp => (
@@ -1367,42 +1621,60 @@ const Profile = () => {
                                                                             ))}
                                                                         </select>
 
-                                                                        <label className="form-label mb-1 extra-small fw-bold text-uppercase text-muted">{t('profile.tracking_id', 'Tracking ID')}</label>
-                                                                        <input 
+                                                                        <label className="form-label mb-1 extra-small text-muted">{t('profile.tracking_id', 'Tracking ID')}</label>
+                                                                        <input
                                                                             type="text"
                                                                             className="form-control form-control-sm mb-3"
-                                                                            placeholder="Enter Tracking Number"
+                                                                            placeholder="Enter Tracking ID"
                                                                             value={dispatchForm.tracking_id}
-                                                                            onChange={(e) => setDispatchForm({...dispatchForm, tracking_id: e.target.value})}
+                                                                            onChange={(e) => setDispatchForm({ ...dispatchForm, tracking_id: e.target.value })}
                                                                         />
 
-                                                                        <button 
-                                                                            className="btn btn-success btn-sm w-100 fw-bold"
+                                                                        <button
+                                                                            className="btn btn-info btn-sm w-100 fw-bold py-2 text-white"
                                                                             onClick={handleDispatchOrder}
                                                                             disabled={isDispatching}
                                                                         >
-                                                                            {isDispatching ? t('common.processing', 'Processing...') : t('profile.dispatch_order', 'Dispatch Order')}
+                                                                            {isDispatching ? t('common.processing', 'Processing...') : t('profile.update_tracking', 'Update Tracking Info')}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Step: Mark as Shipped (Manual update after tracking exists) */}
+                                                                {['confirmed', 'packed'].includes(selectedOrder.order_status) && (
+                                                                    <div className="mt-3">
+                                                                        <p className="extra-small fw-bold text-success mb-2 text-uppercase">2. Confirm Package Handover</p>
+                                                                        <button
+                                                                            className="btn btn-success btn-sm w-100 fw-bold py-2"
+                                                                            onClick={() => {
+                                                                                if (!selectedOrder.tracking_id) return alert('Please update tracking information first.');
+                                                                                handleStatusUpdate('shipped');
+                                                                            }}
+                                                                        >
+                                                                            {t('profile.mark_as_shipped', 'Confirm Shipped')}
                                                                         </button>
                                                                     </div>
                                                                 )}
 
                                                                 {/* Shipped -> Out for Delivery */}
                                                                 {selectedOrder.order_status === 'shipped' && (
-                                                                    <button className="btn btn-primary btn-sm fw-bold" onClick={() => handleStatusUpdate('out_for_delivery')}>
+                                                                    <button className="btn btn-primary btn-sm fw-bold py-2" onClick={() => handleStatusUpdate('out_for_delivery')}>
                                                                         {t('profile.mark_out_for_delivery', 'Mark Out for Delivery')}
                                                                     </button>
                                                                 )}
 
                                                                 {/* Out for Delivery -> Delivered */}
                                                                 {selectedOrder.order_status === 'out_for_delivery' && (
-                                                                    <button className="btn btn-success btn-sm fw-bold" onClick={() => handleStatusUpdate('delivered')}>
+                                                                    <button className="btn btn-success btn-sm fw-bold py-2" onClick={() => handleStatusUpdate('delivered')}>
                                                                         {t('profile.mark_as_delivered', 'Mark as Delivered')}
                                                                     </button>
                                                                 )}
 
-                                                                <button className="btn btn-outline-danger btn-sm mt-2" onClick={() => handleStatusUpdate('cancelled')}>
-                                                                    {t('profile.cancel_order', 'Cancel Order')}
-                                                                </button>
+                                                                <div className="border-top mt-3 pt-3 text-center">
+                                                                    <button className="btn btn-link link-danger btn-sm text-decoration-none fw-bold" onClick={() => handleStatusUpdate('cancelled')}>
+                                                                        {t('profile.cancel_order', 'Cancel Order')}
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )}
@@ -1501,19 +1773,83 @@ const Profile = () => {
                         </div>
                     )}
 
-                    {/* Edit Item Modal */}
-                    {editingItem && (
-                        <EditItemModal 
-                            item={editingItem} 
-                            onClose={() => setEditingItem(null)} 
-                            onUpdate={(updatedItem) => {
-                                setMyListings(prev => prev.map(it => it._id === updatedItem._id ? updatedItem : it));
-                                setEditingItem(null); // Close the modal after successful update
-                            }} 
-                        />
-                    )}
+                </div> {/* End pd-main */}
+            </div> {/* End pd-container */}
+
+            {/* Action Modal (Prompt/Confirm Replacement) */}
+            {actionModal.show && (
+                <div className="pd-modal-overlay" style={{ zIndex: 10001 }}>
+                    <div className="pd-modal-card" style={{ maxWidth: '450px', margin: 'auto' }}>
+                        <div className="pd-modal-header border-0 pb-0">
+                            <h4 className="fw-800 mb-0 d-flex align-items-center gap-2">
+                                {['success'].includes(actionModal.type) && <FaCheckCircle className="text-success" />}
+                                {['cancel', 'error'].includes(actionModal.type) && <FaExclamationTriangle className="text-danger" />}
+                                {actionModal.title}
+                            </h4>
+                            <button className="btn-close" onClick={() => setActionModal({ ...actionModal, show: false })}></button>
+                        </div>
+                        <div className="pd-modal-body py-4">
+                            <p className="text-muted small mb-4">{actionModal.message}</p>
+
+                            {['cancel', 'return', 'refund_partial'].includes(actionModal.type) && (
+                                <div className="mb-3">
+                                    {actionModal.type === 'refund_partial' && (
+                                        <div className="mb-3">
+                                            <label className="extra-small fw-bold text-muted text-uppercase mb-1">Refund Amount</label>
+                                            <div className="input-group input-group-sm">
+                                                <span className="input-group-text bg-light">₹</span>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    placeholder="0.00"
+                                                    value={actionModal.inputValue2}
+                                                    onChange={(e) => setActionModal({ ...actionModal, inputValue2: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <label className="extra-small fw-bold text-muted text-uppercase mb-1">
+                                        {actionModal.type === 'refund_partial' ? 'Reason for partial refund' : 'Please provide a reason'}
+                                    </label>
+                                    <textarea
+                                        className="form-control form-control-sm"
+                                        rows="3"
+                                        placeholder="Write here..."
+                                        value={actionModal.inputValue}
+                                        onChange={(e) => setActionModal({ ...actionModal, inputValue: e.target.value })}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="d-flex gap-2 mt-4">
+                                {!['success', 'error'].includes(actionModal.type) && (
+                                    <button className="btn btn-light flex-fill fw-bold py-2 border" onClick={() => setActionModal({ ...actionModal, show: false })}>
+                                        {t('common.cancel', 'Back')}
+                                    </button>
+                                )}
+                                <button
+                                    className={`btn btn-${['cancel', 'error'].includes(actionModal.type) ? 'danger' : (['success'].includes(actionModal.type) ? 'success' : 'primary')} flex-fill fw-bold py-2`}
+                                    onClick={() => actionModal.onConfirm ? actionModal.onConfirm(actionModal.inputValue, actionModal.inputValue2) : setActionModal({ ...actionModal, show: false })}
+                                >
+                                    {actionModal.confirmLabel}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {/* Edit Item Modal */}
+            {editingItem && (
+                <EditItemModal
+                    item={editingItem}
+                    onClose={() => setEditingItem(null)}
+                    onUpdate={(updatedItem) => {
+                        setMyListings(prev => prev.map(it => it._id === updatedItem._id ? updatedItem : it));
+                        setEditingItem(null); // Close the modal after successful update
+                    }}
+                />
+            )}
         </div>
     );
 };

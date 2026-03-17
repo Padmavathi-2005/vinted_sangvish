@@ -36,6 +36,7 @@
   margin: 0;
   padding: 0;
 }
+
 body {
   font-family: var(--font-family);
   background-color: var(--bg-color);
@@ -45,7 +46,7 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
-.menu-open, 
+.menu-open,
 .menu-open body {
   overflow: hidden !important;
   height: 100vh !important;
@@ -80,7 +81,7 @@ button {
 /* Standardized Responsive Product Grid */
 .vinted-product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 24px;
   width: 100%;
 }
@@ -132,7 +133,7 @@ button {
 
 .vinted-skeleton-image {
   width: 100%;
-  aspect-ratio: 3/4;
+  aspect-ratio: 1 / 1.4;
   background: #f1f5f9;
   border-radius: 8px;
   margin-bottom: 12px;
@@ -146,8 +147,15 @@ button {
 }
 
 @keyframes sk-blink {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Card Styles */
@@ -192,10 +200,13 @@ button {
 }
 
 .hide-scrollbar-modern {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
 }
 
 .hide-scrollbar-modern::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
+  display: none;
+  /* Chrome/Safari */
 }

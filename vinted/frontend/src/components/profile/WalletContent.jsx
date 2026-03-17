@@ -108,10 +108,17 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                     <div className="wc-hero-label">{t('wallet.total_balance', 'Total Balance')}</div>
                     <div className="wc-hero-amount">{formatPrice(walletData?.wallet?.balance || 0)}</div>
                 </div>
-                <button className="wc-withdraw-btn" onClick={() => setShowWithdrawModal(true)}>
-                    <FaArrowUp size={13} />
-                    {t('wallet.withdraw_funds', 'Withdraw')}
-                </button>
+                {withdrawHistory?.some(r => r.status === 'pending') ? (
+                    <button className="wc-withdraw-btn pending" disabled style={{ opacity: 0.7, cursor: 'not-allowed' }}>
+                        <FaClock size={13} />
+                        {t('wallet.pending_short', 'Pending Request')}
+                    </button>
+                ) : (
+                    <button className="wc-withdraw-btn" onClick={() => setShowWithdrawModal(true)}>
+                        <FaArrowUp size={13} />
+                        {t('wallet.withdraw_funds', 'Withdraw')}
+                    </button>
+                )}
             </div>
         </div>
     );

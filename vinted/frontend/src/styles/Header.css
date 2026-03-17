@@ -151,12 +151,21 @@
     color: #495057;
     font-size: 1.25rem;
     cursor: pointer;
-    transition: color 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .icon-wrapper:hover {
-    color: var(--primary-color, #00E07C);
+    color: var(--primary-color, #0ea5e9);
+    transform: translateY(-1px);
+}
+
+.settings-wrapper:hover {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
 }
 
 .heart-link:hover {

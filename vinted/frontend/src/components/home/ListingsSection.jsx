@@ -35,8 +35,8 @@ const ListingsSection = () => {
             setLoading(true);
             try {
                 const [popularRes, newestRes] = await Promise.all([
-                    axios.get('/api/items?sort=popular&limit=8'),
-                    axios.get('/api/items?sort=newest&limit=8')
+                    axios.get('/api/items?sort=popular&limit=30'),
+                    axios.get('/api/items?sort=newest&limit=30')
                 ]);
                 setPopularItems(popularRes.data.items || []);
                 setNewestItems(newestRes.data.items || []);
@@ -77,11 +77,39 @@ const ListingsSection = () => {
         return () => window.removeEventListener('resize', updateLine);
     }, [activeTab, primaryColor]);
 
+    // Dynamic column calculation for "Exactly 2 rows"
+    const [columns, setColumns] = useState(6);
+    const gridRef = useRef(null);
+
+    useEffect(() => {
+        const updateColumns = () => {
+            if (gridRef.current) {
+                const containerWidth = gridRef.current.offsetWidth;
+                const minColWidth = 200; // Matching index.css minmax(200px, ...)
+                const gap = 24; // Matching index.css gap: 24px
+                const count = Math.floor((containerWidth + gap) / (minColWidth + gap));
+                setColumns(count > 0 ? count : 1);
+            }
+        };
+
+        updateColumns();
+        window.addEventListener('resize', updateColumns);
+        // Small delay to ensure styles are applied
+        const timer = setTimeout(updateColumns, 100);
+        return () => {
+            window.removeEventListener('resize', updateColumns);
+            clearTimeout(timer);
+        };
+    }, [loading]); // Recalculate when loading state changes
+
     if (!loading && popularItems.length === 0 && newestItems.length === 0) {
         return null; // Hide section if no items
     }
 
-    const displayItems = activeTab === 'popular' ? popularItems : newestItems;
+    const rawItems = activeTab === 'popular' ? popularItems : newestItems;
+    // Show exactly 2 rows
+    const displayItems = rawItems.slice(0, columns * 2);
+    const skeletonCount = columns * 2;
 
     return (
         <section className="listings-section py-4 py-md-5" style={{ backgroundColor: '#f8fafc', minHeight: '600px' }}>
@@ -135,10 +163,9 @@ const ListingsSection = () => {
                     </div>
                 </div>
 
-                {/* Standardized Grid */}
-                <div className="vinted-product-grid mb-5">
+                <div ref={gridRef} className="vinted-product-grid mb-5">
                     {loading ? (
-                        [...Array(8)].map((_, i) => (
+                        [...Array(skeletonCount || 12)].map((_, i) => (
                             <SkeletonCard key={i} />
                         ))
                     ) : displayItems.length > 0 ? (

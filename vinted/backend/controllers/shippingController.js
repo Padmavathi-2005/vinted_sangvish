@@ -48,9 +48,35 @@ export const dispatchOrder = asyncHandler(async (req, res) => {
     order.shipping_company_id = shipping_company_id;
     order.tracking_id = tracking_id;
     order.dispatch_date = dispatch_date || new Date();
-    order.order_status = 'shipped';
+    
+    // We don't force 'shipped' status here anymore. 
+    // The seller will manually mark as shipped after verification.
+    // However, we ensure it's at least confirmed
+    if (order.order_status === 'pending') {
+        order.order_status = 'confirmed';
+    }
 
-    const updatedOrder = await order.save();
+    await order.save();
+
+    // Populate for response & notifications
+    const updatedOrder = await Order.findById(order._id)
+        .populate('shipping_company_id')
+        .populate('item_id', 'title');
+
+    // Notify Buyer that tracking is available
+    try {
+        const Notification = (await import('../models/Notification.js')).default;
+        await Notification.create({
+            user_id: updatedOrder.buyer_id,
+            on_model: 'User',
+            title: 'Tracking Info Added',
+            message: `The seller has provided tracking information for your order "${updatedOrder.item_id?.title}" (#${updatedOrder.order_number}). You can now track your package.`,
+            type: 'info',
+            link: '/profile?tab=orders'
+        });
+    } catch (notifyErr) {
+        console.error("Error sending dispatch notification:", notifyErr);
+    }
 
     res.json(updatedOrder);
 });

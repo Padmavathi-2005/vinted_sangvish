@@ -64,7 +64,7 @@ const orderSchema = mongoose.Schema(
         },
         order_status: {
             type: String,
-            enum: ['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned'],
+            enum: ['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'return_requested'],
             default: 'pending',
         },
         shipping_company_id: {
@@ -92,6 +92,21 @@ const orderSchema = mongoose.Schema(
         delivered_at: {
             type: Date,
         },
+        packed_at: {
+            type: Date,
+        },
+        shipped_at: {
+            type: Date,
+        },
+        out_for_delivery_at: {
+            type: Date,
+        },
+        return_requested_at: {
+            type: Date,
+        },
+        cancelled_at: {
+            type: Date,
+        },
         return_reason: {
             type: String,
         },
@@ -101,6 +116,9 @@ const orderSchema = mongoose.Schema(
         refund_amount: {
             type: Number,
             default: 0
+        },
+        cancel_reason: {
+            type: String,
         }
     },
     {

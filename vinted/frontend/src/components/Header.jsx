@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import axios from '../utils/axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaSearch, FaBell, FaShoppingCart, FaBars, FaTimes, FaChevronRight, FaChevronLeft, FaPlus, FaHeart, FaCoins, FaCheck, FaGlobe, FaUser, FaExchangeAlt, FaSignOutAlt, FaThLarge, FaCamera } from 'react-icons/fa';
+import { FaSearch, FaBell, FaShoppingCart, FaBars, FaTimes, FaChevronRight, FaChevronLeft, FaPlus, FaHeart, FaCoins, FaCheck, FaGlobe, FaUser, FaExchangeAlt, FaSignOutAlt, FaThLarge, FaCamera, FaRegHeart, FaRegBell } from 'react-icons/fa';
+import { FiShoppingCart, FiGlobe, FiChevronDown } from 'react-icons/fi';
 import { HiSparkles } from 'react-icons/hi';
 import ReactMarkdown from 'react-markdown';
 import '../styles/Header.css';
@@ -33,10 +34,10 @@ const Header = () => {
 
     // User Dropdown State
     const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-    const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
-    const [currencySearchTerm, setCurrencySearchTerm] = useState('');
-    const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+    const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false);
+    const [settingsTab, setSettingsTab] = useState('language'); // 'language' or 'currency'
     const [languageSearchTerm, setLanguageSearchTerm] = useState('');
+    const [currencySearchTerm, setCurrencySearchTerm] = useState('');
     const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
     const [isAIDrawerOpen, setIsAIDrawerOpen] = useState(false);
     const [aiMessages, setAiMessages] = useState([]);
@@ -55,6 +56,7 @@ const Header = () => {
     const [hasSentFirstMsg, setHasSentFirstMsg] = useState(false);
     const [isAiBtnVisible, setIsAiBtnVisible] = useState(true);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+    const [hoveredIcon, setHoveredIcon] = useState(null); // 'heart', 'bell', 'cart'
     const aiBoxRef = useRef(null);
     const chatMessagesEndRef = useRef(null);
 
@@ -116,8 +118,8 @@ const Header = () => {
         fetchData();
     }, []);
 
-    // Desktop: Handle Category Hover
     const handleCategoryEnter = (category) => {
+        if (!category) return;
         setActiveCategory(category);
         // Default to first subcategory if available
         if (category.subcategories && category.subcategories.length > 0) {
@@ -195,8 +197,9 @@ const Header = () => {
 
     const closeAllDropdowns = () => {
         setIsUserDropdownOpen(false);
-        setIsCurrencyDropdownOpen(false);
-        setIsLanguageDropdownOpen(false);
+        setIsSettingsDropdownOpen(false);
+        setLanguageSearchTerm('');
+        setCurrencySearchTerm('');
         setIsNotifDropdownOpen(false);
         setIsAIDrawerOpen(false);
         setShowSearchHistory(false);
@@ -229,6 +232,7 @@ const Header = () => {
 
     const [isImageSearching, setIsImageSearching] = useState(false);
     const [searchingImage, setSearchingImage] = useState(null);
+    const [imageSearchMessage, setImageSearchMessage] = useState(null);
 
     const handleImageSearchClick = () => {
         if (fileInputRef.current) {
@@ -263,7 +267,8 @@ const Header = () => {
         } catch (error) {
             console.error("Image search failed:", error);
             const errMsg = error.response?.data?.message || "Visual search failed. Please try again with a clearer image.";
-            alert(errMsg);
+            setImageSearchMessage(errMsg);
+            setTimeout(() => setImageSearchMessage(null), 4000);
         } finally {
             setIsImageSearching(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -356,6 +361,10 @@ const Header = () => {
                             onMouseEnter={() => {
                                 closeAllDropdowns();
                                 setShowCategoryBar(true);
+                                // Default to first category (Women) when opened
+                                if (categories && categories.length > 0) {
+                                    handleCategoryEnter(categories[0]);
+                                }
                             }}
                             style={{
                                 cursor: 'pointer',
@@ -470,6 +479,25 @@ const Header = () => {
                                         <FaCamera />
                                     )}
                                 </button>
+                                {imageSearchMessage && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '-45px',
+                                        right: '0',
+                                        backgroundColor: '#334155',
+                                        color: 'white',
+                                        padding: '8px 16px',
+                                        borderRadius: '8px',
+                                        fontSize: '0.85rem',
+                                        whiteSpace: 'nowrap',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                        zIndex: 1000,
+                                        animation: 'slideUp 0.3s ease'
+                                    }}>
+                                        <div style={{ position: 'absolute', top: '-6px', right: '12px', width: '12px', height: '12px', backgroundColor: '#334155', transform: 'rotate(45deg)' }} />
+                                        {imageSearchMessage}
+                                    </div>
+                                )}
                             </div>
 
                             {searchingImage && (
@@ -577,112 +605,140 @@ const Header = () => {
                     <div className="icon-group">
                         {user && (
                             <>
+                                {/* Combined Language & Currency Selector */}
                                 <div
-                                    className="icon-wrapper"
+                                    className="icon-wrapper settings-wrapper"
                                     onMouseEnter={() => {
                                         closeAllDropdowns();
-                                        setIsLanguageDropdownOpen(true);
+                                        setIsSettingsDropdownOpen(true);
                                     }}
-                                    onMouseLeave={() => { setIsLanguageDropdownOpen(false); setLanguageSearchTerm(''); }}
-                                    style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                    title={t('header.select_language')}
+                                    onMouseLeave={() => { setIsSettingsDropdownOpen(false); setLanguageSearchTerm(''); setCurrencySearchTerm(''); }}
+                                    style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', background: '#f8f9fa', border: '1px solid #e9ecef', transition: 'all 0.3s ease' }}
+                                    title={t('header.settings')}
                                 >
-                                    <div style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        width: '24px', height: '24px', borderRadius: '50%',
-                                        background: `${settings.primary_color}15`, color: settings.primary_color,
-                                        fontWeight: 'bold', fontSize: '0.9rem'
-                                    }}>
-                                        {currentLanguage && currentLanguage.code ? currentLanguage.code.toUpperCase() : <FaGlobe />}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.82rem', fontWeight: '700', color: '#495057' }}>
+                                        <FiGlobe style={{ color: settings.primary_color }} />
+                                        <span>{currentLanguage?.code?.toUpperCase() || 'EN'}</span>
+                                        <span style={{ color: '#cbd5e1', fontWeight: 'normal' }}>/</span>
+                                        <span>{currentCurrency?.symbol || '$'}</span>
+                                        <FiChevronDown style={{ fontSize: '0.9rem', opacity: 0.6, marginLeft: '2px' }} />
                                     </div>
 
-                                    {isLanguageDropdownOpen && (
+                                    {isSettingsDropdownOpen && (
                                         <div className="user-dropdown-wrapper" style={{
                                             position: 'absolute',
                                             top: '100%',
-                                            right: '50%',
-                                            transform: 'translateX(50%)',
-                                            paddingTop: '20px',
+                                            right: '0',
+                                            paddingTop: '15px',
                                             zIndex: 1100,
-                                            width: '260px',
+                                            width: '280px',
                                             animation: 'fadeIn 0.2s ease',
                                         }}>
                                             <div className="user-dropdown-box" style={{
                                                 background: 'white',
                                                 border: '1px solid #e9ecef',
-                                                borderRadius: '12px',
-                                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                                padding: '12px',
+                                                borderRadius: '16px',
+                                                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                                                padding: '0',
                                                 textAlign: 'left',
                                                 position: 'relative',
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                gap: '8px'
+                                                overflow: 'hidden'
                                             }}>
-                                                <div style={{ position: "absolute", top: "-6px", left: "50%", width: "12px", height: "12px", background: "white", transform: "translateX(-50%) rotate(45deg)", borderLeft: "1px solid #e9ecef", borderTop: "1px solid #e9ecef" }} />
+                                                <div style={{ position: "absolute", top: "-6px", right: "20px", width: "12px", height: "12px", background: 'white', transform: "rotate(45deg)", borderLeft: "1px solid #e9ecef", borderTop: "1px solid #e9ecef" }} />
 
-                                                <div style={{ fontWeight: 'bold', color: '#495057', fontSize: '0.95rem', padding: '0 4px' }}>
-                                                    {t('header.select_language')}
-                                                </div>
-
-                                                <div style={{ position: 'relative' }}>
-                                                    <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#adb5bd', fontSize: '0.85rem' }} />
-                                                    <input
-                                                        type="text"
-                                                        placeholder={t('header.search_languages')}
-                                                        value={languageSearchTerm}
-                                                        onChange={(e) => setLanguageSearchTerm(e.target.value)}
-                                                        style={{
-                                                            width: '100%',
-                                                            padding: '8px 12px 8px 32px',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px',
-                                                            fontSize: '0.9rem',
-                                                            outline: 'none',
-                                                            background: '#f8fafc'
+                                                {/* Tab Headers */}
+                                                <div style={{ display: 'flex', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', padding: '4px' }}>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setSettingsTab('language'); }}
+                                                        style={{ 
+                                                            flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
+                                                            background: settingsTab === 'language' ? 'white' : 'transparent',
+                                                            color: settingsTab === 'language' ? settings.primary_color : '#64748b',
+                                                            boxShadow: settingsTab === 'language' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                                                            cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.02em'
                                                         }}
-                                                    />
+                                                    >
+                                                        {t('header.language')}
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setSettingsTab('currency'); }}
+                                                        style={{ 
+                                                            flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
+                                                            background: settingsTab === 'currency' ? 'white' : 'transparent',
+                                                            color: settingsTab === 'currency' ? settings.primary_color : '#64748b',
+                                                            boxShadow: settingsTab === 'currency' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                                                            cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.02em'
+                                                        }}
+                                                    >
+                                                        {t('header.currency')}
+                                                    </button>
                                                 </div>
 
-                                                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                                                    {languages && languages.filter(l =>
-                                                        l.name.toLowerCase().includes(languageSearchTerm.toLowerCase()) ||
-                                                        l.native_name.toLowerCase().includes(languageSearchTerm.toLowerCase())
-                                                    ).sort((a, b) => {
-                                                        if (currentLanguage && a._id === currentLanguage._id) return -1;
-                                                        if (currentLanguage && b._id === currentLanguage._id) return 1;
-                                                        return a.name.localeCompare(b.name);
-                                                    }).map(language => (
-                                                        <button
-                                                            key={language._id}
-                                                            onClick={() => {
-                                                                setLanguage(language);
-                                                                setIsLanguageDropdownOpen(false);
-                                                                setLanguageSearchTerm('');
-                                                            }}
-                                                            style={{
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                                width: '100%', padding: '8px 12px', borderRadius: '8px',
-                                                                border: 'none', background: currentLanguage && currentLanguage._id === language._id ? `${settings.primary_color}10` : 'transparent',
-                                                                cursor: 'pointer', textAlign: 'left', transition: 'background 0.2s'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                if (!currentLanguage || currentLanguage._id !== language._id) e.currentTarget.style.background = '#f1f5f9';
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                if (!currentLanguage || currentLanguage._id !== language._id) e.currentTarget.style.background = 'transparent';
-                                                            }}
-                                                        >
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                <span style={{ fontSize: '0.9rem', color: '#334155', fontWeight: '500' }}>{language.native_name}</span>
+                                                <div style={{ padding: '16px' }}>
+                                                    {settingsTab === 'language' ? (
+                                                        /* Language Section */
+                                                        <div>
+                                                            <div style={{ position: 'relative', marginBottom: '8px' }}>
+                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#adb5bd', fontSize: '0.75rem' }} />
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder={t('header.search_languages')}
+                                                                    value={languageSearchTerm}
+                                                                    onChange={(e) => setLanguageSearchTerm(e.target.value)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    style={{
+                                                                        width: '100%', padding: '7px 10px 7px 30px', border: '1px solid #f1f5f9', borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#f8fafc'
+                                                                    }}
+                                                                />
                                                             </div>
-                                                            {currentLanguage && currentLanguage._id === language._id && (
-                                                                <FaCheck style={{ color: settings.primary_color, fontSize: '0.8rem' }} />
-                                                            )}
-                                                        </button>
-                                                    ))}
-                                                    {languages && languages.filter(l => l.name.toLowerCase().includes(languageSearchTerm.toLowerCase()) || l.native_name.toLowerCase().includes(languageSearchTerm.toLowerCase())).length === 0 && (
-                                                        <div style={{ textAlign: 'center', padding: '12px', color: '#94a3b8', fontSize: '0.85rem' }}>{t('header.no_languages_found')}</div>
+                                                            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }} className="custom-scrollbar">
+                                                                {languages && languages.filter(l => l.name.toLowerCase().includes(languageSearchTerm.toLowerCase()) || l.native_name.toLowerCase().includes(languageSearchTerm.toLowerCase())).map(language => (
+                                                                    <button
+                                                                        key={language._id}
+                                                                        onClick={() => { setLanguage(language); setLanguageSearchTerm(''); }}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: '8px', border: 'none', background: currentLanguage?._id === language._id ? `${settings.primary_color}10` : 'transparent', cursor: 'pointer', transition: 'all 0.2s'
+                                                                        }}
+                                                                    >
+                                                                        <span style={{ fontSize: '0.8rem', color: currentLanguage?._id === language._id ? settings.primary_color : '#475569', fontWeight: currentLanguage?._id === language._id ? '700' : '500' }}>{language.native_name}</span>
+                                                                        {currentLanguage?._id === language._id && <FaCheck style={{ color: settings.primary_color, fontSize: '0.7rem' }} />}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        /* Currency Section */
+                                                        <div>
+                                                            <div style={{ position: 'relative', marginBottom: '8px' }}>
+                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#adb5bd', fontSize: '0.75rem' }} />
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder={t('header.search_currencies')}
+                                                                    value={currencySearchTerm}
+                                                                    onChange={(e) => setCurrencySearchTerm(e.target.value)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    style={{
+                                                                        width: '100%', padding: '7px 10px 7px 30px', border: '1px solid #f1f5f9', borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#f8fafc'
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }} className="custom-scrollbar">
+                                                                {currencies && currencies.filter(c => c.name.toLowerCase().includes(currencySearchTerm.toLowerCase()) || c.code.toLowerCase().includes(currencySearchTerm.toLowerCase())).map(currency => (
+                                                                    <button
+                                                                        key={currency._id}
+                                                                        onClick={() => { setCurrency(currency); setCurrencySearchTerm(''); }}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: '8px', border: 'none', background: currentCurrency?._id === currency._id ? `${settings.primary_color}10` : 'transparent', cursor: 'pointer', transition: 'all 0.2s'
+                                                                        }}
+                                                                    >
+                                                                        <span style={{ fontSize: '0.8rem', color: currentCurrency?._id === currency._id ? settings.primary_color : '#475569', fontWeight: currentCurrency?._id === currency._id ? '700' : '500' }}>{currency.code} - {currency.name}</span>
+                                                                        {currentCurrency?._id === currency._id && <FaCheck style={{ color: settings.primary_color, fontSize: '0.7rem' }} />}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -690,121 +746,15 @@ const Header = () => {
                                     )}
                                 </div>
 
-                                <div
-                                    className="icon-wrapper"
-                                    onMouseEnter={() => {
-                                        closeAllDropdowns();
-                                        setIsCurrencyDropdownOpen(true);
-                                    }}
-                                    onMouseLeave={() => { setIsCurrencyDropdownOpen(false); setCurrencySearchTerm(''); }}
-                                    style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                    title={t('header.select_currency')}
+                                <Link 
+                                    to="/profile?tab=favorites" 
+                                    className="icon-wrapper heart-link" 
+                                    title={t('header.my_favorites')}
+                                    onMouseEnter={() => setHoveredIcon('heart')}
+                                    onMouseLeave={() => setHoveredIcon(null)}
+                                    style={{ color: hoveredIcon === 'heart' ? '#ef4444' : '#495057' }}
                                 >
-                                    <div style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        width: '24px', height: '24px', borderRadius: '50%',
-                                        background: `${settings.primary_color}15`, color: settings.primary_color,
-                                        fontWeight: 'bold', fontSize: '0.9rem'
-                                    }}>
-                                        {currentCurrency ? currentCurrency.symbol : <FaCoins />}
-                                    </div>
-
-                                    {isCurrencyDropdownOpen && (
-                                        <div className="user-dropdown-wrapper" style={{
-                                            position: 'absolute',
-                                            top: '100%',
-                                            right: '50%',
-                                            transform: 'translateX(50%)',
-                                            paddingTop: '20px',
-                                            zIndex: 1100,
-                                            width: '260px',
-                                            animation: 'fadeIn 0.2s ease',
-                                        }}>
-                                            <div className="user-dropdown-box" style={{
-                                                background: 'white',
-                                                border: '1px solid #e9ecef',
-                                                borderRadius: '12px',
-                                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                                padding: '12px',
-                                                textAlign: 'left',
-                                                position: 'relative',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: '8px'
-                                            }}>
-                                                <div style={{ position: "absolute", top: "-6px", left: "50%", width: "12px", height: "12px", background: "white", transform: "translateX(-50%) rotate(45deg)", borderLeft: "1px solid #e9ecef", borderTop: "1px solid #e9ecef" }} />
-
-                                                <div style={{ fontWeight: 'bold', color: '#495057', fontSize: '0.95rem', padding: '0 4px' }}>
-                                                    {t('header.select_currency')}
-                                                </div>
-
-                                                <div style={{ position: 'relative' }}>
-                                                    <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#adb5bd', fontSize: '0.85rem' }} />
-                                                    <input
-                                                        type="text"
-                                                        placeholder={t('header.search_currencies')}
-                                                        value={currencySearchTerm}
-                                                        onChange={(e) => setCurrencySearchTerm(e.target.value)}
-                                                        style={{
-                                                            width: '100%',
-                                                            padding: '8px 12px 8px 32px',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px',
-                                                            fontSize: '0.9rem',
-                                                            outline: 'none',
-                                                            background: '#f8fafc'
-                                                        }}
-                                                    />
-                                                </div>
-
-                                                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                                                    {currencies && currencies.filter(c =>
-                                                        c.name.toLowerCase().includes(currencySearchTerm.toLowerCase()) ||
-                                                        c.code.toLowerCase().includes(currencySearchTerm.toLowerCase())
-                                                    ).sort((a, b) => {
-                                                        if (currentCurrency && a._id === currentCurrency._id) return -1;
-                                                        if (currentCurrency && b._id === currentCurrency._id) return 1;
-                                                        return a.name.localeCompare(b.name);
-                                                    }).map(currency => (
-                                                        <button
-                                                            key={currency._id}
-                                                            onClick={() => {
-                                                                setCurrency(currency);
-                                                                setIsCurrencyDropdownOpen(false);
-                                                                setCurrencySearchTerm('');
-                                                            }}
-                                                            style={{
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                                width: '100%', padding: '8px 12px', borderRadius: '8px',
-                                                                border: 'none', background: currentCurrency && currentCurrency._id === currency._id ? `${settings.primary_color}10` : 'transparent',
-                                                                cursor: 'pointer', textAlign: 'left', transition: 'background 0.2s'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                if (!currentCurrency || currentCurrency._id !== currency._id) e.currentTarget.style.background = '#f1f5f9';
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                if (!currentCurrency || currentCurrency._id !== currency._id) e.currentTarget.style.background = 'transparent';
-                                                            }}
-                                                        >
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                <span style={{ fontSize: '0.9rem', color: '#334155', fontWeight: '500' }}>{currency.code} - {currency.name}</span>
-                                                            </div>
-                                                            {currentCurrency && currentCurrency._id === currency._id && (
-                                                                <FaCheck style={{ color: settings.primary_color, fontSize: '0.8rem' }} />
-                                                            )}
-                                                        </button>
-                                                    ))}
-                                                    {currencies && currencies.filter(c => c.name.toLowerCase().includes(currencySearchTerm.toLowerCase()) || c.code.toLowerCase().includes(currencySearchTerm.toLowerCase())).length === 0 && (
-                                                        <div style={{ textAlign: 'center', padding: '12px', color: '#94a3b8', fontSize: '0.85rem' }}>{t('header.no_currencies_found')}</div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <Link to="/profile?tab=favorites" className="icon-wrapper heart-link" title={t('header.my_favorites')}>
-                                    <FaHeart />
+                                    {hoveredIcon === 'heart' ? <FaHeart /> : <FaRegHeart />}
                                 </Link>
 
                                 {/* Notification Bell (logged-in only) */}
@@ -813,16 +763,20 @@ const Header = () => {
                                     onMouseEnter={() => {
                                         closeAllDropdowns();
                                         setIsNotifDropdownOpen(true);
+                                        setHoveredIcon('bell');
                                     }}
-                                    onMouseLeave={() => setIsNotifDropdownOpen(false)}
+                                    onMouseLeave={() => {
+                                        setIsNotifDropdownOpen(false);
+                                        setHoveredIcon(null);
+                                    }}
                                 >
                                     <div
                                         className="icon-wrapper"
                                         title={t('header.notifications')}
-                                        style={{ position: 'relative', cursor: 'pointer' }}
+                                        style={{ position: 'relative', cursor: 'pointer', color: hoveredIcon === 'bell' || isNotifDropdownOpen ? settings.primary_color : '#495057' }}
                                         onClick={() => navigate('/profile?tab=notifications')}
                                     >
-                                        <FaBell />
+                                        {hoveredIcon === 'bell' || isNotifDropdownOpen ? <FaBell /> : <FaRegBell />}
                                         {unreadCount > 0 && (
                                             <span style={{
                                                 position: 'absolute', top: '-4px', right: '-4px',
@@ -957,8 +911,15 @@ const Header = () => {
                                 </div>
 
                                 {/* Cart (logged-in only) */}
-                                <Link to="/cart" className="icon-wrapper" title="Cart" style={{ position: 'relative' }}>
-                                    <FaShoppingCart />
+                                <Link 
+                                    to="/cart" 
+                                    className="icon-wrapper" 
+                                    title="Cart" 
+                                    style={{ position: 'relative', color: hoveredIcon === 'cart' ? settings.primary_color : '#495057' }}
+                                    onMouseEnter={() => setHoveredIcon('cart')}
+                                    onMouseLeave={() => setHoveredIcon(null)}
+                                >
+                                    {hoveredIcon === 'cart' ? <FaShoppingCart /> : <FiShoppingCart />}
                                     {cartCount > 0 && (
                                         <span style={{
                                             position: 'absolute',
@@ -1163,6 +1124,25 @@ const Header = () => {
                                 >
                                     {isImageSearching ? <div className="spinner-border spinner-border-sm" /> : <FaCamera />}
                                 </button>
+                                {imageSearchMessage && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '-45px',
+                                        right: '0',
+                                        backgroundColor: '#334155',
+                                        color: 'white',
+                                        padding: '8px 16px',
+                                        borderRadius: '8px',
+                                        fontSize: '0.8rem',
+                                        whiteSpace: 'nowrap',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                        zIndex: 1000,
+                                        animation: 'slideUp 0.3s ease'
+                                    }}>
+                                        <div style={{ position: 'absolute', top: '-6px', right: '12px', width: '12px', height: '12px', backgroundColor: '#334155', transform: 'rotate(45deg)' }} />
+                                        {imageSearchMessage}
+                                    </div>
+                                )}
                             </div>
 
                             {searchingImage && (
@@ -1215,14 +1195,7 @@ const Header = () => {
                                 <div
                                     key={cat._id}
                                     className={`h-cat-item ${activeCategory && activeCategory._id === cat._id ? 'active' : ''}`}
-                                    onMouseEnter={() => {
-                                        setActiveCategory(cat);
-                                        if (cat.subcategories?.length > 0) {
-                                            setActiveSubcategory(cat.subcategories[0]);
-                                        } else {
-                                            setActiveSubcategory(null);
-                                        }
-                                    }}
+                                    onMouseEnter={() => handleCategoryEnter(cat)}
                                     style={{
                                         cursor: 'pointer',
                                         fontWeight: activeCategory?._id === cat._id ? 'bold' : '500',
@@ -1377,13 +1350,13 @@ const Header = () => {
                                             <FaShoppingCart size={16} /> My Orders
                                         </Link>
                                         <Link to="/profile?tab=favorites" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <FaHeart size={16} /> Favorites
+                                            <FaRegHeart size={16} /> Favorites
                                         </Link>
                                         <Link to="/profile?tab=messages" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <FaBell size={16} /> Messages
+                                            <FaRegBell size={16} /> Messages
                                         </Link>
                                         <Link to="/cart" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <FaShoppingCart size={16} /> Cart
+                                            <FiShoppingCart size={16} /> Cart
                                         </Link>
                                         <button onClick={handleLogout} className="mobile-link" style={{ border: 'none', background: 'none', width: '100%', textAlign: 'left', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <FaSignOutAlt size={16} /> Logout

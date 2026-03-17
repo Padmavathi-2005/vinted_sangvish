@@ -22,7 +22,7 @@
     overflow: hidden;
     margin-bottom: 12px;
     width: 100%;
-    aspect-ratio: 3/4;
+    aspect-ratio: 1 / 1.4;
     background-color: #f8f9fa;
     /* Placeholder bg */
 }

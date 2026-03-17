@@ -835,7 +835,7 @@
 
 .sk-image {
     width: 100%;
-    aspect-ratio: 3/4;
+    aspect-ratio: 1 / 1.4;
     background: #f1f5f9;
     border-radius: 10px;
     margin-bottom: 10px;
