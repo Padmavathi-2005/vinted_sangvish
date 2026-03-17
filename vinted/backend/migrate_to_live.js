@@ -23,7 +23,7 @@ const migrate = async () => {
         console.log('--- DB Migration Started ---');
         
         // 1. Connect to Source
-        console.log('Connecting to SOURCE database (abinayashri)...');
+        console.log('Connecting to SOURCE database...');
         sourceConn = await mongoose.createConnection(sourceUri).asPromise();
         console.log('Connected to SOURCE.');
 
@@ -43,7 +43,7 @@ const migrate = async () => {
         await sourceConn.close();
 
         // 3. Connect to Target
-        console.log('\nConnecting to TARGET database (support)...');
+        console.log('\nConnecting to TARGET database...');
         targetConn = await mongoose.createConnection(targetUri).asPromise();
         console.log('Connected to TARGET.');
 
