@@ -4,7 +4,7 @@
 .id-page {
     min-height: 100vh;
     background: #f8fafc;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     padding-bottom: 80px;
 }
 
@@ -92,7 +92,7 @@
     border-radius: 6px;
     transition: all 0.2s;
     white-space: nowrap;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-back-btn:hover {
@@ -185,7 +185,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-stat-action:hover {
@@ -747,7 +747,7 @@
     font-weight: 700;
     cursor: pointer;
     text-decoration: none;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     transition: all 0.2s;
     margin-top: 16px;
     box-sizing: border-box;
@@ -777,7 +777,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-btn-cart:hover {
@@ -798,7 +798,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -827,7 +827,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-btn-offer:hover {
@@ -852,7 +852,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-btn-message-cta:hover {
@@ -876,7 +876,7 @@
     border-radius: 12px;
     font-weight: 600;
     font-size: 1rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     transition: all 0.2s;
     cursor: pointer;
 }
@@ -926,7 +926,7 @@
     justify-content: center;
     font-size: 1.2rem;
     font-weight: 700;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-seller-info {
@@ -1104,7 +1104,7 @@
     font-size: 0.82rem;
     cursor: pointer;
     padding: 8px 0;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     transition: color 0.2s;
 }
 
@@ -1285,7 +1285,7 @@
     padding: 10px 14px;
     font-size: 0.85rem;
     margin-bottom: 16px;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-login-form {
@@ -1300,7 +1300,7 @@
     border: 1.5px solid #e2e8f0;
     border-radius: 10px;
     font-size: 0.95rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     color: #1e293b;
     outline: none;
     transition: border 0.2s;
@@ -1316,7 +1316,7 @@
     margin-top: 16px;
     font-size: 0.82rem;
     color: #64748b;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-login-footer a {
@@ -1468,7 +1468,7 @@
     font-size: 1.2rem;
     font-weight: 700;
     color: #1e293b;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-offer-input::placeholder {
@@ -1482,7 +1482,7 @@
     border: 2px solid #e2e8f0;
     border-radius: 12px;
     font-size: 0.88rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     color: #1e293b;
     resize: vertical;
     outline: none;
@@ -1505,7 +1505,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .id-offer-submit:hover:not(:disabled) {
@@ -1752,7 +1752,7 @@
     font-weight: 600;
     font-size: 0.95rem;
     cursor: pointer;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     color: white;
     transition: all 0.2s;
     display: flex;
@@ -1864,7 +1864,7 @@
     border-radius: 12px;
     font-size: 0.95rem;
     font-weight: 700;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     cursor: pointer;
     text-decoration: none;
     border: 2px solid #16a34a;

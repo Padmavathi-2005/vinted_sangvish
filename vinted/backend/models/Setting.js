@@ -105,6 +105,15 @@ const settingSchema = mongoose.Schema(
         paypal_translations: { type: mongoose.Schema.Types.Mixed },
         // AI Settings
         gemini_api_key: { type: String },
+        // Email Settings
+        mail_driver: { type: String, default: 'smtp' },
+        mail_host: { type: String },
+        mail_port: { type: String },
+        mail_username: { type: String },
+        mail_password: { type: String },
+        mail_encryption: { type: String, enum: ['ssl', 'tls', 'none'], default: 'tls' },
+        mail_from_address: { type: String },
+        mail_from_name: { type: String },
     },
     {
         timestamps: {

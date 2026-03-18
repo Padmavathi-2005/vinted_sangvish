@@ -10,7 +10,7 @@
     /* Very light neutral/blue gray */
     padding: 20px;
     position: relative;
-    font-family: 'Outfit', sans-serif !important;
+    font-family: var(--font-family) !important;
 }
 
 /* Remove the dark overlay */
@@ -39,7 +39,7 @@
     font-weight: 700;
     color: #1a2332;
     margin-bottom: 8px;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .auth-card .subtitle {
@@ -68,7 +68,7 @@
     color: #334155;
     transition: all 0.2s ease;
     cursor: pointer;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .social-btn:hover {
@@ -99,7 +99,7 @@
     color: #334155;
     margin-bottom: 6px;
     font-size: 0.9rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .auth-label-row {
@@ -177,7 +177,7 @@
     outline: none;
     padding: 12px 14px;
     font-size: 0.95rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     color: #1e293b;
     background: transparent;
     width: 100%;
@@ -260,7 +260,7 @@
     color: white;
     transition: background-color 0.2s ease;
     margin-top: 12px;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .btn-submit:hover {

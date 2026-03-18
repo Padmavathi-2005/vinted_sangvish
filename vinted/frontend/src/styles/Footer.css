@@ -4,7 +4,7 @@
     padding-top: 80px;
     padding-bottom: 40px;
     border-top: 1px solid #f1f3f5;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     color: #1e293b;
 }
 

@@ -1,4 +1,7 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import dns from 'dns';
+import { promisify } from 'util';
 import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
@@ -6,16 +9,114 @@ import Notification from '../models/Notification.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
 import Setting from '../models/Setting.js';
+import sendEmail from '../utils/sendEmail.js';
+
+const resolveMx = promisify(dns.resolveMx);
+
+const checkEmailDomain = async (email) => {
+    const domain = email.split('@')[1];
+    if (!domain) return false;
+    
+    // Set a 5s timeout to prevent hanging the request
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('DNS Timeout')), 5000));
+    
+    try {
+        const addresses = await Promise.race([resolveMx(domain), timeout]);
+        return addresses && addresses.length > 0;
+    } catch (err) {
+        console.error('DNS MX check failed:', err.message);
+        // If it's a timeout, maybe the domain is just slow, but we'll return false to be safe
+        // Or return true if we want to be lenient on timeouts.
+        return false;
+    }
+}
+
+// @desc    Send Registration OTP
+// @route   POST /api/users/send-signup-otp
+// @access  Public
+const sendSignupOTP = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        res.status(400);
+        throw new Error('Please provide an email');
+    }
+
+    // Check if user exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+        res.status(400);
+        throw new Error('User already exists');
+    }
+
+    // REAL CHECK: DNS/MX record verification
+    const isRealDomain = await checkEmailDomain(email);
+    if (!isRealDomain) {
+        res.status(400);
+        throw new Error('The email domain does not appear to be real or cannot receive emails.');
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // We can't save to User yet because user doesn't exist.
+    // We could use a Redis/Cache, or just return a temporary encrypted token containing the OTP.
+    // For simplicity in this env, we'll return a special header or just have the frontend send it back.
+    // Better: Send it and expect it back in the final registration.
+    
+    try {
+        await sendEmail({
+            email: email,
+            subject: 'Verify your email for Vinted',
+            message: `Your verification code is: ${otp}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                    <h2>Welcome to Vinted!</h2>
+                    <p>Use the code below to verify your email and complete your registration:</p>
+                    <div style="background: #f4f4f4; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #0d6efd; margin: 20px 0;">
+                        ${otp}
+                    </div>
+                    <p style="color: #999; font-size: 12px;">If you didn't request this, you can ignore this email.</p>
+                </div>
+            `
+        });
+
+        // Generate a temporary signup token to verify the OTP later
+        const signupToken = jwt.sign({ email, otp }, process.env.JWT_SECRET || 'secret123', { expiresIn: '10m' });
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Verification code sent to email',
+            signupToken // Frontend will send this back with the OTP
+        });
+    } catch (err) {
+        console.error('Signup Email error:', err);
+        res.status(500);
+        throw new Error('Email could not be sent');
+    }
+});
 
 // @desc    Register new user
 // @route   POST /api/users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-    const { username, email, password, first_name, last_name } = req.body;
+    const { username, email, password, first_name, last_name, otp, signupToken } = req.body;
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !otp || !signupToken) {
         res.status(400);
-        throw new Error('Please add all fields');
+        throw new Error('Please add all fields including verification code');
+    }
+
+    // Verify OTP
+    try {
+        const decoded = jwt.verify(signupToken, process.env.JWT_SECRET || 'secret123');
+        if (decoded.email !== email || decoded.otp !== otp) {
+            res.status(400);
+            throw new Error('Invalid verification code or email mismatch');
+        }
+    } catch (err) {
+        res.status(400);
+        throw new Error('Verification code expired or invalid');
     }
 
     if (password.length < 6) {
@@ -38,6 +139,7 @@ const registerUser = asyncHandler(async (req, res) => {
         password_hash: password,
         first_name: first_name || '',
         last_name: last_name || '',
+        isEmailVerified: true
     });
 
     if (user) {
@@ -373,6 +475,119 @@ const updateCookieConsent = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Consent updated', cookie_consent: user.cookie_consent });
 });
 
+// @desc    Forgot Password - get email and send OTP
+// @route   POST /api/users/forgotpassword
+// @access  Public
+const forgotPassword = asyncHandler(async (req, res) => {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+        res.status(404);
+        throw new Error('There is no user with that email');
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetPasswordOTP = otp;
+    user.resetPasswordOTPExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await user.save({ validateBeforeSave: false });
+
+    const message = `Your password reset verification code is: ${otp}. This code will expire in 10 minutes.`;
+
+    try {
+        await sendEmail({
+            email: user.email,
+            subject: 'Password Reset Verification Code',
+            message,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px; text-align: center;">
+                    <h2 style="color: #333;">Verification Code</h2>
+                    <p style="color: #666;">Use the following code to verify your password reset request:</p>
+                    <div style="background-color: #f4f4f4; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #0d6efd; margin: 20px 0; border-radius: 5px;">
+                        ${otp}
+                    </div>
+                    <p style="color: #999; font-size: 13px;">This code is valid for 10 minutes. If you didn't request this, you can ignore this email.</p>
+                </div>
+            `
+        });
+
+        res.status(200).json({ success: true, message: 'OTP sent to your email' });
+    } catch (err) {
+        console.error('Email error:', err);
+        user.resetPasswordOTP = undefined;
+        user.resetPasswordOTPExpire = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        res.status(500);
+        throw new Error('Email could not be sent');
+    }
+});
+
+// @desc    Verify OTP and return reset token
+// @route   POST /api/users/verify-otp
+// @access  Public
+const verifyOTP = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({ 
+        email,
+        resetPasswordOTP: otp,
+        resetPasswordOTPExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        res.status(400);
+        throw new Error('Invalid or expired verification code');
+    }
+
+    // Clear OTP and set a proper reset token for the final step
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpire = undefined;
+    
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Send the resetToken back to the frontend so it can use it for the final resetPassword call
+    res.status(200).json({ 
+        success: true, 
+        message: 'OTP verified successfully',
+        resetToken 
+    });
+});
+
+// @desc    Reset password
+// @route   PUT /api/users/resetpassword/:resettoken
+// @access  Public
+const resetPassword = asyncHandler(async (req, res) => {
+    // Get hashed token
+    const hashedToken = crypto
+        .createHash('sha256')
+        .update(req.params.resettoken)
+        .digest('hex');
+
+    const user = await User.findOne({
+        resetPasswordToken: hashedToken,
+        resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+        res.status(400);
+        throw new Error('Invalid or expired reset link');
+    }
+
+    // Set new password
+    user.password_hash = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Password reset successful'
+    });
+});
+
 export {
     registerUser,
     loginUser,
@@ -382,5 +597,9 @@ export {
     getAllUsers,
     pingActivity,
     getPublicUser,
-    updateCookieConsent
+    updateCookieConsent,
+    forgotPassword,
+    sendSignupOTP,
+    verifyOTP,
+    resetPassword
 };

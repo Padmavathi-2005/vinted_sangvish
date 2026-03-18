@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import Newsletter from '../models/Newsletter.js';
+import sendEmail from '../utils/sendEmail.js';
 
 // @desc    Subscribe to newsletter
 // @route   POST /api/newsletter/subscribe
@@ -24,6 +25,22 @@ const subscribeNewsletter = asyncHandler(async (req, res) => {
         if (existing.status === 'unsubscribed') {
             existing.status = 'active';
             await existing.save();
+            
+            // Re-subscription welcome email
+            try {
+                await sendEmail({
+                    email,
+                    subject: 'Welcome back to Vinted Newsletter!',
+                    message: 'Great news! Your subscription is active again.',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px; text-align: center;">
+                            <h2 style="color: #0d6efd;">Welcome Back!</h2>
+                            <p style="color: #666;">We're happy to have you back in our community. You'll once again receive our latest updates and deals directly in your email.</p>
+                        </div>
+                    `
+                });
+            } catch(e) { console.error('Newsletter re-welcome email failed', e); }
+
             return res.status(200).json({ message: 'Welcome back! Your subscription is active again.' });
         }
         res.status(400);
@@ -35,6 +52,21 @@ const subscribeNewsletter = asyncHandler(async (req, res) => {
         source: 'footer',
         ip: req.ip || req.connection.remoteAddress || ''
     });
+
+    // New subscription welcome email
+    try {
+        await sendEmail({
+            email,
+            subject: 'Welcome to the Vinted Newsletter!',
+            message: 'Thank you for subscribing to our newsletter!',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px; text-align: center;">
+                    <h2 style="color: #0d6efd;">You're In!</h2>
+                    <p style="color: #666;">Thank you for subscribing to our newsletter. We'll keep you posted with the latest items, trends, and special offers from our marketplace!</p>
+                </div>
+            `
+        });
+    } catch(e) { console.error('Newsletter welcome email failed', e); }
 
     res.status(201).json({ message: 'Thank you for subscribing to our newsletter!' });
 });

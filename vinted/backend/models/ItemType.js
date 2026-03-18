@@ -23,6 +23,8 @@ const itemTypeSchema = mongoose.Schema(
             required: [true, 'Please add a slug'],
         },
         description: { type: String },
+        icon: { type: String },
+        image: { type: String },
         is_active: { type: Boolean, default: true },
         sort_order: { type: Number, default: 0 },
     },

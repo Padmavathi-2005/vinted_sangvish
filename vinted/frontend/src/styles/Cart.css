@@ -10,7 +10,7 @@
     background: #f8fafc;
     padding: 24px;
     /* Increased padding */
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .cart-container {
@@ -108,7 +108,7 @@
     font-weight: 600;
     font-size: 0.82rem;
     cursor: pointer;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     transition: all 0.2s;
 }
 
@@ -453,7 +453,7 @@
     font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     display: flex;
     align-items: center;
     justify-content: center;

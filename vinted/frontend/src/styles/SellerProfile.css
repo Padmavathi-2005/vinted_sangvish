@@ -4,7 +4,7 @@
 .sp-page {
     min-height: 100vh;
     background: #f8fafc;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     padding: 32px 0 80px;
 }
 
@@ -17,7 +17,7 @@
     height: 60vh;
     gap: 16px;
     color: #64748b;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .sp-spinner {
@@ -209,7 +209,7 @@
     color: #475569;
     font-size: 0.95rem;
     font-weight: 500;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     cursor: pointer;
     text-align: left;
     width: 100%;
@@ -367,7 +367,7 @@
     font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     transition: all 0.2s;
 }
 
@@ -614,7 +614,7 @@
     border: 1.5px solid #e2e8f0;
     border-radius: 10px;
     font-size: 0.95rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     color: #1e293b;
     outline: none;
     transition: border 0.2s;
@@ -634,7 +634,7 @@
     font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     transition: all 0.2s;
     margin-top: 4px;
 }
@@ -681,7 +681,7 @@
     border-radius: 10px;
     font-weight: 600;
     font-size: 0.95rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
     transition: all 0.2s;
     cursor: pointer;
 }

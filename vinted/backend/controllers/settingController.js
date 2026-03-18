@@ -6,7 +6,7 @@ import Setting from '../models/Setting.js';
 // @access  Private (Admin)
 const getSettingTypes = asyncHandler(async (req, res) => {
     const types = await Setting.distinct('type');
-    const merged = [...new Set(['general_settings', 'site_settings', 'cookie_settings', 'payment_settings', 'api_settings', ...types])];
+    const merged = [...new Set(['general_settings', 'site_settings', 'cookie_settings', 'payment_settings', 'email_settings', 'api_settings', ...types])];
     res.json(merged);
 });
 
@@ -100,6 +100,14 @@ const getSettingsByType = asyncHandler(async (req, res) => {
         setting = await Setting.create({
             type: 'api_settings',
             gemini_api_key: ''
+        });
+    }
+
+    if (!setting && type === 'email_settings') {
+        setting = await Setting.create({
+            type: 'email_settings',
+            mail_driver: 'smtp',
+            mail_encryption: 'tls'
         });
     }
 

@@ -5,6 +5,7 @@ import Notification from '../models/Notification.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
 import Admin from '../models/Admin.js';
+import sendEmail from '../utils/sendEmail.js';
 import { processOrderPaymentSplit, reverseOrderPayment, processRefundSplit, deductBuyerWallet } from './walletController.js';
 
 // @desc    Create new order
@@ -150,6 +151,26 @@ const createOrder = asyncHandler(async (req, res) => {
             link: `/profile?tab=orders`
         });
 
+        // Send Order Confirmation to Buyer
+        try {
+            await sendEmail({
+                email: req.user.email,
+                subject: `Order Confirmation #${orderNumber}`,
+                message: `Your order #${orderNumber} has been successfully placed!`,
+                html: `<p>Hi ${req.user.username},</p><p>Thank you for your purchase! Your order <b>#${orderNumber}</b> for ${groupItems.length > 1 ? groupItems.length + ' items' : '"' + groupItems[0].title + '"'} has been confirmed.</p><p>You will be notified once it ships.</p>`
+            });
+        } catch(e) { console.error('Buyer confirmation email failed:', e); }
+
+        // Send New Sale Notification to Seller
+        try {
+            await sendEmail({
+                email: seller.email,
+                subject: `New Sale! Order #${orderNumber}`,
+                message: `You just sold an item! Order #${orderNumber}`,
+                html: `<p>Hi ${seller.username},</p><p>Great news! You just sold ${groupItems.length > 1 ? 'a bundle of ' + groupItems.length + ' items' : '"' + groupItems[0].title + '"'}.</p><p>Please prepare Order <b>#${orderNumber}</b> for shipping.</p>`
+            });
+        } catch(e) { console.error('Seller sale email failed:', e); }
+
         // System Message in Conversation
         try {
             let conversation = await Conversation.findOne({
@@ -293,7 +314,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     const updatedOrder = await order.save();
 
     // Populate for notifications
-    const populatedOrder = await Order.findById(order._id).populate('item_id', 'title');
+    const populatedOrder = await Order.findById(order._id).populate('item_id', 'title').populate('buyer_id', 'username email');
 
     // Notify buyer on status changes
     if (status === 'shipped' || status === 'dispatched') {
@@ -305,6 +326,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
             type: 'order',
             link: '/profile?tab=orders'
         });
+
+        try {
+            await sendEmail({
+                email: populatedOrder.buyer_id.email,
+                subject: `Your Order #${order.order_number} has shipped!`,
+                message: `Your order "${populatedOrder.item_id?.title}" is on its way.`,
+                html: `<p>Hi ${populatedOrder.buyer_id.username},</p><p>Good news! Your order <b>#${order.order_number}</b> for "${populatedOrder.item_id?.title}" has been shipped by the seller.</p>`
+            });
+        } catch(e) { console.error('Shipped email failed', e); }
     } else if (status === 'out_for_delivery' || status === 'on_the_way') {
         await Notification.create({
             user_id: order.buyer_id,
@@ -326,6 +356,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
             type: 'order',
             link: '/profile?tab=orders'
         });
+
+        try {
+            await sendEmail({
+                email: populatedOrder.buyer_id.email,
+                subject: `Your Order #${order.order_number} has been delivered!`,
+                message: `Your order "${populatedOrder.item_id?.title}" has been delivered.`,
+                html: `<p>Hi ${populatedOrder.buyer_id.username},</p><p>Your order <b>#${order.order_number}</b> for "${populatedOrder.item_id?.title}" has been delivered! Please log in to your account to confirm everything is okay and leave a review for the seller.</p>`
+            });
+        } catch(e) { console.error('Delivered email failed', e); }
 
         // Cascade timestamps: If we reached a later stage, fill in previous stages if null
         if (status === 'delivered') {
@@ -404,6 +443,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
             type: 'alert',
             link: '/profile?tab=orders'
         });
+
+        try {
+            await sendEmail({
+                email: populatedOrder.buyer_id.email,
+                subject: `Order Cancelled: #${order.order_number}`,
+                message: `Your order was cancelled by the seller.`,
+                html: `<p>Hi ${populatedOrder.buyer_id.username},</p><p>Unfortunately, the seller has cancelled your order <b>#${order.order_number}</b>.</p><p>Reason: ${order.cancel_reason || 'N/A'}</p><p>A full refund has been initiated to your original payment method.</p>`
+            });
+        } catch(e) { console.error('Seller cancel email failed', e); }
     }
 
     res.json(updatedOrder);
@@ -453,6 +501,16 @@ const cancelOrder = asyncHandler(async (req, res) => {
         type: 'info',
         link: `/profile?tab=orders`
     });
+
+    try {
+        const populatedCancelOrder = await Order.findById(order._id).populate('seller_id', 'email username');
+        await sendEmail({
+            email: populatedCancelOrder.seller_id.email,
+            subject: `Order Cancelled by Buyer: #${order.order_number}`,
+            message: `The buyer has cancelled this order.`,
+            html: `<p>Hi ${populatedCancelOrder.seller_id.username},</p><p>The buyer has cancelled Order <b>#${order.order_number}</b>.</p><p>Reason: ${order.cancel_reason}</p><p>The items have been automatically re-listed as Available.</p>`
+        });
+    } catch(e) { console.error('Buyer cancel email failed', e); }
 
     // Notify Admin
     const adminsList = await Admin.find({ is_active: true });

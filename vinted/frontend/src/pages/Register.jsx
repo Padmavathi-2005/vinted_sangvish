@@ -2,25 +2,29 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import React, { useState, useContext, useEffect } from 'react';
 import axios from '../utils/axios';
 import { useNavigate, Link } from 'react-router-dom';
-import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGoogle, FaApple, FaFacebookSquare, FaTwitter } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGoogle, FaApple, FaFacebookSquare, FaTwitter, FaKey, FaArrowLeft } from 'react-icons/fa';
 import AuthContext from '../context/AuthContext';
 import Meta from '../components/common/Meta';
 import '../styles/Auth.css';
 
 const Register = () => {
     const { login } = useContext(AuthContext);
+    const [step, setStep] = useState(1); // 1: Details, 2: OTP
     const [formData, setFormData] = useState({ 
         username: '', 
         first_name: '', 
         last_name: '', 
         email: '', 
-        password: '' 
+        password: '',
+        otp: ''
     });
+    const [signupToken, setSignupToken] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [socialSettings, setSocialSettings] = useState(null);
     const navigate = useNavigate();
-    const { username, first_name, last_name, email, password } = formData;
+    const { username, first_name, last_name, email, password, otp } = formData;
 
     useEffect(() => {
         const fetchSocialSettings = async () => {
@@ -40,15 +44,39 @@ const Register = () => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
+    const handleSendOTP = async (e) => {
+        e.preventDefault();
+        if (!email || !username || !password) {
+            return setError('Please fill all required fields');
+        }
+        setLoading(true);
+        setError('');
+        try {
+            const response = await axios.post('/api/users/send-signup-otp', { email });
+            if (response.data.signupToken) {
+                setSignupToken(response.data.signupToken);
+                setStep(2);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to send verification code');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const onSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
         try {
             const response = await axios.post('/api/users', { 
                 username, 
                 email, 
                 password,
                 first_name,
-                last_name
+                last_name,
+                otp,
+                signupToken
             });
             if (response.data) {
                 login(response.data);
@@ -56,6 +84,8 @@ const Register = () => {
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -63,10 +93,20 @@ const Register = () => {
         <div className="auth-page">
             <Meta title="Register" description="Join our marketplace community and start buying or selling fashion today." />
             <div className="auth-card">
-                <h2 className="text-center">Create Account</h2>
-                <p className="subtitle text-center">Join our marketplace community today</p>
+                {step === 2 && (
+                    <div className="auth-back mb-3">
+                        <span onClick={() => setStep(1)} style={{cursor: 'pointer', color: '#64748b', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                            <FaArrowLeft size={12} /> Edit Details
+                        </span>
+                    </div>
+                )}
+                
+                <h2 className="text-center">{step === 1 ? 'Create Account' : 'Verify Email'}</h2>
+                <p className="subtitle text-center">
+                    {step === 1 ? 'Join our marketplace community today' : `We've sent a code to ${email}`}
+                </p>
 
-                {(socialSettings?.google_enabled || socialSettings?.facebook_enabled || socialSettings?.twitter_enabled || socialSettings?.apple_enabled) && (
+                {step === 1 && (socialSettings?.google_enabled || socialSettings?.facebook_enabled || socialSettings?.twitter_enabled || socialSettings?.apple_enabled) && (
                     <>
                         <div className="social-buttons">
                             {socialSettings?.google_enabled && (
@@ -86,113 +126,144 @@ const Register = () => {
                     </>
                 )}
 
-                <form onSubmit={onSubmit}>
+                <form onSubmit={step === 1 ? handleSendOTP : onSubmit}>
                     {error && <div className="auth-error">{error}</div>}
 
-                    {/* Username */}
-                    <div className="auth-field">
-                        <label className="auth-label">Display Name</label>
-                        <div className="auth-input-wrapper">
-                            <span className="auth-icon"><FaUser /></span>
-                            <input
-                                type="text"
-                                className="auth-input"
-                                name="username"
-                                value={username}
-                                placeholder="style_lover"
-                                onChange={onChange}
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div className="row">
-                        <div className="col-md-6">
-                            {/* First Name */}
+                    {step === 1 ? (
+                        <>
+                            {/* Username */}
                             <div className="auth-field">
-                                <label className="auth-label">First Name</label>
+                                <label className="auth-label">Display Name</label>
                                 <div className="auth-input-wrapper">
                                     <span className="auth-icon"><FaUser /></span>
                                     <input
                                         type="text"
                                         className="auth-input"
-                                        name="first_name"
-                                        value={first_name}
-                                        placeholder="John"
+                                        name="username"
+                                        value={username}
+                                        placeholder="style_lover"
                                         onChange={onChange}
                                         required
                                     />
                                 </div>
                             </div>
-                        </div>
-                        <div className="col-md-6">
-                            {/* Last Name */}
+
+                            <div className="row">
+                                <div className="col-md-6">
+                                    <div className="auth-field">
+                                        <label className="auth-label">First Name</label>
+                                        <div className="auth-input-wrapper">
+                                            <span className="auth-icon"><FaUser /></span>
+                                            <input
+                                                type="text"
+                                                className="auth-input"
+                                                name="first_name"
+                                                value={first_name}
+                                                placeholder="John"
+                                                onChange={onChange}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="col-md-6">
+                                    <div className="auth-field">
+                                        <label className="auth-label">Last Name</label>
+                                        <div className="auth-input-wrapper">
+                                            <span className="auth-icon"><FaUser /></span>
+                                            <input
+                                                type="text"
+                                                className="auth-input"
+                                                name="last_name"
+                                                value={last_name}
+                                                placeholder="Doe"
+                                                onChange={onChange}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="auth-field">
-                                <label className="auth-label">Last Name</label>
+                                <label className="auth-label">Email Address</label>
                                 <div className="auth-input-wrapper">
-                                    <span className="auth-icon"><FaUser /></span>
+                                    <span className="auth-icon"><FaEnvelope /></span>
+                                    <input
+                                        type="email"
+                                        className="auth-input"
+                                        name="email"
+                                        value={email}
+                                        placeholder="user@email.com"
+                                        onChange={onChange}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="auth-field">
+                                <label className="auth-label">Password</label>
+                                <div className="auth-input-wrapper">
+                                    <span className="auth-icon"><FaLock /></span>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        className="auth-input"
+                                        name="password"
+                                        value={password}
+                                        placeholder="Min. 6 characters"
+                                        onChange={onChange}
+                                        required
+                                    />
+                                    <span
+                                        className="auth-icon auth-icon-right"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="auth-terms">
+                                By creating an account, you agree to our{' '}
+                                <Link to="/terms">Terms of Service</Link> and{' '}
+                                <Link to="/privacy">Privacy Policy</Link>.
+                            </div>
+
+                            <button type="submit" className="btn-submit" disabled={loading}>
+                                {loading ? 'Checking Email...' : 'Continue to Verify'}
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="auth-field">
+                                <label className="auth-label">Enter 6-Digit Code</label>
+                                <div className="auth-input-wrapper">
+                                    <span className="auth-icon"><FaKey /></span>
                                     <input
                                         type="text"
                                         className="auth-input"
-                                        name="last_name"
-                                        value={last_name}
-                                        placeholder="Doe"
+                                        name="otp"
+                                        value={otp}
+                                        placeholder="000000"
+                                        maxLength="6"
                                         onChange={onChange}
                                         required
                                     />
                                 </div>
+                                <p className="mt-2" style={{fontSize: '13px', color: '#64748b'}}>
+                                    Check your inbox (and spam folder) for the verification code.
+                                </p>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Email */}
-                    <div className="auth-field">
-                        <label className="auth-label">Email Address</label>
-                        <div className="auth-input-wrapper">
-                            <span className="auth-icon"><FaEnvelope /></span>
-                            <input
-                                type="email"
-                                className="auth-input"
-                                name="email"
-                                value={email}
-                                placeholder="user@email.com"
-                                onChange={onChange}
-                                required
-                            />
-                        </div>
-                    </div>
+                            <button type="submit" className="btn-submit" disabled={loading}>
+                                {loading ? 'Verifying...' : 'Complete Registration'}
+                            </button>
 
-                    {/* Password */}
-                    <div className="auth-field">
-                        <label className="auth-label">Password</label>
-                        <div className="auth-input-wrapper">
-                            <span className="auth-icon"><FaLock /></span>
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                className="auth-input"
-                                name="password"
-                                value={password}
-                                placeholder="Min. 6 characters"
-                                onChange={onChange}
-                                required
-                            />
-                            <span
-                                className="auth-icon auth-icon-right"
-                                onClick={() => setShowPassword(!showPassword)}
-                            >
-                                {showPassword ? <FaEyeSlash /> : <FaEye />}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Terms */}
-                    <div className="auth-terms">
-                        By creating an account, you agree to our{' '}
-                        <Link to="/terms">Terms of Service</Link> and{' '}
-                        <Link to="/privacy">Privacy Policy</Link>.
-                    </div>
-
-                    <button type="submit" className="btn-submit">Create Account</button>
+                            <p className="text-center mt-3" style={{fontSize: '14px', color: '#64748b'}}>
+                                Didn't receive it? <span onClick={handleSendOTP} style={{color: '#0ea5e9', cursor: 'pointer', fontWeight: '500'}}>Resend Code</span>
+                            </p>
+                        </>
+                    )}
                 </form>
 
                 <div className="auth-footer">

@@ -12,10 +12,18 @@ import {
     pingActivity,
     getPublicUser,
     updateCookieConsent,
+    forgotPassword,
+    sendSignupOTP,
+    verifyOTP,
+    resetPassword
 } from '../controllers/userController.js';
 
 router.post('/', registerUser);
 router.post('/login', loginUser);
+router.post('/forgotpassword', forgotPassword);
+router.post('/send-signup-otp', sendSignupOTP);
+router.post('/verify-otp', verifyOTP);
+router.put('/resetpassword/:resettoken', resetPassword);
 router.get('/me', protect, getMe);
 router.get('/', protect, getAllUsers);
 router.get('/:id/public', getPublicUser);

@@ -15,6 +15,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import NotFound from './pages/NotFound';
 import DynamicPage from './pages/DynamicPage';
+import ForgotPassword from './pages/ForgotPassword';
 import CategoriesPage from './pages/CategoriesPage';
 import CategoryPage from './pages/CategoryPage';
 import SubcategoryItemsPage from './pages/SubcategoryItemsPage';
@@ -29,6 +30,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { SettingsProvider } from './context/SettingsContext';
 import ScrollToTop from './components/common/ScrollToTop';
 import CookieConsent from './components/common/CookieConsent';
+import MobileNavbar from './components/MobileNavbar';
 
 // Layout wrapper to conditionally show Header/Footer
 const Layout = ({ children }) => {
@@ -64,6 +66,7 @@ const Layout = ({ children }) => {
         {children}
       </main>
       {!isAdminRoute && <Footer />}
+      {!isAdminRoute && <MobileNavbar />}
       {!isAdminRoute && <CookieConsent />}
     </div>
   );
@@ -85,6 +88,7 @@ const App = () => {
                         <Route path="/products" element={<Products />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/sell" element={<SellItem />} />
                         <Route path="/items/:id" element={<ItemDetail />} />

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   /* Default Dark Mode Variables */
@@ -10,8 +10,8 @@
   --card-bg: #1e293b;
   --radius: 8px;
   /* Fonts */
-  --body-font: 'Outfit';
-  --font-family: var(--body-font), system-ui, -apple-system, sans-serif;
+  --body-font: 'Poppins';
+  --font-family: var(--body-font), 'Poppins', system-ui, -apple-system, sans-serif;
   --border-color: rgba(255, 255, 255, 0.1);
 }
 

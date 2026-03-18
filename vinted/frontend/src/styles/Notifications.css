@@ -2,7 +2,7 @@
     background-color: #f0f4f8;
     min-height: 100vh;
     padding: 40px 20px;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family);
 }
 
 .notif-container {

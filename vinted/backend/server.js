@@ -34,6 +34,7 @@ import frontendContentRoutes from './routes/frontendContentRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import adminMessageRoutes from './routes/adminMessageRoutes.js';
 import shippingRoutes from './routes/shippingRoutes.js';
 import shippingCompanyRoutes from './routes/shippingCompanyRoutes.js';
 import { applyDiscount, removeDiscount } from './controllers/itemController.js';
@@ -111,6 +112,7 @@ const startServer = async () => {
         app.use('/api/items', itemRoutes);
         app.use('/api/settings', settingRoutes);
         app.use('/api/admin', adminRoutes); // Unified Admin Routes
+        app.use('/api/admin-messages', adminMessageRoutes);
         app.use('/api/users', userRoutes);
         app.use('/api/categories', categoryRoutes);
         app.use('/api/favorites', favoriteRoutes);

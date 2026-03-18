@@ -1423,21 +1423,21 @@ const Header = () => {
                         ref={aiBoxRef}
                         style={{
                             position: 'fixed',
-                            bottom: windowWidth < 480 ? '20px' : '30px',
+                            bottom: windowWidth < 768 ? '90px' : (windowWidth < 480 ? '20px' : '30px'),
                             right: windowWidth < 480 ? '15px' : '30px',
-                            zIndex: 2500,
+                            zIndex: 2505,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'flex-end',
-                            fontFamily: "'Outfit', sans-serif"
+                            fontFamily: "var(--font-family)"
                         }}
                     >
                         {/* Chat Box - Shown when Open */}
                         {isAIDrawerOpen && (
                             <div style={{
                                 position: 'fixed',
-                                top: '85px',
-                                bottom: windowWidth < 480 ? '100px' : '110px',
+                                bottom: windowWidth < 768 ? '160px' : (windowWidth < 480 ? '100px' : '110px'),
+                                top: windowWidth < 768 ? '75px' : '85px',
                                 right: windowWidth < 480 ? '15px' : '30px',
                                 width: windowWidth < 480 ? 'calc(100vw - 30px)' : '380px',
                                 backgroundColor: 'white',

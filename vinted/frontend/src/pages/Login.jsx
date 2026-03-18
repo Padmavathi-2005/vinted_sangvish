@@ -100,7 +100,6 @@ const Login = () => {
                     <div className="auth-field">
                         <div className="auth-label-row">
                             <label className="auth-label">Password</label>
-                            <Link to="/forgot-password" className="auth-forgot">Forgot?</Link>
                         </div>
                         <div className="auth-input-wrapper">
                             <span className="auth-icon"><FaLock /></span>
@@ -119,6 +118,9 @@ const Login = () => {
                             >
                                 {showPassword ? <FaEyeSlash /> : <FaEye />}
                             </span>
+                        </div>
+                        <div className="d-flex justify-content-end mt-2">
+                            <Link to="/forgot-password" style={{fontSize: '13px', color: '#0ea5e9', fontWeight: '500', textDecoration: 'none'}}>Forgot password?</Link>
                         </div>
                     </div>
 

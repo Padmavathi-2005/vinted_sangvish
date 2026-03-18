@@ -37,7 +37,7 @@ export const SettingsProvider = ({ children }) => {
                     }
 
                     // Dynamic Font Loading
-                    if (data.body_font_url) {
+                    if (updatedSettings.body_font_url) {
                         let fontLink = document.getElementById('dynamic-google-font');
                         if (!fontLink) {
                             fontLink = document.createElement('link');
@@ -45,11 +45,14 @@ export const SettingsProvider = ({ children }) => {
                             fontLink.rel = 'stylesheet';
                             document.head.appendChild(fontLink);
                         }
-                        fontLink.href = data.body_font_url;
+                        fontLink.href = updatedSettings.body_font_url;
                     }
 
-                    if (data.body_font_name) {
-                        document.documentElement.style.setProperty('--body-font', data.body_font_name);
+                    if (updatedSettings.body_font_name) {
+                        // Use quotes for safe CSS variable application
+                        document.documentElement.style.setProperty('--body-font', `'${updatedSettings.body_font_name}'`);
+                    } else {
+                        document.documentElement.style.setProperty('--body-font', "'Poppins', sans-serif");
                     }
 
                     if (data.site_name) {

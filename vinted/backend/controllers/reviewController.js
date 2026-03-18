@@ -2,6 +2,8 @@ import asyncHandler from 'express-async-handler';
 import Review from '../models/Review.js';
 import Order from '../models/Order.js';
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import sendEmail from '../utils/sendEmail.js';
 
 // @desc    Create a review for an order
 // @route   POST /api/reviews
@@ -17,7 +19,7 @@ const createReview = asyncHandler(async (req, res) => {
     // Get the order
     const order = await Order.findById(order_id)
         .populate('item_id', 'title')
-        .populate('seller_id', 'username');
+        .populate('seller_id', 'username email');
 
     if (!order) {
         res.status(404);
@@ -52,13 +54,39 @@ const createReview = asyncHandler(async (req, res) => {
     });
 
     // Notify the seller
+    const seller = await User.findById(order.seller_id._id || order.seller_id);
+    
     await Notification.create({
-        user_id: order.seller_id._id || order.seller_id,
+        user_id: seller._id,
         title: 'New Review Received!',
         message: `${req.user.username} gave you a ${rating}-star review for "${order.item_id?.title}".`,
         type: 'info',
         link: '/profile?tab=profile_settings',
     });
+
+    // Send email notification to seller
+    try {
+        await sendEmail({
+            email: seller.email,
+            subject: 'New Review Received on Vinted!',
+            message: `${req.user.username} gave you a ${rating}-star review for "${order.item_id?.title}".`,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px; text-align: center;">
+                    <h2 style="color: #333;">New Review!</h2>
+                    <p style="color: #666;">Great news! <b>${req.user.username}</b> has left you a review for your item "${order.item_id?.title}":</p>
+                    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                        <div style="font-size: 24px; color: #ffbc00; margin-bottom: 10px;">
+                            ${"★".repeat(rating)}${"☆".repeat(5 - rating)}
+                        </div>
+                        <p style="font-style: italic; color: #555;">"${comment || 'No comment provided'}"</p>
+                    </div>
+                    <p style="color: #999; font-size: 13px;">Keep up the great work to maintain your high rating!</p>
+                </div>
+            `
+        });
+    } catch(err) {
+        console.error('Review notification email failed:', err);
+    }
 
     res.status(201).json(review);
 });

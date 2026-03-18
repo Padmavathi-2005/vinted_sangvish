@@ -6,6 +6,7 @@ import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import Currency from '../models/Currency.js';
+import sendEmail from '../utils/sendEmail.js';
 
 // Helper for population
 const participantsPopulate = {
@@ -49,6 +50,17 @@ const getConversations = asyncHandler(async (req, res) => {
     );
 
     res.status(200).json(safe);
+});
+
+// @desc    Get total message count for admin
+// @route   GET /api/admin-messages/count
+// @access  Private (Admin)
+const getAdminMessagesCount = asyncHandler(async (req, res) => {
+    // For admin, we might want to count all conversations that need attention
+    // or just the total number of conversations.
+    // Let's count all "pending" status conversations or just total count for now.
+    const count = await Conversation.countDocuments({ status: 'pending' });
+    res.status(200).json({ count });
 });
 
 // @desc    Get messages for a conversation
@@ -172,6 +184,59 @@ const sendMessage = asyncHandler(async (req, res) => {
             type: 'message',
             link: receiver_model === 'Admin' ? `/messages` : `/profile?tab=messages&conversation=${conversation._id}`,
         });
+    }
+
+    // EMAIL NOTIFICATIONS
+    try {
+        // A) Support Ticket Auto-Reply
+        if (receiver_model === 'Admin' && req.user.role !== 'admin') {
+            // User messaging admin
+            await sendEmail({
+                email: req.user.email,
+                subject: 'Support Ticket Received!',
+                message: 'We have received your message. Our team will get back to you shortly.',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px;">
+                        <h2 style="color: #0d6efd;">Message Received!</h2>
+                        <p>Hi ${req.user.username || req.user.name},</p>
+                        <p>We've received your inquiry and a support ticket has been opened. Our administrators will review your message and reply as soon as possible.</p>
+                        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                        <p style="color: #666; font-size: 14px;"><b>Your message:</b></p>
+                        <p style="background: #f9f9f9; padding: 15px; border-radius: 5px; color: #333;">${message}</p>
+                    </div>
+                `
+            });
+        }
+
+        // B) Offline User Notification
+        if (receiver_model === 'User') {
+            const recipient = await User.findById(receiver_id);
+            if (recipient) {
+                const now = new Date();
+                const lastSeen = recipient.last_login || new Date(0);
+                const diffMinutes = (now - lastSeen) / (1000 * 60);
+
+                // If recipient hasn't been active in the last 5 minutes, send email
+                if (diffMinutes > 5) {
+                    const isFromAdmin = req.user.role === 'admin';
+                    await sendEmail({
+                        email: recipient.email,
+                        subject: isFromAdmin ? 'New Update on your Support Ticket' : 'You have a new message on Vinted!',
+                        message: isFromAdmin ? 'Our support team has replied to your inquiry.' : `You have a new message from ${req.user.username || req.user.name}`,
+                        html: `
+                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; padding: 20px; text-align: center;">
+                                <h2 style="color: ${isFromAdmin ? '#0d6efd' : '#333'};">${isFromAdmin ? 'Support Team Response' : 'New Message!'}</h2>
+                                <p style="color: #666;">${isFromAdmin ? 'Good news! Our support team has responded to your inquiry:' : `While you were away, <b>${req.user.username || req.user.name}</b> sent you a message:`}</p>
+                                <p style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; color: #333; margin: 20px 0;">"${message.length > 100 ? message.substring(0, 97) + '...' : message}"</p>
+                                <a href="${process.env.BACKEND_URL.replace('/api', '')}/profile?tab=messages&conversation=${conversation._id}" style="display: inline-block; background-color: #0d6efd; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Reply</a>
+                            </div>
+                        `
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Messaging email notification failed:', err);
     }
 
     if (req.io) {
@@ -335,6 +400,7 @@ const respondToOffer = asyncHandler(async (req, res) => {
 
 export {
     getConversations,
+    getAdminMessagesCount,
     getMessages,
     sendMessage,
     respondToRequest,

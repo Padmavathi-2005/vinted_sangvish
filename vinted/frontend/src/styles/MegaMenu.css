@@ -66,7 +66,9 @@
     border-radius: 8px;
     cursor: pointer;
     color: #495057;
-    font-weight: 500;
+    font-family: var(--font-family);
+    font-weight: 600;
+    font-size: 1.05rem;
     transition: all 0.2s ease;
     text-decoration: none !important;
 }
@@ -120,7 +122,9 @@
 .mm-item-link {
     color: #495057;
     text-decoration: none !important;
-    font-size: 0.95rem;
+    font-family: var(--font-family);
+    font-size: 1.05rem;
+    font-weight: 500;
     transition: color 0.1s ease;
     padding: 4px 0;
     display: block;
