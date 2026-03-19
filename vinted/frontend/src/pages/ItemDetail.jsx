@@ -331,6 +331,11 @@ const ItemDetail = () => {
         if (ref.current) ref.current.scrollBy({ left: dir * 300, behavior: 'smooth' });
     };
 
+    const handleImageError = (e) => {
+        e.target.onerror = null;
+        e.target.src = getImageUrl('images/site/not_found.png');
+    };
+
     const handleThumbClick = (idx) => {
         setActiveImg(idx);
         setHoveredSide(null);
@@ -420,7 +425,7 @@ const ItemDetail = () => {
                         <div className="id-gallery-layout">
                             {/* Main Image */}
                             <div className="id-main-img-wrapper" onClick={() => setLightbox(true)}>
-                                <img src={getImageSrc(images[displayedImg])} alt={item.title} className="id-main-img" />
+                                <img src={getImageSrc(images[displayedImg])} alt={item.title} className="id-main-img" onError={handleImageError} />
                                 <div className="id-condition-badge" style={{ backgroundColor: condCfg.color }}>{condLabel}</div>
                                 <div className="id-zoom-hint"><FaSearchPlus /> {t('item_detail.click_zoom')}</div>
 
@@ -460,7 +465,7 @@ const ItemDetail = () => {
                                                 onMouseLeave={() => setHoveredSide(null)}
                                                 onClick={() => handleThumbClick(idx)}
                                             >
-                                                <img src={getImageSrc(img)} alt={`View ${idx + 1}`} className="id-side-img" />
+                                                <img src={getImageSrc(img)} alt={`View ${idx + 1}`} className="id-side-img" onError={handleImageError} />
                                                 <div className="id-thumb-overlay"><span>{idx + 1}</span></div>
                                             </div>
                                         );
@@ -686,7 +691,7 @@ const ItemDetail = () => {
                                     <Link to={`/seller/${seller._id}`} className="id-seller-avatar-link">
                                         <div className="id-seller-avatar">
                                             {seller.profile_image ? (
-                                                <img src={getImageSrc(seller.profile_image)} alt={seller.username} />
+                                                <img src={getImageSrc(seller.profile_image)} alt={seller.username} onError={handleImageError} />
                                             ) : (
                                                 <div className="id-seller-avatar-placeholder">
                                                     {(seller.username || 'U').charAt(0).toUpperCase()}
@@ -795,17 +800,18 @@ const ItemDetail = () => {
                                 transform: 'scale(2.5)'
                             } : {}}
                             draggable={false}
+                            onError={handleImageError}
                         />
                     </div>
                     {images.length > 1 && (
                         <div className="id-lightbox-thumbs" onClick={e => e.stopPropagation()}>
                             {images.map((img, i) => (
-                                <button
+                                    <button
                                     key={i}
                                     className={`id-lb-thumb ${i === activeImg ? 'active' : ''}`}
                                     onClick={() => { setActiveImg(i); setLightboxZoom(false); }}
                                 >
-                                    <img src={getImageSrc(img)} alt={`${i + 1}`} />
+                                    <img src={getImageSrc(img)} alt={`${i + 1}`} onError={handleImageError} />
                                     <span className="id-lb-thumb-num">{i + 1}</span>
                                 </button>
                             ))}

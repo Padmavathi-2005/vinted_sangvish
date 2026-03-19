@@ -94,8 +94,8 @@ router.put('/subcategories/:id', upload.single('category_image'), updateSubcateg
 router.delete('/subcategories/:id', deleteSubcategory);
 
 router.get('/item-types', getItemTypes);
-router.post('/item-types', createItemType);
-router.put('/item-types/:id', updateItemType);
+router.post('/item-types', upload.single('category_image'), createItemType);
+router.put('/item-types/:id', upload.single('category_image'), updateItemType);
 router.delete('/item-types/:id', deleteItemType);
 
 // Order Management

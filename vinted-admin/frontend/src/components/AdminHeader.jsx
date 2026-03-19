@@ -61,10 +61,13 @@ const AdminHeader = ({ toggleSidebar }) => {
                     const conversationsResp = await axios.get('/api/admin-messages/conversations');
                     // Format for dropdown display
                     const latestConvs = conversationsResp.data.slice(0, 3).map(conv => {
-                        const otherParticipant = conv.participants.find(p => p.id._id.toString() !== (verifyResp.data.admin._id || '').toString());
+                        const otherParticipant = conv.participants.find(p => {
+                            const pId = p.user?._id || p.user;
+                            return pId?.toString() !== (verifyResp.data.admin._id || '').toString();
+                        });
                         return {
                             id: conv._id,
-                            sender: safeString(otherParticipant?.id?.username || otherParticipant?.id?.name) || 'User',
+                            sender: safeString(otherParticipant?.user?.username || otherParticipant?.user?.name) || 'User',
                             subject: safeString(conv.last_message),
                             time: conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
                             read: false // Simplified

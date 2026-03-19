@@ -881,32 +881,43 @@
     .pd-msg-sidebar {
         width: 100%;
         border-right: none;
-        border-bottom: 1px solid #f1f5f9;
         flex: 1;
+        display: flex !important;
+        height: 100%;
     }
 
     .pd-msg-sidebar.mobile-hidden {
-        display: none;
+        display: none !important;
     }
 
     /* Chat window — hidden by default on mobile */
     .pd-msg-chat-window {
-        display: none;
+        display: none !important;
         width: 100%;
-        flex: 1;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 100;
+        background: white;
     }
 
     .pd-msg-chat-window.mobile-visible {
-        display: flex;
+        display: flex !important;
         flex-direction: column;
         height: calc(100vh - 60px);
     }
 
     /* Show back button */
     .pd-msg-back-btn {
-        display: flex;
+        display: flex !important;
         align-items: center;
         justify-content: center;
+        background: #f1f5f9;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        margin-right: 8px;
     }
 
     /* Chat header compact */

@@ -4,7 +4,7 @@ import { Spinner, Form, Button, Modal } from 'react-bootstrap';
 import { FaUser, FaSearch, FaPaperPlane, FaEllipsisV, FaImage, FaSmile, FaCheckDouble, FaEnvelope, FaExclamationCircle, FaPlus } from 'react-icons/fa';
 import axios from '../utils/axios';
 import { getAdminInfo } from '../utils/auth';
-import { safeString } from '../utils/constants';
+import { getImageUrl, safeString } from '../utils/constants';
 import '../styles/AdminMessages.css';
 
 const Messages = () => {
@@ -12,15 +12,9 @@ const Messages = () => {
     const adminInfo = getAdminInfo();
     const adminId = adminInfo?._id || adminInfo?.id;
 
-    // Helper to format image URLs
-    const getImageUrl = (path) => {
-        if (!path) return '';
-        return path.startsWith('http') ? path : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/${path}`;
-    };
-
     const handleImageError = (e) => {
         e.target.onerror = null;
-        e.target.src = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/images/site/default_avatar.png`;
+        e.target.src = getImageUrl('images/site/default_avatar.png');
     };
 
     const [conversations, setConversations] = useState([]);

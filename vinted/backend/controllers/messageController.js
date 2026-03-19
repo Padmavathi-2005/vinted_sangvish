@@ -76,14 +76,18 @@ const getMessages = asyncHandler(async (req, res) => {
         throw new Error('Conversation not found');
     }
 
+    // Admin override: Admins can view any conversation
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.isAdmin === true);
+    
     // Null-safe participant check
-    const isParticipant = conversation.participants.some(p => {
+    const isParticipant = isAdmin || conversation.participants.some(p => {
         const pid = p.user?._id || p.user;
         return pid?.toString() === req.user._id.toString();
     });
+
     if (!isParticipant) {
         res.status(401);
-        throw new Error('User not authorized');
+        throw new Error('User not authorized to view these messages');
     }
 
     const messages = await Message.find({ conversation_id: req.params.id })
@@ -306,10 +310,17 @@ const toggleBlock = asyncHandler(async (req, res) => {
         throw new Error('Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(p => p.user.toString() === req.user._id.toString());
+    // Admin override: Admins can block/unblock in any conversation
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.isAdmin === true);
+
+    const isParticipant = isAdmin || conversation.participants.some(p => {
+        const pid = p.user?._id || p.user;
+        return pid?.toString() === req.user._id.toString();
+    });
+
     if (!isParticipant) {
         res.status(401);
-        throw new Error('User not authorized');
+        throw new Error('User not authorized to manage this conversation');
     }
 
     const index = conversation.blocked_by.indexOf(req.user._id);

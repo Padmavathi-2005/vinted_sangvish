@@ -4,7 +4,7 @@ import { FaUserPlus, FaShoppingBag, FaMoneyBillAlt, FaTshirt, FaTags, FaTruck, F
 import { Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
-import { safeString } from '../utils/constants';
+import { safeString, getImageUrl } from '../utils/constants';
 import '../styles/Admin.css';
 import '../styles/RentalDashboard.css';
 
@@ -458,13 +458,20 @@ const AdminDashboard = () => {
                                                 <tr key={idx} className="border-bottom">
                                                     <td className="px-4 py-3">
                                                         <div className="d-flex align-items-center gap-2">
-                                                            {seller.profile_image ? (
-                                                                <img src={`http://127.0.0.1:5000/${seller.profile_image}`} alt={seller.username} className="rounded-circle shadow-sm" width="36" height="36" style={{ objectFit: 'cover', minWidth: '36px' }} />
-                                                            ) : (
-                                                                <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white shadow-sm" style={{ width: 36, height: 36, fontSize: '14px', background: 'linear-gradient(135deg, #0d6efd, #0dcaf0)' }}>
+                                                            <div className="rounded-circle shadow-sm" style={{ width: 36, height: 36, position: 'relative', overflow: 'hidden', minWidth: '36px' }}>
+                                                                <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white w-100 h-100" style={{ fontSize: '14px', background: 'linear-gradient(135deg, #0d6efd, #0dcaf0)' }}>
                                                                     {seller.username?.charAt(0).toUpperCase() || 'S'}
                                                                 </div>
-                                                            )}
+                                                                {seller.profile_image && (
+                                                                    <img 
+                                                                        src={getImageUrl(seller.profile_image)} 
+                                                                        alt={seller.username} 
+                                                                        className="rounded-circle w-100 h-100" 
+                                                                        style={{ objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} 
+                                                                        onError={(e) => { e.target.style.display = 'none'; }} 
+                                                                    />
+                                                                )}
+                                                            </div>
                                                             <Link to="/users?filter=seller" className="text-decoration-none">
                                                                 <span className="fw-bold text-dark">{safeString(seller.username) || 'Unknown'}</span>
                                                             </Link>
@@ -499,13 +506,20 @@ const AdminDashboard = () => {
                                                 <tr key={idx} className="border-bottom">
                                                     <td className="px-4 py-3">
                                                         <div className="d-flex align-items-center gap-2">
-                                                            {buyer.profile_image ? (
-                                                                <img src={`http://127.0.0.1:5000/${buyer.profile_image}`} alt={buyer.username} className="rounded-circle shadow-sm" width="36" height="36" style={{ objectFit: 'cover', minWidth: '36px' }} />
-                                                            ) : (
-                                                                <div className="rounded-circle bg-warning d-flex align-items-center justify-content-center text-white shadow-sm" style={{ width: 36, height: 36, fontSize: '14px', background: 'linear-gradient(135deg, #fd7e14, #ffc107)' }}>
+                                                            <div className="rounded-circle shadow-sm" style={{ width: 36, height: 36, position: 'relative', overflow: 'hidden', minWidth: '36px' }}>
+                                                                <div className="rounded-circle bg-warning d-flex align-items-center justify-content-center text-white w-100 h-100" style={{ fontSize: '14px', background: 'linear-gradient(135deg, #fd7e14, #ffc107)' }}>
                                                                     {buyer.username?.charAt(0).toUpperCase() || 'B'}
                                                                 </div>
-                                                            )}
+                                                                {buyer.profile_image && (
+                                                                    <img 
+                                                                        src={getImageUrl(buyer.profile_image)} 
+                                                                        alt={buyer.username} 
+                                                                        className="rounded-circle w-100 h-100" 
+                                                                        style={{ objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} 
+                                                                        onError={(e) => { e.target.style.display = 'none'; }} 
+                                                                    />
+                                                                )}
+                                                            </div>
                                                             <Link to="/users?filter=buyer" className="text-decoration-none">
                                                                 <span className="fw-bold text-dark">{safeString(buyer.username) || 'Unknown'}</span>
                                                             </Link>

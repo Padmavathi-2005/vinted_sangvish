@@ -1,12 +1,17 @@
 import React, { useContext } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { FaHome, FaSearch, FaPlus, FaTachometerAlt, FaUser } from 'react-icons/fa';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { FaHome, FaSearch, FaPlus, FaTachometerAlt, FaUser, FaRegCommentDots, FaShoppingBag } from 'react-icons/fa';
 import AuthContext from '../context/AuthContext';
 import '../styles/MobileNavbar.css';
 
 const MobileNavbar = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Get current tab from URL for active state checking
+    const queryParams = new URLSearchParams(location.search);
+    const currentTab = queryParams.get('tab');
 
     const handleSellClick = () => {
         if (!user) {
@@ -18,13 +23,15 @@ const MobileNavbar = () => {
 
     return (
         <div className="mobile-navbar">
-            <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <Link to="/" className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}>
                 <FaHome className="nav-icon" />
-            </NavLink>
-            
-            <NavLink to="/products" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <FaSearch className="nav-icon" />
-            </NavLink>
+                <span>Home</span>
+            </Link>
+
+            <Link to="/profile?tab=messages" className={`nav-item ${location.pathname.startsWith('/profile') && currentTab === 'messages' ? 'active' : ''}`}>
+                <FaRegCommentDots className="nav-icon" />
+                <span>Chat</span>
+            </Link>
 
             <div className="nav-item sell-item" onClick={handleSellClick}>
                 <div className="sell-icon-wrapper">
@@ -32,13 +39,15 @@ const MobileNavbar = () => {
                 </div>
             </div>
 
-            <NavLink to="/profile?tab=dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <FaTachometerAlt className="nav-icon" />
-            </NavLink>
+            <Link to={user?.role === 'seller' ? '/profile?tab=my_listings' : '/profile?tab=orders'} className={`nav-item ${location.pathname.startsWith('/profile') && (currentTab === 'my_listings' || currentTab === 'orders') ? 'active' : ''}`}>
+                <FaShoppingBag className="nav-icon" />
+                <span>My ads</span>
+            </Link>
 
-            <NavLink to="/profile?tab=profile_settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <Link to="/profile?tab=profile_settings" className={`nav-item ${location.pathname.startsWith('/profile') && currentTab === 'profile_settings' ? 'active' : ''}`}>
                 <FaUser className="nav-icon" />
-            </NavLink>
+                <span>Profile</span>
+            </Link>
         </div>
     );
 };

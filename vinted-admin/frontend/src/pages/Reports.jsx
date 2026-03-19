@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
-import { safeString } from '../utils/constants';
+import { safeString, getImageUrl } from '../utils/constants';
 import L from 'leaflet';
 
 // Mock specific coordinates for major cities since exact lat/lon isn't explicitly saved per order.
@@ -322,13 +322,20 @@ const Reports = () => {
                                         <tr key={idx} className="border-bottom">
                                             <td className="py-3 px-3">
                                                 <div className="d-flex align-items-center gap-3">
-                                                    {seller.profile_image ? (
-                                                        <img src={`${axios.defaults.baseURL}/${seller.profile_image}`} alt={safeString(seller.username)} className="rounded-circle shadow-sm" width="40" height="40" style={{ objectFit: 'cover' }} />
-                                                    ) : (
-                                                        <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white shadow-sm" style={{ width: 40, height: 40, fontSize: '14px', background: 'linear-gradient(135deg, #0d6efd, #0dcaf0)' }}>
+                                                    <div className="rounded-circle shadow-sm" style={{ width: 40, height: 40, position: 'relative', overflow: 'hidden', minWidth: '40px' }}>
+                                                        <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white w-100 h-100" style={{ fontSize: '14px', background: 'linear-gradient(135deg, #0d6efd, #0dcaf0)' }}>
                                                             {safeString(seller.username)?.charAt(0).toUpperCase() || 'S'}
                                                         </div>
-                                                    )}
+                                                        {seller.profile_image && (
+                                                            <img 
+                                                                src={getImageUrl(seller.profile_image)} 
+                                                                alt={safeString(seller.username)} 
+                                                                className="rounded-circle w-100 h-100" 
+                                                                style={{ objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} 
+                                                                onError={(e) => { e.target.style.display = 'none'; }} 
+                                                            />
+                                                        )}
+                                                    </div>
                                                     <span className="fw-bold text-dark">{safeString(seller.username) || 'Unknown'}</span>
                                                 </div>
                                             </td>

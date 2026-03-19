@@ -4,7 +4,7 @@ import NotificationContext from '../../context/NotificationContext';
 import AuthContext from '../../context/AuthContext';
 import {
     FaBell, FaCheckCircle, FaExclamationCircle, FaInfoCircle,
-    FaEnvelope, FaBox, FaSearch, FaCheck, FaTrash, FaExternalLinkAlt
+    FaEnvelope, FaBox, FaSearch, FaCheck, FaTrash, FaExternalLinkAlt, FaArrowLeft
 } from 'react-icons/fa';
 import '../../styles/NotificationsContent.css';
 import { useTranslation } from 'react-i18next';
@@ -57,6 +57,7 @@ const NotificationsContent = () => {
     const [search, setSearch] = useState('');
     const [activeNotif, setActiveNotif] = useState(null);
     const [filter, setFilter] = useState('all'); // 'all' | 'unread'
+    const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 
     useEffect(() => {
         fetchNotifications();
@@ -78,6 +79,7 @@ const NotificationsContent = () => {
 
     const handleSelect = (notif) => {
         setActiveNotif(notif);
+        setMobileDetailOpen(true);
         if (!notif.is_read) markAsRead(notif._id);
     };
 
@@ -86,7 +88,7 @@ const NotificationsContent = () => {
     return (
         <div className="nc-container">
             {/* LEFT PANEL */}
-            <div className="nc-sidebar">
+            <div className={`nc-sidebar ${mobileDetailOpen ? 'mobile-hidden' : ''}`}>
                 <div className="nc-sidebar-header">
                     <div className="nc-title-row">
                         <h3>{t('notifications.title', 'Notifications')}</h3>
@@ -175,7 +177,7 @@ const NotificationsContent = () => {
             </div>
 
             {/* RIGHT PANEL */}
-            <div className="nc-detail">
+            <div className={`nc-detail ${mobileDetailOpen ? 'mobile-visible' : ''}`}>
                 {activeNotif ? (() => {
                     const cfg = getConfig(activeNotif.type);
                     const Icon = cfg.icon;
@@ -183,6 +185,9 @@ const NotificationsContent = () => {
                     return (
                         <div className="nc-detail-content">
                             <div className="nc-detail-header" style={{ borderLeft: `4px solid ${activeNotif.type === 'info' ? settings.primary_color : cfg.color}` }}>
+                                <button className="nc-mobile-back-btn" onClick={() => { setMobileDetailOpen(false); setActiveNotif(null); }}>
+                                    <FaArrowLeft />
+                                </button>
                                 <div className="nc-detail-icon-wrap" style={{ 
                                     background: activeNotif.type === 'info' ? `${settings.primary_color}18` : cfg.bg, 
                                     color: activeNotif.type === 'info' ? settings.primary_color : cfg.color,

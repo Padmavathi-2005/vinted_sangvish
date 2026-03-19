@@ -20,20 +20,23 @@
 
 .wc-tab {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 4px;
     padding: 10px 16px;
     border-radius: 10px 10px 0 0;
     border: none;
     background: transparent;
     color: #64748b;
-    font-size: 0.83rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s;
     position: relative;
-    flex-shrink: 0;
+    flex: 1; /* Stretch across space proportionally */
+    min-width: 80px; /* Prevent squashing below readable width */
 }
 
 .wc-tab:hover {
@@ -607,35 +610,66 @@
    Responsive — Mobile
    ═══════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
+    .wallet-content {
+        padding: 0;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .wc-tab-bar { 
+        padding: 0;
+        gap: 0;
+        border-radius: 0;
+        margin: 0;
+        overflow-x: auto;
+    }
+
     .wc-tab {
-        padding: 10px 12px;
-        font-size: 0.78rem;
+        padding: 12px 4px;
+        min-width: 90px;
+        flex-shrink: 0;
     }
 
     .wc-tab-label {
-        display: none; /* icon-only on very small screens */
+        display: block;
+        font-size: 0.65rem;
     }
 
-    .wc-tab-icon {
-        font-size: 1rem;
+    .wc-hero { 
+        padding: 20px 16px; 
+        margin: 0 0 12px 0;
+        border-radius: 12px;
+        width: 100%;
     }
 
-    /* Show label again for active tab */
-    .wc-tab.active .wc-tab-label {
-        display: inline;
+    .wc-hero-inner { 
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
     }
 
-    .wc-hero { padding: 20px 16px; }
     .wc-hero-amount { font-size: 1.8rem; }
-    .wc-withdraw-btn { padding: 10px 16px; }
 
-    .wc-section { padding: 16px 14px; }
+    .wc-withdraw-btn { 
+        width: 100%;
+        padding: 12px;
+    }
 
-    .wc-modal-card { max-height: 95vh; border-radius: 20px 20px 0 0; }
-    .wc-modal-header { padding: 20px 18px 14px; }
-    .wc-modal-body { padding: 16px 18px 28px; }
+    .wc-section { 
+        padding: 14px 12px; 
+        margin: 0 0 12px 0;
+        border-radius: 12px;
+        width: 100%;
+    }
 
-    .wc-tx-row { padding: 10px 6px; }
+    .wc-tx-row { 
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f5f9;
+        margin: 0;
+    }
+
+    .wc-tx-row:last-child { border-bottom: none; }
 }
 
 @media (min-width: 601px) {

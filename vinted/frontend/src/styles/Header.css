@@ -127,7 +127,7 @@
     padding: 10px 24px;
     border-radius: 24px;
     font-weight: 600;
-    font-size: 1.05rem;
+    font-size: 0.8rem;
     font-family: var(--font-family);
     color: white;
     text-decoration: none;
@@ -150,7 +150,8 @@
 
 .icon-wrapper {
     position: relative;
-    color: #495057;
+    color: #0f172a;
+    /* Black icons by default */
     font-size: 1.25rem;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -161,8 +162,19 @@
 }
 
 .icon-wrapper:hover {
-    color: var(--primary-color, #0ea5e9);
+    color: #00bcd4 !important;
+    /* Teal color on hover */
     transform: translateY(-1px);
+}
+
+.categories-toggle {
+    color: #0f172a;
+    /* Black icons by default */
+}
+
+.categories-toggle:hover {
+    color: var(--primary-color) !important;
+    /* Teal color on hover */
 }
 
 .settings-wrapper:hover {
@@ -172,6 +184,7 @@
 
 .heart-link:hover {
     color: #ef4444 !important;
+    /* Kept red for heart but fallback to teal disabled */
 }
 
 .badge {
@@ -230,8 +243,8 @@
     align-items: center;
     text-decoration: none;
     font-family: var(--font-family);
-    font-weight: 700;
-    font-size: 1.05rem;
+    font-weight: 600;
+    font-size: 1rem;
     color: var(--primary-color);
     transition: opacity 0.2s ease;
 }
@@ -254,7 +267,8 @@
     display: none;
 }
 
-.mobile-search-toggle, .hamburger-btn {
+.mobile-search-toggle,
+.hamburger-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -266,7 +280,8 @@
     transition: all 0.2s ease;
 }
 
-.mobile-search-toggle:hover, .hamburger-btn:hover {
+.mobile-search-toggle:hover,
+.hamburger-btn:hover {
     color: var(--primary-color, #0ea5e9);
     transform: scale(1.1);
 }
@@ -397,17 +412,28 @@
 
 @media (max-width: 576px) {
     .header-content {
-        padding: 12px 16px;
+        padding: 8px 12px;
+        gap: 8px;
+    }
+
+    .logo-section {
+        flex: 1;
+        min-width: 0;
     }
 
     .logo-text {
-        font-size: 1.25rem;
+        font-size: 1.15rem;
     }
 
     .logo-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
+        width: 30px;
+        height: 30px;
+        font-size: 0.9rem;
+        border-radius: 8px;
+    }
+
+    .mobile-actions {
+        gap: 4px;
     }
 }
 
@@ -483,4 +509,4 @@
     background: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
-}
+}

@@ -137,6 +137,11 @@ const Header = () => {
 
     // Mobile: Navigation Handlers
     const openMobileMenu = () => setIsMobileMenuOpen(true);
+    const handleImageError = (e) => {
+        e.target.onerror = null;
+        e.target.src = getImageUrl('images/site/not_found.png');
+    };
+
     const closeMobileMenu = () => {
         setIsMobileMenuOpen(false);
         setMobileLevel(0);
@@ -246,7 +251,7 @@ const Header = () => {
 
         // Clean up previous search URL
         if (searchingImage) URL.revokeObjectURL(searchingImage);
-        
+
         const previewUrl = URL.createObjectURL(file);
         setSearchingImage(previewUrl);
 
@@ -325,24 +330,24 @@ const Header = () => {
         <header className="header-container" onMouseLeave={handleCategoryBarLeave}>
             <div className="header-content container-fluid">
                 <div className="logo-section">
-                    <Link to="/" className="site-logo">
+                    <Link to="/" className="site-logo" style={{ color: settings.primary_color }} onClick={handleCategoryBarLeave}>
                         {settings.site_logo ? (
-                            <img src={getImageUrl(settings.site_logo)} alt={safeString(settings.site_name, 'Marketplace')} style={{ height: '40px' }} />
+                            <img 
+                                src={getImageUrl(settings.site_logo)} 
+                                alt={safeString(settings.site_name, 'Vinted')} 
+                                style={{ height: '32px', objectFit: 'contain' }}
+                                onError={handleImageError}
+                            />
                         ) : (
-                            <>
-                                <div className="logo-icon" style={{ backgroundColor: settings.primary_color }}>
-                                    {safeString(settings.site_name, 'Marketplace').charAt(0)}
-                                </div>
-                                <span className="logo-text">{safeString(settings.site_name, 'Marketplace')}</span>
-                            </>
+                            <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0 }}>{safeString(settings.site_name, 'Vinted')}</h1>
                         )}
                     </Link>
                 </div>
 
                 {/* Mobile Icons (Visible on mobile & tablet < 1200px) */}
                 <div className="mobile-actions d-xl-none d-flex align-items-center gap-3 ms-auto">
-                    <button 
-                        className="mobile-search-toggle" 
+                    <button
+                        className="mobile-search-toggle"
                         onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
                         style={{ background: 'none', border: 'none', color: '#495057', padding: '8px' }}
                     >
@@ -371,12 +376,15 @@ const Header = () => {
                                 fontWeight: '600',
                                 padding: '10px 15px',
                                 display: 'flex',
+                                flexDirection: 'row',
                                 alignItems: 'center',
-                                gap: '8px'
+                                justifyContent: 'center',
+                                gap: '8px',
+                                transition: 'color 0.25s ease' // Added transition for smooth hover color change
                             }}
                         >
-                            <FaThLarge style={{ fontSize: '0.9rem', opacity: 0.8 }} />
-                            {t('header.categories')}
+                            <FaThLarge style={{ fontSize: '1.2rem', opacity: 0.8 }} />
+                            <span style={{ fontSize: '1.05rem' }}>{t('header.categories')}</span>
                         </div>
                     </nav>
                 </div>
@@ -398,7 +406,7 @@ const Header = () => {
                                 position: 'relative',
                                 display: 'flex',
                                 alignItems: 'center',
-                                background: '#ffffff', 
+                                background: '#ffffff',
                                 borderRadius: (showSearchHistory && (searchHistory.length > 0 || categories.length > 0)) ? '24px 24px 0 0' : '24px',
                                 border: `2px solid ${settings.primary_color}`,
                                 boxShadow: `0 4px 12px ${settings.primary_color}20`,
@@ -570,11 +578,11 @@ const Header = () => {
                                 }}>
                                     {searchHistory.length > 0 ? 'RECENT SEARCHES' : 'TRENDING CATEGORIES'}
                                 </div>
-                                <div style={{ 
-                                    padding: '0 16px 16px 16px', 
-                                    display: 'flex', 
-                                    flexWrap: 'wrap', 
-                                    gap: '8px' 
+                                <div style={{
+                                    padding: '0 16px 16px 16px',
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '8px'
                                 }}>
                                     {(searchHistory.length > 0
                                         ? searchHistory
@@ -650,9 +658,9 @@ const Header = () => {
 
                                                 {/* Tab Headers */}
                                                 <div style={{ display: 'flex', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', padding: '4px' }}>
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => { e.stopPropagation(); setSettingsTab('language'); }}
-                                                        style={{ 
+                                                        style={{
                                                             flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
                                                             background: settingsTab === 'language' ? 'white' : 'transparent',
                                                             color: settingsTab === 'language' ? settings.primary_color : '#64748b',
@@ -662,9 +670,9 @@ const Header = () => {
                                                     >
                                                         {t('header.language')}
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => { e.stopPropagation(); setSettingsTab('currency'); }}
-                                                        style={{ 
+                                                        style={{
                                                             flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
                                                             background: settingsTab === 'currency' ? 'white' : 'transparent',
                                                             color: settingsTab === 'currency' ? settings.primary_color : '#64748b',
@@ -746,9 +754,9 @@ const Header = () => {
                                     )}
                                 </div>
 
-                                <Link 
-                                    to="/profile?tab=favorites" 
-                                    className="icon-wrapper heart-link" 
+                                <Link
+                                    to="/profile?tab=favorites"
+                                    className="icon-wrapper heart-link"
                                     title={t('header.my_favorites')}
                                     onMouseEnter={() => setHoveredIcon('heart')}
                                     onMouseLeave={() => setHoveredIcon(null)}
@@ -911,10 +919,10 @@ const Header = () => {
                                 </div>
 
                                 {/* Cart (logged-in only) */}
-                                <Link 
-                                    to="/cart" 
-                                    className="icon-wrapper" 
-                                    title="Cart" 
+                                <Link
+                                    to="/cart"
+                                    className="icon-wrapper"
+                                    title="Cart"
                                     style={{ position: 'relative', color: hoveredIcon === 'cart' ? settings.primary_color : '#495057' }}
                                     onMouseEnter={() => setHoveredIcon('cart')}
                                     onMouseLeave={() => setHoveredIcon(null)}
@@ -964,6 +972,7 @@ const Header = () => {
                                             src={getImageUrl(user.profile_image)}
                                             alt="Profile"
                                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            onError={handleImageError}
                                         />
                                     ) : (
                                         (user.username || user.name || user.email || 'User').charAt(0).toUpperCase()
@@ -1115,7 +1124,7 @@ const Header = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchTerm)}
                             />
-                            
+
                             {/* Visual Search in Mobile Bar */}
                             <div style={{ position: 'absolute', right: searchTerm.trim() ? '105px' : '15px', display: 'flex', alignItems: 'center' }}>
                                 <button

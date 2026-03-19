@@ -50,10 +50,26 @@ const startServer = async () => {
         app.use('/api/shipping-companies', shippingCompanyRoutes);
 
         // Serve images (fallback for local development)
-        const imagesPath = path.join(__dirname, 'images');
-        app.use('/images', express.static(imagesPath));
-        if (!fs.existsSync(imagesPath)) {
-            console.log('Note: images folder not found locally, ensure it is symlinked or handled by Nginx proxy.');
+        const primaryImagesPath = path.join(__dirname, 'images');
+        const secondaryImagesPath = path.join(__dirname, 'public', 'images');
+        const sharedImagesPath = path.join(__dirname, '..', '..', 'vinted', 'backend', 'images');
+
+        // First attempt to serve from local images folder (if it exists or is symlinked)
+        app.use('/images', express.static(primaryImagesPath));
+        
+        // Secondary: local public/images folder
+        app.use('/images', express.static(secondaryImagesPath));
+
+        // Shared fallback: main app's images folder (the source of truth)
+        if (fs.existsSync(sharedImagesPath)) {
+            console.log(`🚀 Found shared images at: ${sharedImagesPath}`.cyan);
+            app.use('/images', express.static(sharedImagesPath));
+        } else {
+            console.log('⚠️ Shared images folder not found at:', sharedImagesPath);
+        }
+
+        if (!fs.existsSync(primaryImagesPath) && !fs.existsSync(secondaryImagesPath) && !fs.existsSync(sharedImagesPath)) {
+            console.log('Note: images folder not found locally, ensure it is symlinked or handled by Nginx proxy.'.yellow);
         }
 
         app.get('/', (req, res) => {

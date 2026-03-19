@@ -61,7 +61,15 @@ const UnifiedCategories = () => {
     const openModal = (type, mode, data = null) => {
         setModalType(type);
         setModalMode(mode);
-        setFormData(mode === 'edit' && data ? data : { name: '', slug: '', is_active: true });
+        if (mode === 'edit' && data) {
+            // Populate ID strings from objects
+            const cleaned = { ...data };
+            if (cleaned.category_id && typeof cleaned.category_id === 'object') cleaned.category_id = cleaned.category_id._id;
+            if (cleaned.subcategory_id && typeof cleaned.subcategory_id === 'object') cleaned.subcategory_id = cleaned.subcategory_id._id;
+            setFormData(cleaned);
+        } else {
+            setFormData({ name: '', slug: '', is_active: true });
+        }
         setShowModal(true);
     };
 
@@ -70,11 +78,17 @@ const UnifiedCategories = () => {
         setSaving(true);
         const apiPath = modalType === 'category' ? 'categories' : (modalType === 'subcategory' ? 'subcategories' : 'item-types');
         try {
-            if (modalType === 'category' || modalType === 'subcategory') {
+            if (modalType === 'category' || modalType === 'subcategory' || modalType === 'itemType') {
                 const data = new FormData();
                 Object.keys(formData).forEach(key => {
-                    if (key === 'category_image' && formData[key]) data.append('category_image', formData[key]);
-                    else if (formData[key] !== undefined) data.append(key, formData[key]);
+                    if (key === 'category_image' && formData[key]) {
+                        data.append('category_image', formData[key]);
+                    } else if (formData[key] !== undefined) {
+                        // Ensure we don't send objects (populated fields) that become "[object Object]"
+                        let val = formData[key];
+                        if (val && typeof val === 'object' && val._id) val = val._id;
+                        data.append(key, val);
+                    }
                 });
                 const opts = { headers: { 'Content-Type': 'multipart/form-data' } };
                 if (modalMode === 'edit') await axios.put(`/api/admin/${apiPath}/${formData._id}`, data, opts);
@@ -185,10 +199,8 @@ const UnifiedCategories = () => {
         {
             header: 'Item Type', accessor: 'name',
             render: (row) => (
-                <div className="d-flex align-items-center gap-2">
-                    <div style={{ width: 40, height: 40, minWidth: 40, borderRadius: 8, background: 'rgba(14,165,233,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary-color,#0ea5e9)', flexShrink: 0 }}>
-                        <FaTags />
-                    </div>
+                <div className="d-flex align-items-center gap-3">
+                    {AVATAR(row.image, <FaTags />)}
                     <div>
                         <div className="fw-bold">{row.name}</div>
                         <div className="text-muted small font-monospace">{row.slug}</div>
@@ -383,7 +395,7 @@ const UnifiedCategories = () => {
                             </Form.Group>
                         )}
 
-                        {(modalType === 'category' || modalType === 'subcategory') && (
+                        {(modalType === 'category' || modalType === 'subcategory' || modalType === 'itemType') && (
                             <>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Image</Form.Label>

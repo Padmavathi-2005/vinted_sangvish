@@ -3,21 +3,24 @@ export const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || 'http://loc
 
 export const getImageUrl = (path) => {
     if (!path) return '';
-    if (String(path).startsWith('http')) return path;
+    const pathStr = String(path);
+    if (pathStr.startsWith('http')) return pathStr;
 
     // Robust normalization for frontend
-    let clean = String(path).replace(/\\/g, '/').replace(/^\/+/, '');
+    let clean = pathStr.replace(/\\/g, '/').replace(/^\/+/, '');
     
     // If it already has protocol, return it
     if (clean.startsWith('http')) return clean;
 
+    const base = IMAGE_BASE_URL || '/';
+
     // Use absolute path from root if base is '/' or empty
-    if (IMAGE_BASE_URL === '/' || !IMAGE_BASE_URL) {
+    if (base === '/' || !base) {
         return `/${clean}`;
     }
 
     // Remove trailing slashes from IMAGE_BASE_URL to prevent double slashes
-    const cleanBase = IMAGE_BASE_URL.replace(/\/+$/, '');
+    const cleanBase = base.replace(/\/+$/, '');
     // Ensure we have a leading slash if the base is relative
     const prefix = cleanBase.startsWith('http') ? cleanBase : `/${cleanBase.replace(/^\/+/, '')}`;
     const url = `${prefix}/${clean}`;

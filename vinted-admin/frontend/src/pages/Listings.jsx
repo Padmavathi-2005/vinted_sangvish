@@ -10,7 +10,7 @@ import axios, { imageBaseURL } from '../utils/axios';
 import { useLocalization } from '../context/LocalizationContext';
 import { useSettings } from '../context/SettingsContext';
 import { showToast, showConfirm } from '../utils/swal';
-import { safeString } from '../utils/constants';
+import { safeString, getImageUrl } from '../utils/constants';
 
 const Listings = () => {
     const { formatPrice, t } = useLocalization();
@@ -53,7 +53,7 @@ const Listings = () => {
 
     const handleImageError = (e) => {
         e.target.onerror = null;
-        e.target.src = `${imageBaseURL}/images/site/not_found.png`;
+        e.target.src = getImageUrl('images/site/not_found.png');
     };
 
 
@@ -210,12 +210,12 @@ const Listings = () => {
                     <div className="item-img-placeholder bg-light rounded" style={{ width: '45px', height: '45px', overflow: 'hidden' }}>
                         {row.images?.[0] ?
                             <img
-                                src={row.images[0].startsWith('http') ? row.images[0] : `${imageBaseURL.endsWith('/') ? imageBaseURL.slice(0, -1) : imageBaseURL}/${row.images[0].startsWith('/') ? row.images[0].substring(1) : row.images[0]}`}
+                                src={getImageUrl(row.images[0])}
                                 alt={row.title}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                onError={(e) => { e.target.onerror = null; e.target.src = `${imageBaseURL}/images/site/not_found.png`; }}
+                                onError={handleImageError}
                             />
-                            : <img src={`${imageBaseURL}/images/site/not_found.png`} alt="Not Found" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <img src={getImageUrl('images/site/not_found.png')} alt="Not Found" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         }
                     </div>
                     <div>
@@ -454,7 +454,7 @@ const Listings = () => {
                             <div className="d-flex flex-wrap gap-2 mb-2">
                                 {existingImages.map((img, idx) => (
                                     <div key={`existing-${idx}`} className="position-relative" style={{ width: '80px', height: '80px' }}>
-                                        <img src={img.startsWith('http') ? img : `${imageBaseURL.endsWith('/') ? imageBaseURL.slice(0, -1) : imageBaseURL}/${img.startsWith('/') ? img.substring(1) : img}`} alt="" className="w-100 h-100 object-fit-cover rounded border" />
+                                        <img src={getImageUrl(img)} alt="" className="w-100 h-100 object-fit-cover rounded border" />
                                         <button 
                                             type="button"
                                             className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 d-flex align-items-center justify-content-center rounded-circle"

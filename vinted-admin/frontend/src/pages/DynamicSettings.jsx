@@ -523,6 +523,9 @@ const DynamicSettings = () => {
             ],
             api_settings: [
                 'gemini_api_key'
+            ],
+            email_settings: [
+                'mail_driver', 'mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_address', 'mail_from_name'
             ]
         };
         return fieldMap[type] || [];
@@ -710,6 +713,23 @@ const DynamicSettings = () => {
                             name={key}
                             value={formData[key] || 0}
                             onChange={handleInputChange}
+                        />
+                    </Form.Group>
+                </Col>
+            );
+        }
+
+        if (key.startsWith('mail_') || key === 'gemini_api_key') {
+            return (
+                <Col key={key} md={6} className="mb-3">
+                    <Form.Group>
+                        <Form.Label className="fw-bold">{label}</Form.Label>
+                        <Form.Control
+                            type={key === 'mail_password' || key === 'gemini_api_key' ? 'password' : 'text'}
+                            name={key}
+                            value={formData[key] || ''}
+                            onChange={handleInputChange}
+                            autoComplete="new-password"
                         />
                     </Form.Group>
                 </Col>

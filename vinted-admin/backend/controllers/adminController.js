@@ -160,29 +160,82 @@ const getItemTypes = asyncHandler(async (req, res) => {
 });
 
 const createItemType = asyncHandler(async (req, res) => {
-    const { name, slug, subcategory_id, is_active } = req.body;
+    console.log('--- createItemType called ---');
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+
+    const { name, slug, subcategory_id, is_active, description, icon } = req.body;
+
+    // Fix: Handle subcategory_id being passed as object string "[object Object]" 
+    // or as actual object from some clients
+    let subId = subcategory_id;
+    if (subId && typeof subId === 'object' && subId._id) subId = subId._id;
+    if (subId === '[object Object]') {
+        // This is a client-side bug, but we can try to recover if name is also passed
+        // For now, let's just fail with a better error or log it
+        console.error('CRITICAL: subcategory_id is "[object Object]"');
+    }
+
+    // Fetch subcategory to get its category_id
+    const subcategory = await Subcategory.findById(subId);
+    if (!subcategory) {
+        console.error('Subcategory not found for ID:', subId);
+        res.status(400).json({ message: 'Invalid subcategory ID provided' });
+        return;
+    }
+
     const itemType = await ItemType.create({
         name,
         slug,
-        subcategory_id,
+        subcategory_id: subId,
+        category_id: subcategory.category_id,
+        description,
+        icon,
+        image: req.file ? `images/categories/${req.file.filename}` : '',
         is_active: is_active !== undefined ? (is_active === 'true' || is_active === true) : true
     });
+
+    console.log('ItemType created successfully:', itemType._id);
     res.status(201).json(itemType);
 });
 
 const updateItemType = asyncHandler(async (req, res) => {
-    const { name, slug, subcategory_id, is_active } = req.body;
+    console.log('--- updateItemType called ---');
+    console.log('ID:', req.params.id);
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+
+    const { name, slug, subcategory_id, is_active, description, icon } = req.body;
     const itemType = await ItemType.findById(req.params.id);
     if (itemType) {
         itemType.name = name || itemType.name;
         itemType.slug = slug || itemType.slug;
-        itemType.subcategory_id = subcategory_id || itemType.subcategory_id;
+        itemType.description = description || itemType.description;
+        itemType.icon = icon !== undefined ? icon : itemType.icon;
+
+        let subId = subcategory_id;
+        if (subId && typeof subId === 'object' && subId._id) subId = subId._id;
+
+        if (subId && subId !== '[object Object]' && subId !== itemType.subcategory_id.toString()) {
+            const subcategory = await Subcategory.findById(subId);
+            if (subcategory) {
+                itemType.subcategory_id = subId;
+                itemType.category_id = subcategory.category_id;
+            }
+        }
+
         if (is_active !== undefined) itemType.is_active = (is_active === 'true' || is_active === true);
+
+        if (req.file) {
+            console.log('Updating image to:', `images/categories/${req.file.filename}`);
+            itemType.image = `images/categories/${req.file.filename}`;
+        }
+
         const updated = await itemType.save();
+        console.log('ItemType updated successfully');
         res.json(updated);
     } else {
-        res.status(404);
-        throw new Error('Item type not found');
+        res.status(404).json({ message: 'Item type not found' });
     }
 });
 

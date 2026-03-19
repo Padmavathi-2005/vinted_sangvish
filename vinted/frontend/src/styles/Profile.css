@@ -1,8 +1,9 @@
 /* Profile Dashboard Styling */
 .profile-dashboard {
     background-color: #f8fafc;
-    min-height: calc(100vh - 72px);
-    padding: 20px 16px;
+    /* min-height: calc(100vh - 72px); */
+    padding: 20px 16px 0px;
+    /* Added extra bottom padding for mobile navbar */
     font-family: var(--font-family);
 }
 
@@ -737,11 +738,27 @@
     }
 
     .pd-nav {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        scrollbar-width: none;
+        padding-bottom: 4px;
+    }
+
+    .pd-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .pd-main {
+        padding: 10px !important;
+        width: 100%;
+        overflow-x: hidden;
     }
 
     .pd-mode-toggle-wrapper {
         margin-left: 0;
+        flex-shrink: 0;
     }
 }
 
@@ -1745,11 +1762,12 @@ body.modal-open {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 12px 16px;
+        padding: 10px 16px;
         background: white;
         border-bottom: 1px solid #e8edf2;
         position: sticky;
-        top: 0;
+        top: 65px;
+        /* Offset to sit below main header */
         z-index: 200;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
@@ -1907,6 +1925,24 @@ body.modal-open {
     .pd-section-header h2 {
         font-size: 1.2rem;
         font-weight: 800;
+        margin-bottom: 4px;
+    }
+
+    .pd-btn-add {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        border-radius: 10px;
+    }
+
+    /* Modal adjustments */
+    .pd-modal-content {
+        width: 95% !important;
+        max-height: 90vh;
+        margin: 5vh auto;
+    }
+
+    .order-detail-modal {
+        width: 95% !important;
     }
 
     .pd-btn-add {

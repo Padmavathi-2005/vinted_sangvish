@@ -216,15 +216,19 @@ const Users = () => {
             accessor: 'username',
             render: (row) => (
                 <div className="d-flex align-items-center gap-3">
-                    {row.profile_image ? (
-                        <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle overflow-hidden border shadow-sm" style={{ width: '40px', height: '40px' }}>
-                            <img src={getImageUrl(row.profile_image)} alt={safeString(row.username)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageError} />
+                    <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle overflow-hidden border shadow-sm" style={{ width: '40px', height: '40px', position: 'relative' }}>
+                        <div className="w-100 h-100 d-flex align-items-center justify-content-center bg-primary text-white" style={{ background: 'linear-gradient(135deg, #0d6efd, #0dcaf0)', fontSize: '14px' }}>
+                            {safeString(row.username)?.charAt(0).toUpperCase() || <FaUserAlt size={16} />}
                         </div>
-                    ) : (
-                        <div className="avatar-small d-flex align-items-center justify-content-center bg-light rounded-circle shadow-sm" style={{ width: '40px', height: '40px' }}>
-                            <FaUserAlt className="text-muted" size={16} />
-                        </div>
-                    )}
+                        {row.profile_image && (
+                            <img 
+                                src={getImageUrl(row.profile_image)} 
+                                alt={safeString(row.username)} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} 
+                                onError={(e) => { e.target.style.display = 'none'; }} 
+                            />
+                        )}
+                    </div>
                     <div>
                         <div className="fw-bold">{safeString(row.username)}</div>
                         <div className="text-muted small">{row.email}</div>

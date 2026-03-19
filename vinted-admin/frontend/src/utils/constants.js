@@ -10,12 +10,13 @@ export const safeString = (val, fallback = '') => {
 
 export const getImageUrl = (path) => {
     if (!path) return '';
-    if (String(path).startsWith('http')) return path;
+    const pathStr = String(path);
+    if (pathStr.startsWith('http')) return pathStr;
 
     const baseRaw = import.meta.env.VITE_IMAGE_BASE_URL || '/';
     
     // Normalize path: replace backslashes and remove leading slashes
-    let cleanPath = String(path).replace(/\\/g, '/').replace(/^\/+/, '');
+    let cleanPath = pathStr.replace(/\\/g, '/').replace(/^\/+/, '');
 
     if (baseRaw === '/' || !baseRaw) {
         return `/${cleanPath}`;
