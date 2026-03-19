@@ -4,6 +4,7 @@ import { FaTimes, FaUser, FaLock, FaPen, FaCamera } from 'react-icons/fa';
 import '../../styles/EditProfileModal.css';
 import { getImageUrl } from '../../utils/constants';
 import { useTranslation } from 'react-i18next';
+import ImageCropModal from './ImageCropModal';
 
 const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
     const { t } = useTranslation();
@@ -27,6 +28,9 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
     const [previewUrl, setPreviewUrl] = useState(getImageUrl(user.profile_image));
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [tempImage, setTempImage] = useState(null);
+    const [tempFile, setTempFile] = useState(null);
 
     // Sync state with props when user changes (especially for inline mode)
     React.useEffect(() => {
@@ -65,9 +69,38 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            setProfileImage(file);
-            setPreviewUrl(URL.createObjectURL(file));
+            setTempFile(file);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                setTempImage(reader.result);
+                setShowCropModal(true);
+            };
         }
+    };
+
+    const handleCropComplete = (croppedImageBlob) => {
+        if (!croppedImageBlob) {
+            if (tempFile) {
+                setProfileImage(tempFile);
+                setPreviewUrl(URL.createObjectURL(tempFile));
+            }
+            setShowCropModal(false);
+            setTempImage(null);
+            setTempFile(null);
+            return;
+        }
+        const file = new File([croppedImageBlob], "profile_image.jpg", { type: 'image/jpeg' });
+        setProfileImage(file);
+        setPreviewUrl(URL.createObjectURL(croppedImageBlob));
+        setShowCropModal(false);
+        setTempFile(null);
+    };
+
+    const handleCropCancel = () => {
+        setShowCropModal(false);
+        setTempImage(null);
+        setTempFile(null);
     };
 
     const handleSubmit = async (e) => {
@@ -363,13 +396,33 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
     );
 
     if (inline) {
-        return <div className="edit-profile-inline">{content}</div>;
+        return (
+            <div className="edit-profile-inline">
+                {content}
+                {showCropModal && (
+                    <ImageCropModal
+                        image={tempImage}
+                        onCropComplete={handleCropComplete}
+                        onCancel={handleCropCancel}
+                        aspect={1}
+                    />
+                )}
+            </div>
+        );
     }
 
     return (
         <div className="modal-overlay">
             <div className="modal-content">
                 {content}
+                {showCropModal && (
+                    <ImageCropModal
+                        image={tempImage}
+                        onCropComplete={handleCropComplete}
+                        onCancel={handleCropCancel}
+                        aspect={1}
+                    />
+                )}
             </div>
         </div>
     );

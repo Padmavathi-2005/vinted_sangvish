@@ -13,8 +13,7 @@ const Messages = () => {
     const adminId = adminInfo?._id || adminInfo?.id;
 
     const handleImageError = (e) => {
-        e.target.onerror = null;
-        e.target.src = getImageUrl('images/site/default_avatar.png');
+        e.target.style.display = 'none';
     };
 
     const [conversations, setConversations] = useState([]);
@@ -221,13 +220,18 @@ const Messages = () => {
                                 className={`conv-item ${isActive ? 'active-conv' : ''}`}
                                 onClick={() => fetchMessages(c._id)}
                             >
-                                <div className="conv-avatar-wrapper">
-                                    {other?.profile_image ? (
-                                        <img src={getImageUrl(other.profile_image)} className="conv-avatar" alt={other.name} onError={handleImageError} />
-                                    ) : (
-                                        <div className="conv-avatar-placeholder">
-                                            <FaUser />
-                                        </div>
+                                <div className="conv-avatar-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden' }}>
+                                    <div className="conv-avatar-placeholder" style={{ fontSize: '1rem', fontWeight: '800', color: '#94a3b8' }}>
+                                        {(other?.username || other?.name || 'U').charAt(0).toUpperCase()}
+                                    </div>
+                                    {other?.profile_image && (
+                                        <img 
+                                            src={getImageUrl(other.profile_image)} 
+                                            className="conv-avatar" 
+                                            alt={other.name} 
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                            onError={handleImageError} 
+                                        />
                                     )}
                                     {isOnline && <div className="online-status-dot"></div>}
                                 </div>
@@ -266,13 +270,18 @@ const Messages = () => {
                                 return (
                                     <>
                                         <div className="chat-header-info">
-                                            <div className="conv-avatar-wrapper">
-                                                {other?.profile_image ? (
-                                                    <img src={getImageUrl(other.profile_image)} className="conv-avatar" style={{ width: '40px', height: '40px' }} alt="" onError={handleImageError} />
-                                                ) : (
-                                                    <div className="conv-avatar-placeholder" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
-                                                        <FaUser />
-                                                    </div>
+                                            <div className="conv-avatar-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden' }}>
+                                                <div className="conv-avatar-placeholder" style={{ width: '40px', height: '40px', fontSize: '1rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                                                    {(other?.username || other?.name || 'U').charAt(0).toUpperCase()}
+                                                </div>
+                                                {other?.profile_image && (
+                                                    <img 
+                                                        src={getImageUrl(other.profile_image)} 
+                                                        className="conv-avatar" 
+                                                        style={{ width: '40px', height: '40px', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} 
+                                                        alt="" 
+                                                        onError={handleImageError} 
+                                                    />
                                                 )}
                                                 {isOnline && <div className="online-status-dot"></div>}
                                             </div>
@@ -413,13 +422,18 @@ const Messages = () => {
                     ) : (
                         filteredUsers.map(u => (
                             <div key={u._id} className="user-picker-item" onClick={() => startNewChat(u)}>
-                                <div className="conv-avatar-wrapper">
-                                    {u.profile_image ? (
-                                        <img src={getImageUrl(u.profile_image)} className="conv-avatar" style={{ width: '40px', height: '40px' }} alt="" onError={handleImageError} />
-                                    ) : (
-                                        <div className="conv-avatar-placeholder" style={{ width: '40px', height: '40px', fontSize: '1rem' }}>
-                                            <FaUser />
-                                        </div>
+                                <div className="conv-avatar-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden' }}>
+                                    <div className="conv-avatar-placeholder" style={{ width: '40px', height: '40px', fontSize: '1rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                                        {(u.username || u.name || 'U').charAt(0).toUpperCase()}
+                                    </div>
+                                    {u.profile_image && (
+                                        <img 
+                                            src={getImageUrl(u.profile_image)} 
+                                            className="conv-avatar" 
+                                            style={{ width: '40px', height: '40px', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} 
+                                            alt="" 
+                                            onError={handleImageError} 
+                                        />
                                     )}
                                 </div>
                                 <div className="user-picker-info">

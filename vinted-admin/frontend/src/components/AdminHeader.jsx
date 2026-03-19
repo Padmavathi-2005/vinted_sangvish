@@ -318,8 +318,8 @@ const AdminHeader = ({ toggleSidebar }) => {
                     {/* Profile & Logout */}
                     <div className="header-profile-box">
                         <div className="profile-section">
-                            <div className="admin-avatar-circle">
-                                <FaUser />
+                            <div className="admin-avatar-circle" style={{ fontWeight: '800' }}>
+                                {(admin?.name || 'A').charAt(0).toUpperCase()}
                             </div>
                             <span className="admin-name">{safeString(admin?.name) || 'Main Admin'}</span>
                         </div>

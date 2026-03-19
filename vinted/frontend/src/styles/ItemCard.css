@@ -261,6 +261,30 @@
     border: 3px solid #ef4444;
 }
 
+/* INACTIVE Overlay */
+.inactive-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(100, 116, 139, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    backdrop-filter: blur(2px);
+}
+
+.inactive-overlay span {
+    background: white;
+    color: #475569;
+    padding: 6px 15px;
+    border-radius: 6px;
+    font-weight: 900;
+    font-size: 0.9rem;
+    letter-spacing: 1.5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 2px solid #475569;
+}
+
 /* EDIT Overlay */
 .edit-overlay {
     position: absolute;

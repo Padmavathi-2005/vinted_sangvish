@@ -202,6 +202,13 @@ const ItemCard = ({ item, onEdit }) => {
                         <span>SOLD</span>
                     </div>
                 )}
+
+                {/* INACTIVE Badge */}
+                {item.status === 'inactive' && !item.is_sold && (
+                    <div className="inactive-overlay">
+                        <span>INACTIVE</span>
+                    </div>
+                )}
             </div>
 
             <div className="listing-details">

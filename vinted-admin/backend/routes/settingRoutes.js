@@ -1,6 +1,7 @@
 import express from 'express';
 import { adminProtect } from '../middleware/authMiddleware.js';
 import upload from '../middleware/uploadMiddleware.js';
+import optimizeImages from '../middleware/imageOptimizer.js';
 import {
     getSettingTypes,
     getSettingsByType,
@@ -22,6 +23,6 @@ router.route('/:type')
         { name: 'empty_table_image', maxCount: 1 },
         { name: 'stripe_logo', maxCount: 1 },
         { name: 'paypal_logo', maxCount: 1 }
-    ]), updateSettingsByType);
+    ]), optimizeImages, updateSettingsByType);
 
 export default router;

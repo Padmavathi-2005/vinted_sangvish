@@ -1,6 +1,7 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 import upload from '../middleware/profileUpload.js';
+import optimizeImages from '../middleware/imageOptimizer.js';
 const router = express.Router();
 import {
     registerUser,
@@ -28,7 +29,7 @@ router.get('/me', protect, getMe);
 router.get('/', protect, getAllUsers);
 router.get('/:id/public', getPublicUser);
 
-router.put('/profile', protect, upload.single('profile_image'), updateUserProfile);
+router.put('/profile', protect, upload.single('profile_image'), optimizeImages, updateUserProfile);
 router.patch('/ping', protect, pingActivity);
 router.patch('/cookie-consent', protect, updateCookieConsent);
 router.delete('/delete', protect, deleteAccount);

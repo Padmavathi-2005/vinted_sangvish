@@ -417,7 +417,9 @@ const updateItem = asyncHandler(async (req, res) => {
         subcategory_id,
         item_type_id,
         existingImages, // JSON array from frontend
-        attributes // JSON array from frontend
+        attributes, // JSON array from frontend
+        status,
+        is_sold
     } = req.body;
 
     // Process images
@@ -463,6 +465,9 @@ const updateItem = asyncHandler(async (req, res) => {
     if (subcategory_id) updateData.subcategory_id = subcategory_id;
     if (item_type_id) updateData.item_type_id = item_type_id;
     else if (item_type_id === null || item_type_id === '') updateData.item_type_id = null;
+    
+    if (status !== undefined) updateData.status = status;
+    if (is_sold !== undefined) updateData.is_sold = is_sold === 'true' || is_sold === true;
     
     // Always update images if we processed them
     updateData.images = updatedImages;

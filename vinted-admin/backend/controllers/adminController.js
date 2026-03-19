@@ -924,6 +924,13 @@ const createItem = asyncHandler(async (req, res) => {
         images = req.files.map(file => `images/items/${file.filename}`);
     }
 
+    // Handle required currency_id
+    let finalCurrencyId = currency_id;
+    if (!finalCurrencyId || finalCurrencyId === '') {
+        const defaultCurrency = await Currency.findOne({ is_active: true }) || await Currency.findOne({ code: 'INR' });
+        if (defaultCurrency) finalCurrencyId = defaultCurrency._id;
+    }
+
     const item = await Item.create({
         title,
         price: parseFloat(price) || 0,
@@ -931,11 +938,11 @@ const createItem = asyncHandler(async (req, res) => {
         seller_id: seller_id || req.user._id,
         category_id,
         subcategory_id,
-        item_type_id,
+        item_type_id: item_type_id && item_type_id !== '' ? item_type_id : null,
         condition: condition || 'New',
-        description: description || '',
+        description: description || 'No description provided.',
         brand: brand || '',
-        currency_id,
+        currency_id: finalCurrencyId,
         images,
         is_sold: req.body.is_sold === 'true' || req.body.is_sold === true
     });
@@ -965,9 +972,9 @@ const updateItem = asyncHandler(async (req, res) => {
         updatedImages = [...updatedImages, ...newImages];
     }
 
-    item.title = req.body.title !== undefined ? req.body.title : item.title;
+    item.title = req.body.title || item.title;
     item.price = req.body.price !== undefined ? parseFloat(req.body.price) || 0 : item.price;
-    item.description = req.body.description !== undefined ? req.body.description : item.description;
+    item.description = (req.body.description && req.body.description !== '') ? req.body.description : item.description || 'No description provided.';
     item.brand = req.body.brand !== undefined ? req.body.brand : item.brand;
     item.condition = req.body.condition !== undefined ? req.body.condition : item.condition;
     item.images = updatedImages;
@@ -993,8 +1000,12 @@ const updateItem = asyncHandler(async (req, res) => {
     }
     if (req.body.category_id) item.category_id = req.body.category_id;
     if (req.body.subcategory_id) item.subcategory_id = req.body.subcategory_id;
-    if (req.body.item_type_id !== undefined) item.item_type_id = req.body.item_type_id || null;
+    if (req.body.item_type_id !== undefined) item.item_type_id = (req.body.item_type_id && req.body.item_type_id !== '') ? req.body.item_type_id : null;
     if (req.body.currency_id) item.currency_id = req.body.currency_id;
+    else if (!item.currency_id) {
+        const defaultCurrency = await Currency.findOne({ is_active: true }) || await Currency.findOne({ code: 'INR' });
+        if (defaultCurrency) item.currency_id = defaultCurrency._id;
+    }
 
     const updatedItem = await item.save();
     res.json(updatedItem);

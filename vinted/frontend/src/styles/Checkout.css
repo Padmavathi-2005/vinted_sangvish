@@ -343,6 +343,26 @@
     flex-direction: column;
     align-items: flex-end;
     gap: 2px;
+    margin-right: 8px;
+}
+
+.checkout-item-remove {
+    background: none;
+    border: none;
+    color: #cbd5e1;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkout-item-remove:hover {
+    background: #fee2e2;
+    color: #ef4444;
 }
 
 .checkout-summary-item-price small {
@@ -377,7 +397,15 @@
 .checkout-total-row {
     font-size: 1.05rem;
     color: #1e293b;
+    margin-bottom: 5px;
+}
+
+.checkout-converted-reference {
+    font-size: 0.82rem;
+    color: #64748b;
+    text-align: right;
     margin-bottom: 20px;
+    font-weight: 500;
 }
 
 /* ── Place Order Button ── */

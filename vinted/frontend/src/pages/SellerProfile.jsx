@@ -42,6 +42,10 @@ const SellerProfile = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loginError, setLoginError] = useState('');
     const [loginLoading, setLoginLoading] = useState(false);
+    
+    const handleImageError = (e) => {
+        e.target.style.display = 'none';
+    };
 
     // Fetch seller using the public profile endpoint
     useEffect(() => {
@@ -180,13 +184,18 @@ const SellerProfile = () => {
                 <aside className="sp-sidebar">
                     {/* Avatar */}
                     <div className="sp-avatar-section">
-                        <div className="sp-avatar-wrap">
-                            {seller.profile_image ? (
-                                <img src={getImageUrl(seller.profile_image)} alt={seller.username} className="sp-avatar" />
-                            ) : (
-                                <div className="sp-avatar-placeholder">
-                                    {(seller.name || seller.username || 'S').charAt(0).toUpperCase()}
-                                </div>
+                        <div className="sp-avatar-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e2e8f0', borderRadius: '50%', overflow: 'hidden' }}>
+                            <div className="sp-avatar-placeholder" style={{ fontSize: '2.5rem', fontWeight: '800', color: '#64748b' }}>
+                                {(seller.name || seller.username || 'S').charAt(0).toUpperCase()}
+                            </div>
+                            {seller.profile_image && (
+                                <img 
+                                    src={getImageUrl(seller.profile_image)} 
+                                    alt={seller.username} 
+                                    className="sp-avatar" 
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                    onError={handleImageError}
+                                />
                             )}
                         </div>
                         <h2 className="sp-seller-name">{safeString(seller.name || seller.username)}</h2>
@@ -313,13 +322,17 @@ const SellerProfile = () => {
                                     {reviews.map((review, i) => (
                                         <div key={review._id || i} className="sp-review-card">
                                             <div className="sp-review-header">
-                                                <div className="sp-reviewer-avatar">
-                                                    {review.reviewer?.profile_image ? (
-                                                        <img src={getImageUrl(review.reviewer.profile_image)} alt={review.reviewer.username} />
-                                                    ) : (
-                                                        <div className="sp-reviewer-placeholder">
-                                                            {(review.reviewer?.username || 'U').charAt(0).toUpperCase()}
-                                                        </div>
+                                                <div className="sp-reviewer-avatar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden' }}>
+                                                    <div className="sp-reviewer-placeholder" style={{ fontSize: '1rem', fontWeight: '800', color: '#94a3b8' }}>
+                                                        {(review.reviewer?.username || 'U').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    {review.reviewer?.profile_image && (
+                                                        <img 
+                                                            src={getImageUrl(review.reviewer.profile_image)} 
+                                                            alt={review.reviewer.username} 
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                                            onError={handleImageError}
+                                                        />
                                                     )}
                                                 </div>
                                                 <div className="sp-reviewer-info">

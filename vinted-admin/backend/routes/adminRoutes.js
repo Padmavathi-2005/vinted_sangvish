@@ -1,6 +1,7 @@
 import express from 'express';
 import { adminProtect } from '../middleware/authMiddleware.js';
 import upload from '../middleware/uploadMiddleware.js';
+import optimizeImages from '../middleware/imageOptimizer.js';
 import {
     loginAdmin,
     getDashboardStats,
@@ -71,31 +72,31 @@ router.get('/reports', getReports);
 
 // User Management
 router.get('/users', getUsers);
-router.post('/users', upload.single('profile_image'), createUser);
-router.put('/users/:id', upload.single('profile_image'), updateUser);
+router.post('/users', upload.single('profile_image'), optimizeImages, createUser);
+router.put('/users/:id', upload.single('profile_image'), optimizeImages, updateUser);
 router.delete('/users/:id', deleteUser);
 
 // Item Management
 router.get('/items/options', getItemOptions);
 router.get('/items', getItems);
-router.post('/items', upload.array('images', 20), createItem);
-router.put('/items/:id', upload.array('images', 20), updateItem);
+router.post('/items', upload.array('images', 20), optimizeImages, createItem);
+router.put('/items/:id', upload.array('images', 20), optimizeImages, updateItem);
 router.delete('/items/:id', deleteItem);
 
 // Category Management
 router.get('/categories', getCategories);
-router.post('/categories', upload.single('category_image'), createCategory);
-router.put('/categories/:id', upload.single('category_image'), updateCategory);
+router.post('/categories', upload.single('category_image'), optimizeImages, createCategory);
+router.put('/categories/:id', upload.single('category_image'), optimizeImages, updateCategory);
 router.delete('/categories/:id', deleteCategory);
 
 router.get('/subcategories', getSubcategories);
-router.post('/subcategories', upload.single('category_image'), createSubcategory);
-router.put('/subcategories/:id', upload.single('category_image'), updateSubcategory);
+router.post('/subcategories', upload.single('category_image'), optimizeImages, createSubcategory);
+router.put('/subcategories/:id', upload.single('category_image'), optimizeImages, updateSubcategory);
 router.delete('/subcategories/:id', deleteSubcategory);
 
 router.get('/item-types', getItemTypes);
-router.post('/item-types', upload.single('category_image'), createItemType);
-router.put('/item-types/:id', upload.single('category_image'), updateItemType);
+router.post('/item-types', upload.single('category_image'), optimizeImages, createItemType);
+router.put('/item-types/:id', upload.single('category_image'), optimizeImages, updateItemType);
 router.delete('/item-types/:id', deleteItemType);
 
 // Order Management

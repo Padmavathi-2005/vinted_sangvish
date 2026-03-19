@@ -10,6 +10,7 @@ import { Modal, Button, Form } from 'react-bootstrap';
 import { safeString } from '../utils/constants';
 import '../styles/SellItem.css';
 import '../components/common/CustomSelect.css';
+import ImageCropModal from '../components/common/ImageCropModal';
 
 const MAX_PHOTOS = 20;
 const VISIBLE_PHOTOS = 3;
@@ -50,6 +51,11 @@ const SellItem = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [addModalType, setAddModalType] = useState(''); // 'category', 'subcategory', 'itemtype'
     const [addModalValue, setAddModalValue] = useState('');
+    
+    // Crop Modal State
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [tempImage, setTempImage] = useState(null);
+    const [pendingPhotos, setPendingPhotos] = useState([]);
 
     const openAddModal = (type) => {
         setAddModalType(type);
@@ -134,17 +140,70 @@ const SellItem = () => {
 
     const handlePhotoUpload = (e) => {
         const files = Array.from(e.target.files);
-        if (files.length > 0 && photos.length === 0) {
-            extractColor(files[0]);
-        }
+        if (files.length === 0) return;
 
-        const newPhotos = files.map(file => ({
-            url: URL.createObjectURL(file),
+        const readers = files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve({ readerResult: reader.result, file });
+            });
+        });
+
+        Promise.all(readers).then(results => {
+            setPendingPhotos(results);
+            setTempImage(results[0].readerResult);
+            setShowCropModal(true);
+        });
+        
+        e.target.value = '';
+    };
+
+    const handleCropComplete = (croppedImageBlob) => {
+        const currentPhoto = pendingPhotos[0];
+        let file, url;
+
+        if (!croppedImageBlob) {
+            file = currentPhoto.file;
+            url = URL.createObjectURL(file);
+        } else {
+            file = new File([croppedImageBlob], currentPhoto.file.name, { type: 'image/jpeg' });
+            url = URL.createObjectURL(croppedImageBlob);
+        }
+        
+        const newPhoto = {
+            url,
             file,
             name: file.name,
-        }));
-        setPhotos(prev => [...prev, ...newPhotos].slice(0, MAX_PHOTOS));
-        e.target.value = '';
+        };
+
+        setPhotos(prev => {
+            const updated = [...prev, newPhoto].slice(0, MAX_PHOTOS);
+            if (updated.length === 1) extractColor(file);
+            return updated;
+        });
+
+        const remaining = pendingPhotos.slice(1);
+        if (remaining.length > 0) {
+            setPendingPhotos(remaining);
+            setTempImage(remaining[0].readerResult);
+        } else {
+            setPendingPhotos([]);
+            setTempImage(null);
+            setShowCropModal(false);
+        }
+    };
+
+    const handleCropCancel = () => {
+        const remaining = pendingPhotos.slice(1);
+        if (remaining.length > 0) {
+            setPendingPhotos(remaining);
+            setTempImage(remaining[0].readerResult);
+        } else {
+            setPendingPhotos([]);
+            setTempImage(null);
+            setShowCropModal(false);
+        }
     };
 
     const extractColor = (file) => {
@@ -613,6 +672,15 @@ const SellItem = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {showCropModal && (
+                <ImageCropModal
+                    image={tempImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={handleCropCancel}
+                    aspect={3 / 4}
+                />
+            )}
         </div>
     );
 };

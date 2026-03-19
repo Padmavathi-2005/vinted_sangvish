@@ -332,8 +332,7 @@ const ItemDetail = () => {
     };
 
     const handleImageError = (e) => {
-        e.target.onerror = null;
-        e.target.src = getImageUrl('images/site/not_found.png');
+        e.target.style.display = 'none';
     };
 
     const handleThumbClick = (idx) => {
@@ -689,13 +688,17 @@ const ItemDetail = () => {
                                 <h3 className="id-box-title">{t('item_detail.seller')}</h3>
                                 <div className="id-seller-top">
                                     <Link to={`/seller/${seller._id}`} className="id-seller-avatar-link">
-                                        <div className="id-seller-avatar">
-                                            {seller.profile_image ? (
-                                                <img src={getImageSrc(seller.profile_image)} alt={seller.username} onError={handleImageError} />
-                                            ) : (
-                                                <div className="id-seller-avatar-placeholder">
-                                                    {(seller.username || 'U').charAt(0).toUpperCase()}
-                                                </div>
+                                        <div className="id-seller-avatar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e2e8f0', borderRadius: '50%', overflow: 'hidden' }}>
+                                            <div className="id-seller-avatar-placeholder" style={{ fontSize: '1.2rem', fontWeight: '800', color: '#64748b' }}>
+                                                {(seller.username || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                            {seller.profile_image && (
+                                                <img 
+                                                    src={getImageSrc(seller.profile_image)} 
+                                                    alt={seller.username} 
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                                    onError={handleImageError} 
+                                                />
                                             )}
                                         </div>
                                     </Link>

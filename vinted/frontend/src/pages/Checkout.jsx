@@ -2,7 +2,7 @@ import React, { useContext, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     FaLock, FaTruck, FaShieldAlt, FaCreditCard,
-    FaChevronRight, FaArrowLeft, FaCheckCircle
+    FaChevronRight, FaArrowLeft, FaCheckCircle, FaTimes
 } from 'react-icons/fa';
 import axios from '../utils/axios';
 import { loadStripe } from '@stripe/stripe-js';
@@ -20,27 +20,45 @@ import { useTranslation } from 'react-i18next';
 // Promise to be resolved when settings are fetched
 let stripePromise = null;
 
-const SHIPPING_FEE = 200;
+const SHIPPING_FEE = 2; // In USD ($2.00)
 
 const Checkout = () => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
-    const { formatPrice, currentCurrency, defaultCurrency } = useContext(CurrencyContext);
-    const { selectedItems, clearCart } = useCart();
+    const { formatPrice, currentCurrency, defaultCurrency, currencies } = useContext(CurrencyContext);
+    const { cartItems, toggleSelect, selectedItems, clearCart } = useCart();
     const { showPopup, PopupComponent } = usePopup();
     const { t, i18n } = useTranslation();
     const { currentLanguage } = useContext(LanguageContext);
 
     const calculateBundleTotals = () => {
-        let subtotal = 0;
-        let shippingTotal = 0;
-        let discountTotal = 0;
+        let subtotal = 0; // In default currency
+        let shippingTotal = 0; // In default currency
+        let discountTotal = 0; // In default currency
+
+        const getInDefault = (price, currId) => {
+            if (!price) return 0;
+            if (!defaultCurrency?.exchange_rate) return price;
+            
+            const targetCurr = currencies.find(c => 
+                c._id === (currId?._id || currId) || 
+                c.code?.toLowerCase() === (currId?.code || currId || '').toString().toLowerCase()
+            );
+            
+            // If it's 'inr' and not found in list, use rate 1.0 (internal base)
+            const itemRate = targetCurr ? targetCurr.exchange_rate : (currId === 'inr' || currId?.code === 'INR' ? 1 : defaultCurrency.exchange_rate);
+            
+            return (price / itemRate) * defaultCurrency.exchange_rate;
+        };
 
         selectedItems.forEach(item => {
-            subtotal += (item.price || 0);
+            subtotal += getInDefault(item.price, item.currency_id);
+            if (!item.shipping_included) {
+                shippingTotal += getInDefault(SHIPPING_FEE, 'usd');
+            }
         });
 
-        // Group selected items by seller to calculate shipping and discounts
+        // Group selected items by seller ONLY for bundle discounts
         const selectedBySeller = selectedItems.reduce((acc, item) => {
             const sid = item.seller_id?._id || item.seller_id;
             if (!acc[sid]) acc[sid] = { items: [], seller: item.seller_id };
@@ -52,12 +70,6 @@ const Checkout = () => {
             const { items, seller } = group;
             if (items.length === 0) return;
 
-            // Shipping: One fee per seller unless any item has free shipping
-            const hasFreeShipping = items.some(i => i.shipping_included);
-            if (!hasFreeShipping) {
-                shippingTotal += SHIPPING_FEE;
-            }
-
             // Discount: Check seller bundle discounts
             if (seller && seller.bundle_discounts?.enabled) {
                 const count = items.length;
@@ -67,13 +79,22 @@ const Checkout = () => {
                 else if (count >= 2) pct = seller.bundle_discounts.two_items;
 
                 if (pct > 0) {
-                    const groupSubtotal = items.reduce((s, i) => s + (i.price || 0), 0);
+                    const groupSubtotal = items.reduce((s, i) => s + getInDefault(i.price, i.currency_id), 0);
                     discountTotal += (groupSubtotal * pct) / 100;
                 }
             }
         });
 
         return { subtotal, shippingTotal, discountTotal, total: subtotal + shippingTotal - discountTotal };
+    };
+
+    const formatDualPrice = (amount, amountCurrency = defaultCurrency) => {
+        const defaultFormatted = formatPrice(amount, amountCurrency, defaultCurrency);
+        if (currentCurrency && currentCurrency._id !== defaultCurrency?._id) {
+            const currentFormatted = formatPrice(amount, amountCurrency);
+            return `${defaultFormatted} (${currentFormatted})`;
+        }
+        return defaultFormatted;
     };
 
     const { subtotal, shippingTotal, discountTotal, total } = calculateBundleTotals();
@@ -221,7 +242,7 @@ const Checkout = () => {
         }
 
         const clientId = paypalSettings.clientId;
-        const currency = currentCurrency?.code || 'INR';
+        const currency = defaultCurrency?.code || 'USD'; // Always use default currency for PayPal
         const scriptId = 'paypal-sdk-v4';
         
         console.log(`[PayPal] Manager triggered for ${currency}. Client ID exists.`);
@@ -271,7 +292,7 @@ const Checkout = () => {
         loadScript();
 
         return () => { isMounted = false; };
-    }, [paypalSettings?.clientId, currentCurrency?.code, step]); // Removed paypalLoaded to fix loop
+    }, [paypalSettings?.clientId, defaultCurrency?.code, step]); // Use defaultCurrency code for PayPal script
 
     // Handle PayPal buttons initialization
     React.useEffect(() => {
@@ -288,8 +309,8 @@ const Checkout = () => {
                             return actions.order.create({
                                 purchase_units: [{
                                     amount: {
-                                        currency_code: currentCurrency?.code || 'INR',
-                                        value: total.toFixed(2).toString() 
+                                        currency_code: defaultCurrency?.code || 'USD',
+                                        value: total.toFixed(2).toString() // total is already in default currency
                                     },
                                     description: `Purchase on ${window.location.hostname}`
                                 }]
@@ -320,7 +341,7 @@ const Checkout = () => {
                 }
             }
         }
-    }, [paymentMethod, paypalLoaded, total, step, currentCurrency?.code]); // handlePlaceOrder removed to prevent flicker
+    }, [paymentMethod, paypalLoaded, total, step, defaultCurrency?.code]); // handlePlaceOrder removed to prevent flicker
 
     const [form, setForm] = useState({
         full_name: user?.username || '',
@@ -574,8 +595,13 @@ const Checkout = () => {
                                 <div className="checkout-stripe-notice" style={{ background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46', marginTop: '10px' }}>
                                     <FaShieldAlt style={{ color: '#059669' }} />
                                     <div>
-                                        <strong>{t('profile.wallet_balance') || 'Wallet Balance'}: {formatPrice(walletBalance)}</strong>
-                                        <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.8 }}>Pay safely using your internal marketplace funds.</p>
+                                        <strong>{t('profile.wallet_balance') || 'Wallet Balance'}: {formatPrice(walletBalance, 'inr', defaultCurrency)}</strong>
+                                        {currentCurrency && defaultCurrency && currentCurrency._id !== defaultCurrency._id && (
+                                            <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>
+                                                {t('checkout.approx_balance') || 'Estimated Balance'}: {formatPrice(walletBalance, 'inr', currentCurrency)}
+                                            </p>
+                                        )}
+                                        <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.8, marginTop: '2px' }}>Pay safely using your internal marketplace funds.</p>
                                     </div>
                                 </div>
                             )}
@@ -623,7 +649,7 @@ const Checkout = () => {
                                     <Elements stripe={stripePromise} options={stripeOptions}>
                                         <StripePaymentForm
                                             amount={total}
-                                            formattedAmount={formatPrice(total)}
+                                            formattedAmount={formatPrice(total, defaultCurrency, defaultCurrency)}
                                             validateForm={validateForm}
                                             billingDetails={{
                                                 name: form.full_name,
@@ -675,14 +701,21 @@ const Checkout = () => {
                                             {item.condition && <span>{safeString(item.condition)}</span>}
                                         </div>
                                         <div className="checkout-summary-item-price">
-                                            <strong>{formatPrice(item.price, item.currency_id)}</strong>
+                                            <strong>{formatPrice(item.price, item.currency_id, defaultCurrency)}</strong>
                                             {!item.shipping_included && (
-                                                <small>+₹{SHIPPING_FEE} {t('checkout.shipping').toLowerCase()}</small>
+                                                <small>+{formatPrice(SHIPPING_FEE, 'usd', defaultCurrency)} {t('checkout.shipping').toLowerCase()}</small>
                                             )}
                                             {item.shipping_included && (
                                                 <small className="ship-inc">{t('checkout.shipping_included')}</small>
                                             )}
                                         </div>
+                                        <button 
+                                            className="checkout-item-remove" 
+                                            onClick={() => toggleSelect(item._id)}
+                                            title="Exclude from checkout"
+                                        >
+                                            <FaTimes />
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -691,18 +724,18 @@ const Checkout = () => {
 
                             <div className="checkout-summary-row">
                                 <span>{t('checkout.subtotal')} ({selectedItems.length} {t('checkout.items')})</span>
-                                <span>{formatPrice(subtotal)}</span>
+                                <span>{formatPrice(subtotal, defaultCurrency, defaultCurrency)}</span>
                             </div>
                             <div className="checkout-summary-row">
                                 <span>{t('checkout.shipping')}</span>
                                 <span className={shippingTotal === 0 ? 'ship-free-label' : ''}>
-                                    {shippingTotal === 0 ? t('checkout.free') : `₹${shippingTotal}`}
+                                    {shippingTotal === 0 ? t('checkout.free') : formatPrice(shippingTotal, defaultCurrency, defaultCurrency)}
                                 </span>
                             </div>
                             {discountTotal > 0 && (
                                 <div className="checkout-summary-row checkout-discount-row">
                                     <span>{t('checkout.bundle_discount') || 'Bundle Discount'}</span>
-                                    <span className="text-success">-{formatPrice(discountTotal)}</span>
+                                    <span className="text-success">-{formatPrice(discountTotal, defaultCurrency, defaultCurrency)}</span>
                                 </div>
                             )}
 
@@ -710,8 +743,14 @@ const Checkout = () => {
 
                             <div className="checkout-summary-row checkout-total-row">
                                 <strong>{t('checkout.total')}</strong>
-                                <strong>{formatPrice(total)}</strong>
+                                <strong>{formatPrice(total, defaultCurrency, defaultCurrency)}</strong>
                             </div>
+
+                            {currentCurrency && defaultCurrency && currentCurrency._id !== defaultCurrency._id && (
+                                <div className="checkout-converted-reference">
+                                    {t('checkout.approx_total') || 'Approx. Total'}: {formatPrice(total, defaultCurrency, currentCurrency)}
+                                </div>
+                            )}
 
                             {paymentMethod === 'stripe' && (
                                 <div className="checkout-stripe-notice">
@@ -729,7 +768,7 @@ const Checkout = () => {
                                     {placing ? (
                                         <><span className="checkout-spinner" /> {t('checkout.placing_order')}</>
                                     ) : (
-                                        <><FaLock /> {t('checkout.place_order')} ({formatPrice(total)})</>
+                                        <><FaLock /> {t('checkout.place_order')} ({formatPrice(total, defaultCurrency, defaultCurrency)})</>
                                     )}
                                 </button>
                             )}

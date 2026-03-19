@@ -138,8 +138,8 @@ const Header = () => {
     // Mobile: Navigation Handlers
     const openMobileMenu = () => setIsMobileMenuOpen(true);
     const handleImageError = (e) => {
-        e.target.onerror = null;
-        e.target.src = getImageUrl('images/site/not_found.png');
+        e.target.style.display = 'none';
+        // Removed fallback to not_found.png to show the background initial instead
     };
 
     const closeMobileMenu = () => {
@@ -962,20 +962,25 @@ const Header = () => {
                                 style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
                             >
                                 <div className="user-avatar" style={{
-                                    background: user.profile_image ? 'transparent' : `${settings.primary_color}15`,
+                                    background: `${settings.primary_color}15`,
                                     color: settings.primary_color,
                                     border: `2px solid ${settings.primary_color}30`,
-                                    overflow: 'hidden'
+                                    overflow: 'hidden',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    position: 'relative'
                                 }}>
-                                    {user.profile_image ? (
+                                    <span style={{ fontSize: '1rem', fontWeight: '800' }}>
+                                        {(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
+                                    </span>
+                                    {user.profile_image && (
                                         <img
                                             src={getImageUrl(user.profile_image)}
                                             alt="Profile"
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
                                             onError={handleImageError}
                                         />
-                                    ) : (
-                                        (user.username || user.name || user.email || 'User').charAt(0).toUpperCase()
                                     )}
                                 </div>
                                 <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#495057' }}>{safeString(user.username || user.name) || user.email?.split('@')[0]}</span>

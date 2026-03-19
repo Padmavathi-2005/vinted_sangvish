@@ -44,6 +44,10 @@ const MessagesContent = () => {
     const messagesContainerRef = useRef(null);
     const initialLoadRef = useRef(true);
 
+    const handleImageError = (e) => {
+        e.target.style.display = 'none';
+    };
+
     useEffect(() => {
         if (user) {
             fetchConversations();
@@ -423,11 +427,18 @@ const MessagesContent = () => {
                                 const isPending = existingConv && existingConv.status === 'pending';
                                 return (
                                     <div key={u._id} className="pd-user-picker-item">
-                                        <div className="pd-avatar-wrapper-mini">
-                                            {!u.profile_image ? (
-                                                <div className="pd-avatar-placeholder-mini">{safeString(u.username)?.charAt(0).toUpperCase()}</div>
-                                            ) : (
-                                                <img src={getImageUrl(u.profile_image)} alt={u.username} className="pd-msg-user-avatar" />
+                                        <div className="pd-avatar-wrapper-mini" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden', width: '36px', height: '36px' }}>
+                                            <div className="pd-avatar-placeholder-mini" style={{ fontSize: '14px', fontWeight: '800', color: '#94a3b8' }}>
+                                                {safeString(u.username)?.charAt(0).toUpperCase()}
+                                            </div>
+                                            {u.profile_image && (
+                                                <img 
+                                                    src={getImageUrl(u.profile_image)} 
+                                                    alt={u.username} 
+                                                    className="pd-msg-user-avatar" 
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                                    onError={handleImageError}
+                                                />
                                             )}
                                         </div>
                                         <div className="pd-msg-user-info flex-grow-1">
@@ -494,14 +505,25 @@ const MessagesContent = () => {
                 <div className="pd-msg-user-list">
                     {activeConv?._id === 'new' && (
                         <div className="pd-msg-user-item active draft">
-                            <div className="pd-avatar-wrapper-mini">
+                            <div className="pd-avatar-wrapper-mini" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden', width: '36px', height: '36px' }}>
                                 {(() => {
                                     const otherData = getOtherParticipant(activeConv);
                                     const other = otherData?.user;
-                                    return !other?.profile_image ? (
-                                        <div className="pd-avatar-placeholder-mini">{safeString(other?.username || other?.name)?.charAt(0).toUpperCase()}</div>
-                                    ) : (
-                                        <img src={getImageUrl(other.profile_image)} alt="" className="pd-msg-user-avatar" />
+                                    return (
+                                        <>
+                                            <div className="pd-avatar-placeholder-mini" style={{ fontSize: '14px', fontWeight: '800', color: '#94a3b8' }}>
+                                                {safeString(other?.username || other?.name)?.charAt(0).toUpperCase()}
+                                            </div>
+                                            {other?.profile_image && (
+                                                <img 
+                                                    src={getImageUrl(other.profile_image)} 
+                                                    alt="" 
+                                                    className="pd-msg-user-avatar" 
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                                    onError={handleImageError}
+                                                />
+                                            )}
+                                        </>
                                     );
                                 })()}
                             </div>
@@ -533,19 +555,28 @@ const MessagesContent = () => {
                                 className={`pd-msg-user-item ${activeConv?._id === conv._id ? 'active' : ''}`}
                                 onClick={() => { setActiveConv(conv); setMobileChatOpen(true); }}
                             >
-                                <div className="pd-avatar-wrapper-mini">
+                                <div className="pd-avatar-wrapper-mini" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden', width: '36px', height: '36px' }}>
                                     {otherData?.on_model === 'Admin' || isSystemConv ? (
                                         siteLogo ? (
-                                            <img src={getImageUrl(siteLogo)} alt={displayName} className="pd-msg-user-avatar" />
+                                            <img src={getImageUrl(siteLogo)} alt={displayName} className="pd-msg-user-avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
-                                            <div className="pd-avatar-placeholder-mini" style={{ backgroundColor: 'var(--primary-color, #0ea5e9)', color: 'white' }}>{siteInitial}</div>
+                                            <div className="pd-avatar-placeholder-mini" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--primary-color, #0ea5e9)', color: 'white' }}>{siteInitial}</div>
                                         )
                                     ) : (
-                                        !other?.profile_image ? (
-                                            <div className="pd-avatar-placeholder-mini">{safeString(other?.username)?.charAt(0).toUpperCase()}</div>
-                                        ) : (
-                                            <img src={getImageUrl(other.profile_image)} alt={other.username} className="pd-msg-user-avatar" />
-                                        )
+                                        <>
+                                            <div className="pd-avatar-placeholder-mini" style={{ fontSize: '14px', fontWeight: '800', color: '#94a3b8' }}>
+                                                {safeString(other?.username)?.charAt(0).toUpperCase()}
+                                            </div>
+                                            {other?.profile_image && (
+                                                <img 
+                                                    src={getImageUrl(other.profile_image)} 
+                                                    alt={other.username} 
+                                                    className="pd-msg-user-avatar" 
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                                    onError={handleImageError}
+                                                />
+                                            )}
+                                        </>
                                     )}
                                 </div>
                                 <div className="pd-msg-user-info">
@@ -592,23 +623,30 @@ const MessagesContent = () => {
                                     <button className="pd-msg-back-btn" onClick={() => { setMobileChatOpen(false); setActiveConv(null); }}>
                                         <FaArrowLeft />
                                     </button>
-                                    <div className="pd-avatar-wrapper-mini">
+                                    <div className="pd-avatar-wrapper-mini" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden', width: '36px', height: '36px' }}>
                                         {isMarketplace ? (
                                             headerSiteLogo ? (
-                                                <img src={getImageUrl(headerSiteLogo)} alt={headerSiteName} className="pd-msg-user-avatar" style={{ width: '36px', height: '36px' }} />
+                                                <img src={getImageUrl(headerSiteLogo)} alt={headerSiteName} className="pd-msg-user-avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : (
-                                                <div className="pd-avatar-placeholder-mini" style={{ width: '36px', height: '36px', fontSize: '14px', backgroundColor: 'var(--primary-color, #0ea5e9)', color: 'white' }}>
+                                                <div className="pd-avatar-placeholder-mini" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--primary-color, #0ea5e9)', color: 'white', fontSize: '14px' }}>
                                                     {headerSiteInitial}
                                                 </div>
                                             )
                                         ) : (
-                                            headerOther?.profile_image ? (
-                                                <img src={getImageUrl(headerOther.profile_image) || null} alt="" className="pd-msg-user-avatar" style={{ width: '36px', height: '36px' }} />
-                                            ) : (
-                                                <div className="pd-avatar-placeholder-mini" style={{ width: '36px', height: '36px', fontSize: '14px' }}>
+                                            <>
+                                                <div className="pd-avatar-placeholder-mini" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '800', color: '#94a3b8' }}>
                                                     {safeString(headerOther?.username)?.charAt(0).toUpperCase()}
                                                 </div>
-                                            )
+                                                {headerOther?.profile_image && (
+                                                    <img 
+                                                        src={getImageUrl(headerOther.profile_image)} 
+                                                        alt="" 
+                                                        className="pd-msg-user-avatar" 
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                                        onError={handleImageError}
+                                                    />
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                     <div className="pd-msg-user-meta">

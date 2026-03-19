@@ -13,6 +13,7 @@ import AuthContext from '../../context/AuthContext';
 import CurrencyContext from '../../context/CurrencyContext';
 import CustomSelect from './CustomSelect';
 import { Modal, Button, Form } from 'react-bootstrap';
+import ImageCropModal from './ImageCropModal';
 
 const MAX_PHOTOS = 20;
 const VISIBLE_PHOTOS = 4;
@@ -35,6 +36,8 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
     const [isSwappable, setIsSwappable] = useState(item.negotiable || false);
     const [shippingIncluded, setShippingIncluded] = useState(item.shipping_included || false);
     const [specifications, setSpecifications] = useState(item.attributes || []);
+    const [status, setStatus] = useState(item.status || 'active');
+    const [isSold, setIsSold] = useState(item.is_sold || false);
     
     // Category State
     const [categories, setCategories] = useState([]);
@@ -58,6 +61,11 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
     const [discountPercent, setDiscountPercent] = useState('');
     const [discountLoading, setDiscountLoading] = useState(false);
     const [commissionRate, setCommissionRate] = useState(0);
+    
+    // Crop State
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [tempImage, setTempImage] = useState(null);
+    const [pendingPhotos, setPendingPhotos] = useState([]);
 
     // Sync state when item changes (after an update)
     useEffect(() => {
@@ -74,6 +82,8 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
             setShippingIncluded(item.shipping_included || false);
             setSpecifications(item.attributes || []);
             setImages(item.images || []);
+            setStatus(item.status || 'active');
+            setIsSold(item.is_sold || false);
             
             // Re-fetch subcategories if category changed
             const catId = item.category_id?._id || item.category_id;
@@ -158,17 +168,70 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
     // Photos Handling
     const handlePhotoUpload = (e) => {
         const files = Array.from(e.target.files);
-        if (files.length > 0 && images.length === 0) {
-            extractColor(files[0]);
-        }
+        if (files.length === 0) return;
 
-        const newPhotos = files.map(file => ({
-            url: URL.createObjectURL(file),
+        const readers = files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve({ readerResult: reader.result, file });
+            });
+        });
+
+        Promise.all(readers).then(results => {
+            setPendingPhotos(results);
+            setTempImage(results[0].readerResult);
+            setShowCropModal(true);
+        });
+        
+        e.target.value = '';
+    };
+
+    const handleCropComplete = (croppedImageBlob) => {
+        const currentPhoto = pendingPhotos[0];
+        let file, url;
+
+        if (!croppedImageBlob) {
+            file = currentPhoto.file;
+            url = URL.createObjectURL(file);
+        } else {
+            file = new File([croppedImageBlob], currentPhoto.file.name, { type: 'image/jpeg' });
+            url = URL.createObjectURL(croppedImageBlob);
+        }
+        
+        const newPhoto = {
+            url,
             file,
             isNew: true
-        }));
-        setImages(prev => [...prev, ...newPhotos].slice(0, MAX_PHOTOS));
-        e.target.value = '';
+        };
+
+        setImages(prev => {
+            const updated = [...prev, newPhoto].slice(0, MAX_PHOTOS);
+            if (updated.length === 1) extractColor(file);
+            return updated;
+        });
+
+        const remaining = pendingPhotos.slice(1);
+        if (remaining.length > 0) {
+            setPendingPhotos(remaining);
+            setTempImage(remaining[0].readerResult);
+        } else {
+            setPendingPhotos([]);
+            setTempImage(null);
+            setShowCropModal(false);
+        }
+    };
+
+    const handleCropCancel = () => {
+        const remaining = pendingPhotos.slice(1);
+        if (remaining.length > 0) {
+            setPendingPhotos(remaining);
+            setTempImage(remaining[0].readerResult);
+        } else {
+            setPendingPhotos([]);
+            setTempImage(null);
+            setShowCropModal(false);
+        }
     };
 
     const removePhoto = (index) => {
@@ -263,6 +326,8 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
         formData.append('price', price);
         formData.append('negotiable', isSwappable);
         formData.append('shipping_included', shippingIncluded);
+        formData.append('status', status);
+        formData.append('is_sold', isSold);
         formData.append('attributes', JSON.stringify(specifications.filter(s => s.key && s.value)));
 
         // Handle existing vs new images
@@ -315,6 +380,21 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
             setSuccess('Discount removed.');
         } catch (err) { setError('Failed to remove discount'); }
         finally { setDiscountLoading(false); }
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this listing? This action cannot be undone.')) return;
+        
+        setLoading(true);
+        try {
+            await axios.delete(`/api/items/${item._id}`);
+            onClose();
+            // Refresh parent (Profile)
+            window.location.reload(); 
+        } catch (err) {
+            setError('Failed to delete item');
+            setLoading(false);
+        }
     };
 
     const formatOptions = (list) => list.map(it => ({ value: it._id, label: safeString(it.name) }));
@@ -484,6 +564,40 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
                                 <div><h4 className="si-swap-title">Shipping Included</h4><p className="si-swap-hint small">Price covers shipping.</p></div>
                                 <label className="si-toggle"><input type="checkbox" checked={shippingIncluded} onChange={e => setShippingIncluded(e.target.checked)} /><span className="si-toggle-slider" /></label>
                             </div>
+
+                            <div className="si-swap-row mt-3 border-top pt-3">
+                                <div>
+                                    <h4 className="si-swap-title">Mark as Sold</h4>
+                                    <p className="si-swap-hint small">Hides the item from search while keeping it in your collection.</p>
+                                </div>
+                                <label className="si-toggle">
+                                    <input type="checkbox" checked={isSold} onChange={e => setIsSold(e.target.checked)} />
+                                    <span className="si-toggle-slider" />
+                                </label>
+                            </div>
+
+                            <div className="si-swap-row mt-3 border-top pt-3">
+                                <div>
+                                    <h4 className="si-swap-title">Visibility</h4>
+                                    <p className="si-swap-hint small">Set your item to Active or Inactive.</p>
+                                </div>
+                                <div className="d-flex gap-2">
+                                    <button 
+                                        type="button" 
+                                        className={`btn btn-sm rounded-pill px-3 ${status === 'active' ? 'btn-success' : 'btn-outline-secondary'}`}
+                                        onClick={() => setStatus('active')}
+                                    >
+                                        Active
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        className={`btn btn-sm rounded-pill px-3 ${status === 'inactive' ? 'btn-danger' : 'btn-outline-secondary'}`}
+                                        onClick={() => setStatus('inactive')}
+                                    >
+                                        Inactive
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Specifications */}
@@ -604,17 +718,34 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
                             </div>
                         </div>
 
-                        <div className="eim-footer-actions mt-5 pt-4 border-top d-flex gap-3 justify-content-end">
-                            <button type="button" onClick={onClose} className="btn-cancel-premium">Cancel</button>
-                            <button type="submit" className="btn-save-premium" disabled={loading}>
-                                {loading ? 'Saving Changes...' : 'Save & Publish'}
+                        <div className="eim-footer-actions mt-5 pt-4 border-top d-flex gap-3 justify-content-between align-items-center">
+                            <button 
+                                type="button" 
+                                onClick={handleDelete} 
+                                className="btn btn-outline-danger btn-sm d-flex align-items-center gap-2 border-0 fw-bold"
+                            >
+                                <FaTrash /> Delete Listing
                             </button>
+                            <div className="d-flex gap-3">
+                                <button type="button" onClick={onClose} className="btn-cancel-premium">Cancel</button>
+                                <button type="submit" className="btn-save-premium" disabled={loading}>
+                                    {loading ? 'Saving Changes...' : 'Save & Publish'}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
 
             {/* Removed Add Custom Entry Modal as per request */}
+            {showCropModal && (
+                <ImageCropModal
+                    image={tempImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={handleCropCancel}
+                    aspect={3 / 4}
+                />
+            )}
         </div>
     );
 };

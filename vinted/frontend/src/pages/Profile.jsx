@@ -765,21 +765,20 @@ const Profile = () => {
                 {/* ─── Sidebar ─── */}
                 <div className="pd-sidebar">
                     <div className="pd-card pd-profile-card">
-                        <div className="pd-avatar-wrapper">
-                            {user.profile_image ? (
+                        <div className="pd-avatar-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-color)', borderRadius: '50%', overflow: 'hidden' }}>
+                            <div className="pd-avatar-placeholder" style={{ fontSize: '2rem', fontWeight: '800', color: 'white' }}>
+                                {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            {user.profile_image && (
                                 <img
                                     src={getImageUrl(user.profile_image)}
                                     alt="Profile"
                                     className="pd-avatar"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
                                     onError={(e) => {
                                         e.target.style.display = 'none';
-                                        e.target.parentNode.innerHTML = `<div class="pd-avatar-placeholder" style="background-color: var(--primary-color); color: white;">${safeString(user.username || 'U').charAt(0).toUpperCase()}</div>`;
                                     }}
                                 />
-                            ) : (
-                                <div className="pd-avatar-placeholder" style={{ backgroundColor: 'var(--primary-color)', color: 'white' }}>
-                                    {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
-                                </div>
                             )}
                             <div className="pd-avatar-upload-icon" onClick={() => handleTabChange('profile_settings')}><FaUserEdit /></div>
                         </div>

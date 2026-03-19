@@ -218,6 +218,7 @@
     "sold_items": "Sold Items",
     "available_balance": "Available Balance",
     "total_earnings": "Total Earnings",
+    "wallet_balance": "Wallet Balance",
     "favorites": "Favorites",
     "identity_verified": "Identity Verified",
     "identity_text": "Your account is verified for secure transactions.",
@@ -482,6 +483,8 @@
     "ssl_secured": "SSL Secured",
     "track_delivery": "Track Delivery",
     "items": "items",
-    "shipping_included": "Shipping included"
+    "shipping_included": "Shipping included",
+    "approx_total": "Total price in your currency",
+    "approx_balance": "Wallet balance in your currency"
   }
 }

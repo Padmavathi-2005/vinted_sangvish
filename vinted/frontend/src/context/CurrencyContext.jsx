@@ -22,11 +22,16 @@ export const CurrencyProvider = ({ children }) => {
                 let defCurrency = null;
                 if (settingsRes.data && settingsRes.data.default_currency_id) {
                     defCurrency = settingsRes.data.default_currency_id;
-                    setDefaultCurrency(defCurrency);
+                    // Dont set state here as it would be just the ID string
                 }
 
                 if (Array.isArray(currenciesRes.data)) {
                     setCurrencies(currenciesRes.data);
+                    
+                    if (defCurrency) {
+                        const foundDefault = currenciesRes.data.find(c => c._id === defCurrency);
+                        if (foundDefault) setDefaultCurrency(foundDefault);
+                    }
                 }
 
                 // Check local storage for user's preferred currency
@@ -60,10 +65,10 @@ export const CurrencyProvider = ({ children }) => {
         localStorage.setItem('user_currency', currency.code);
     };
 
-    const formatPrice = useCallback((priceAmount, itemCurrency = null) => {
+    const formatPrice = useCallback((priceAmount, itemCurrency = null, targetOverride = null) => {
         if (!priceAmount) return '0.00';
 
-        let targetCurrency = currentCurrency || defaultCurrency;
+        let targetCurrency = targetOverride || currentCurrency || defaultCurrency;
         if (!targetCurrency) return `€${Number(priceAmount).toFixed(2)}`;
 
         let rate = targetCurrency.exchange_rate || 1;
@@ -73,7 +78,10 @@ export const CurrencyProvider = ({ children }) => {
 
         if (itemCurrency) {
             const itemCurrencyId = typeof itemCurrency === 'object' ? itemCurrency._id : itemCurrency;
-            const found = currencies.find(c => c._id === itemCurrencyId);
+            const found = currencies.find(c => 
+                c._id === itemCurrencyId || 
+                c.code?.toLowerCase() === (itemCurrencyId || '').toString().toLowerCase()
+            );
             if (found) {
                 baseRate = found.exchange_rate || 1;
             } else if (typeof itemCurrency === 'object' && itemCurrency.exchange_rate) {
@@ -94,9 +102,9 @@ export const CurrencyProvider = ({ children }) => {
         }
 
         if (targetCurrency.symbol_position === 'after') {
-            return `${formatted}${targetCurrency.symbol}`;
+            return `${formatted}${targetCurrency.symbol || '€'}`;
         }
-        return `${targetCurrency.symbol}${formatted}`;
+        return `${targetCurrency.symbol || '€'}${formatted}`;
     }, [currentCurrency, defaultCurrency, currencies]);
 
     return (
