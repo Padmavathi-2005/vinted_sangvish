@@ -94,68 +94,96 @@ const CategoryPage = () => {
     }
 
     // Card component shared between both pages
-    const CategoryCard = ({ item, onClick }) => (
-        <div
-            onClick={onClick}
-            style={{
-                background: 'white',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                padding: '20px 12px 16px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.25s ease',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                height: '160px',
-            }}
-            onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-5px)';
-                e.currentTarget.style.borderColor = pc;
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
-            }}
-            onMouseLeave={e => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = '#e2e8f0';
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
-            }}
-        >
-            <div style={{
-                width: '72px', height: '72px',
-                borderRadius: '14px', overflow: 'hidden',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-                background: `${pc}12`,
-                fontSize: '2.2rem', lineHeight: 1,
-            }}>
-                {item.image ? (
-                    <img
-                        src={getImageUrl(item.image)}
-                        alt={safeString(item.name)}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }}
-                        onError={e => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                        }}
-                    />
-                ) : null}
-                <span style={{ display: item.image ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                    {item.icon || '🏷️'}
+    const CategoryCard = ({ item, onClick, categoryImage, categoryIcon }) => {
+        // Special logic: If the subcategory is an "All..." category, use the parent category's icon/image
+        const isAllCategory = item.name && item.name.toLowerCase().startsWith('all');
+        const displayImage = isAllCategory ? categoryImage || item.image : item.image;
+        const displayIcon = isAllCategory ? categoryIcon || item.icon : item.icon;
+
+        return (
+            <div
+                onClick={onClick}
+                style={{
+                    background: 'white',
+                    borderRadius: '24px',
+                    border: '1px solid #e2e8f0',
+                    padding: '24px 16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    height: '220px',
+                }}
+                onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-8px)';
+                    e.currentTarget.style.borderColor = pc;
+                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+                    const iconWrapper = e.currentTarget.querySelector('.icon-wrapper');
+                    if (iconWrapper) iconWrapper.style.backgroundColor = pc;
+                    const icon = e.currentTarget.querySelector('.icon-content');
+                    if (icon) icon.style.color = 'white';
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+                    const iconWrapper = e.currentTarget.querySelector('.icon-wrapper');
+                    if (iconWrapper) iconWrapper.style.backgroundColor = '#f1f5f9';
+                    const icon = e.currentTarget.querySelector('.icon-content');
+                    if (icon) icon.style.color = '#1e293b';
+                }}
+            >
+                <div className="icon-wrapper" style={{
+                    width: '130px', height: '130px',
+                    borderRadius: '50%', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                    background: '#f1f5f9',
+                    transition: 'all 0.3s ease',
+                }}>
+                    <div className="icon-content" style={{
+                        fontSize: '2.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        transition: 'all 0.3s ease',
+                    }}>
+                        {displayImage ? (
+                            <img
+                                src={getImageUrl(displayImage)}
+                                alt={safeString(item.name)}
+                                style={{ width: '60%', height: '60%', objectFit: 'contain', transition: 'all 0.3s ease' }}
+                                onError={e => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                }}
+                            />
+                        ) : null}
+                        <span style={{ display: displayImage ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                            {displayIcon || '🏷️'}
+                        </span>
+                    </div>
+                </div>
+                <span style={{
+                    fontSize: '0.95rem', fontWeight: '700', color: '#1e293b',
+                    textAlign: 'center', lineHeight: '1.3',
+                    display: '-webkit-box', WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    maxHeight: '2.6em',
+                    width: '100%',
+                    transition: 'color 0.3s ease'
+                }}>
+                    {safeString(item.name)}
                 </span>
             </div>
-            <span style={{
-                fontSize: '0.83rem', fontWeight: '700', color: '#1e293b',
-                textAlign: 'center', lineHeight: '1.3',
-                display: '-webkit-box', WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical', overflow: 'hidden', maxHeight: '2.6em',
-            }}>
-                {safeString(item.name)}
-            </span>
-        </div>
-    );
+        );
+    };
 
     const Pagination = () => totalPages <= 1 ? null : (
         <div className="d-flex justify-content-center align-items-center gap-3 mt-5">
@@ -206,7 +234,7 @@ const CategoryPage = () => {
 
     return (
         <div style={{ minHeight: '100vh', background: '#f8fafc', paddingBottom: '60px' }}>
-            <Meta 
+            <Meta
                 title={safeString(category.name)}
                 description={`Browse ${safeString(category.name)} items on Vinted Marketplace. Find the best deals on pre-loved fashion.`}
                 image={category.image ? getImageUrl(category.image) : undefined}
@@ -224,14 +252,14 @@ const CategoryPage = () => {
 
                     <div className="d-flex align-items-center gap-4">
                         <div style={{
-                            width: '64px', height: '64px', borderRadius: '14px', overflow: 'hidden',
+                            width: '84px', height: '84px', borderRadius: '50%', overflow: 'hidden',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: `${pc}12`, fontSize: '2.2rem', flexShrink: 0,
+                            background: `${pc}12`, fontSize: '2.5rem', flexShrink: 0,
                         }}>
                             {category.image ? (
                                 <img src={getImageUrl(category.image)} alt={safeString(category.name)}
-                                    style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }} />
-                            ) : <span>{category.icon || '📦'}</span>}
+                                    style={{ width: '60%', height: '60%', objectFit: 'contain' }} />
+                            ) : <span className="icon-content">{category.icon || '📦'}</span>}
                         </div>
                         <div>
                             <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', margin: 0 }}>{safeString(category.name)}</h1>
@@ -267,12 +295,16 @@ const CategoryPage = () => {
                             <CategoryCard
                                 item={{ name: `All ${safeString(category.name)}`, icon: '🛍️', image: null }}
                                 onClick={() => navigate(`/categories/${slug}/all`)}
+                                categoryImage={category.image}
+                                categoryIcon={category.icon}
                             />
                             {subcategories.map(sub => (
                                 <CategoryCard
                                     key={sub._id}
                                     item={sub}
                                     onClick={() => navigate(`/categories/${slug}/${sub.slug}`)}
+                                    categoryImage={category.image}
+                                    categoryIcon={category.icon}
                                 />
                             ))}
                         </div>

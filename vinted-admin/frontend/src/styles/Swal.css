@@ -2,7 +2,7 @@
 .premium-swal-popup {
     border-radius: 20px !important;
     padding: 2rem !important;
-    font-family: 'Inter', sans-serif !important;
+    font-family: inherit !important;
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 

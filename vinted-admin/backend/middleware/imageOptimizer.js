@@ -35,6 +35,10 @@ const optimizeImages = async (req, res, next) => {
             } else if (['site_logo', 'site_favicon', 'stripe_logo', 'paypal_logo', 'category_image', 'image_not_found', 'empty_table_image'].includes(file.fieldname)) {
                 minDim = 0;
                 maxDim = 800;
+            } else if (file.fieldname === 'image') {
+                // Frontend Content (often hero banners)
+                minDim = 0;
+                maxDim = 1920;
             }
 
             const metadata = await sharp(filePath).metadata();

@@ -57,7 +57,7 @@
     color: var(--ds-text);
     margin: 0;
     letter-spacing: -0.03em;
-    font-family: var(--body-font, 'Outfit'), sans-serif;
+    font-family: var(--body-font);
 }
 
 .ds-header-actions {

@@ -20,7 +20,8 @@ const storage = multer.diskStorage({
             dest += 'items';
         }
 
-        const fullPath = path.join(__dirname, '../', dest);
+        // Save directly to the main user backend's images folder so the frontend can serve them
+        const fullPath = path.join(__dirname, '../../../vinted/backend/', dest);
         if (!fs.existsSync(fullPath)) {
             fs.mkdirSync(fullPath, { recursive: true });
         }

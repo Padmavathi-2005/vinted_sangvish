@@ -225,7 +225,7 @@
 .nav-label {
     font-size: 0.98rem;
     font-weight: 600;
-    font-family: var(--body-font, 'Outfit'), sans-serif;
+    font-family: inherit;
     white-space: normal;
     /* Allow wrapping */
     line-height: 1.4;

@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import LanguageContext from '../../context/LanguageContext';
+import { getImageUrl } from '../../utils/constants';
 
 const SustainabilitySection = () => {
     const { td, ti } = useContext(LanguageContext);
@@ -21,8 +22,8 @@ const SustainabilitySection = () => {
                         </Col>
                         <Col lg={6} className="d-none d-lg-block">
                             <div className="banner-images">
-                                <div className="banner-img-v1" style={{ backgroundImage: `url("${ti('sustainability.sustainability_image_1', 'https://images.unsplash.com/photo-1556012018-50c5c0da73bf?w=600&q=80')}")` }}></div>
-                                <div className="banner-img-v2" style={{ backgroundImage: `url("${ti('sustainability.sustainability_image_2', 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=600&q=80')}")` }}></div>
+                                <div className="banner-img-v1" style={{ backgroundImage: `url("${getImageUrl(ti('sustainability.sustainability_image_1', 'https://images.unsplash.com/photo-1556012018-50c5c0da73bf?w=600&q=80'))}")` }}></div>
+                                <div className="banner-img-v2" style={{ backgroundImage: `url("${getImageUrl(ti('sustainability.sustainability_image_2', 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=600&q=80'))}")` }}></div>
                             </div>
                         </Col>
                     </Row>

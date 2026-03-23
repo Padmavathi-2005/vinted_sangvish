@@ -36,24 +36,9 @@ export const SettingsProvider = ({ children }) => {
                         document.documentElement.style.setProperty('--primary-color', data.primary_color);
                     }
 
-                    // Dynamic Font Loading
-                    if (updatedSettings.body_font_url) {
-                        let fontLink = document.getElementById('dynamic-google-font');
-                        if (!fontLink) {
-                            fontLink = document.createElement('link');
-                            fontLink.id = 'dynamic-google-font';
-                            fontLink.rel = 'stylesheet';
-                            document.head.appendChild(fontLink);
-                        }
-                        fontLink.href = updatedSettings.body_font_url;
-                    }
+                    // Dynamic Font Loading - Disabled as per request to use system-ui always
+                    document.documentElement.style.setProperty('--body-font', 'system-ui, -apple-system, sans-serif');
 
-                    if (updatedSettings.body_font_name) {
-                        // Use quotes for safe CSS variable application
-                        document.documentElement.style.setProperty('--body-font', `'${updatedSettings.body_font_name}'`);
-                    } else {
-                        document.documentElement.style.setProperty('--body-font', "'Poppins', sans-serif");
-                    }
 
                     if (data.site_name) {
                         const nameString = safeString(data.site_name);

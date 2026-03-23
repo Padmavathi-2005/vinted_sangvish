@@ -8,7 +8,7 @@
 .hero-section {
     background-image:
         linear-gradient(to var(--direction-to, right), rgba(0, 0, 0, 0.90) 0%, rgba(0, 0, 0, 0.7) 30%, rgba(0, 0, 0, 0.0) 100%),
-        url('/images/site/image-1773747434041-845775531.jpg');
+        url('/images/site/.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: scroll;
@@ -538,13 +538,17 @@
     cursor: grab;
     user-select: none;
     -webkit-user-drag: none;
-    -ms-overflow-style: none; /* Hide scrollbar IE/Edge */
-    scrollbar-width: none; /* Hide scrollbar Firefox */
-    scroll-behavior: auto; /* Required for frame-based JS scrolling */
+    -ms-overflow-style: none;
+    /* Hide scrollbar IE/Edge */
+    scrollbar-width: none;
+    /* Hide scrollbar Firefox */
+    scroll-behavior: auto;
+    /* Required for frame-based JS scrolling */
 }
 
 .categories-marquee-container::-webkit-scrollbar {
-    display: none; /* Hide scrollbar Chrome/Safari */
+    display: none;
+    /* Hide scrollbar Chrome/Safari */
 }
 
 .categories-marquee-container.dragging {
@@ -618,8 +622,8 @@
 }
 
 .category-icon-wrapper {
-    width: 80px;
-    height: 80px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     background: #f0f0f0;
     /* Default grey idle circle */

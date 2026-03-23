@@ -3,6 +3,7 @@ import { Container, Button, Card, Row, Col, Form, Spinner, Image } from 'react-b
 import { FaSave, FaUndo, FaCloudUploadAlt, FaCogs, FaImage, FaListOl, FaMousePointer } from 'react-icons/fa';
 import { useSettings } from '../context/SettingsContext';
 import axios from '../utils/axios';
+import ImageCropModal from '../components/common/ImageCropModal';
 
 const AdminDefaultSettings = () => {
     const {
@@ -24,6 +25,11 @@ const AdminDefaultSettings = () => {
     const [originalData, setOriginalData] = useState({});
     const [saving, setSaving] = useState(false);
     const [logoPreview, setLogoPreview] = useState(null);
+    
+    // Crop state
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [tempImage, setTempImage] = useState(null);
+    const [tempFile, setTempFile] = useState(null);
 
     useEffect(() => {
         if (!loading) {
@@ -49,13 +55,33 @@ const AdminDefaultSettings = () => {
     const handleLogoChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            setTempFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setLogoPreview(reader.result);
-                setFormData(prev => ({ ...prev, site_logo_file: file }));
+                setTempImage(reader.result);
+                setShowCropModal(true);
             };
             reader.readAsDataURL(file);
+            e.target.value = null; // reset input
         }
+    };
+
+    const handleCropComplete = (croppedImageBlob) => {
+        if (!croppedImageBlob) {
+            if (tempFile) {
+                setLogoPreview(URL.createObjectURL(tempFile));
+                setFormData(prev => ({ ...prev, site_logo_file: tempFile }));
+            }
+            setShowCropModal(false);
+            setTempImage(null);
+            setTempFile(null);
+            return;
+        }
+        const file = new File([croppedImageBlob], "site_logo.jpg", { type: 'image/jpeg' });
+        setLogoPreview(URL.createObjectURL(croppedImageBlob));
+        setFormData(prev => ({ ...prev, site_logo_file: file }));
+        setShowCropModal(false);
+        setTempFile(null);
     };
 
     const handleCancel = () => {
@@ -332,6 +358,19 @@ const AdminDefaultSettings = () => {
                     cursor: pointer;
                 }
             `}</style>
+            
+            {showCropModal && (
+                <ImageCropModal
+                    image={tempImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={() => {
+                        setShowCropModal(false);
+                        setTempImage(null);
+                        setTempFile(null);
+                    }}
+                    aspect={null} // Default to original ratio
+                />
+            )}
         </div>
     );
 };

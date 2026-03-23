@@ -75,64 +75,77 @@ const CategoriesPage = () => {
                                     <div
                                         style={{
                                             background: 'white',
-                                            borderRadius: '16px',
+                                            borderRadius: '24px',
                                             border: '1px solid #e2e8f0',
-                                            padding: '20px 12px 16px',
+                                            padding: '24px 16px',
                                             display: 'flex',
                                             flexDirection: 'column',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            gap: '12px',
+                                            gap: '16px',
                                             cursor: 'pointer',
-                                            transition: 'all 0.25s ease',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                                            // Fixed height so all boxes are same size
-                                            height: '160px',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                                            height: '240px',
                                         }}
                                         onMouseEnter={e => {
-                                            e.currentTarget.style.transform = 'translateY(-5px)';
+                                            e.currentTarget.style.transform = 'translateY(-8px)';
                                             e.currentTarget.style.borderColor = pc;
-                                            e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
+                                            e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+                                            const iconWrapper = e.currentTarget.querySelector('.icon-wrapper');
+                                            if (iconWrapper) iconWrapper.style.backgroundColor = pc;
+                                            const icon = e.currentTarget.querySelector('.icon-content');
+                                            if (icon) icon.style.color = 'white';
                                         }}
                                         onMouseLeave={e => {
                                             e.currentTarget.style.transform = 'translateY(0)';
                                             e.currentTarget.style.borderColor = '#e2e8f0';
-                                            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
+                                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+                                            const iconWrapper = e.currentTarget.querySelector('.icon-wrapper');
+                                            if (iconWrapper) iconWrapper.style.backgroundColor = '#f1f5f9';
+                                            const icon = e.currentTarget.querySelector('.icon-content');
+                                            if (icon) icon.style.color = '#1e293b';
                                         }}
                                     >
-                                        {/* Fixed-size icon/image box */}
-                                        <div style={{
-                                            width: '72px',
-                                            height: '72px',
-                                            borderRadius: '14px',
-                                            overflow: 'hidden',
+                                        <div className="icon-wrapper" style={{
+                                            width: '120px',
+                                            height: '120px',
+                                            borderRadius: '50%',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             flexShrink: 0,
-                                            background: `${pc}12`,
-                                            fontSize: '2.2rem',
-                                            lineHeight: 1,
+                                            background: '#f1f5f9',
+                                            transition: 'all 0.3s ease',
                                         }}>
-                                            {cat.image ? (
-                                                <img
-                                                    src={getImageUrl(cat.image)}
-                                                    alt={safeString(cat.name)}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }}
-                                                    onError={e => {
-                                                        e.target.style.display = 'none';
-                                                        e.target.nextSibling.style.display = 'flex';
-                                                    }}
-                                                />
-                                            ) : null}
-                                            <span style={{ display: cat.image ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                                                {cat.icon || '📦'}
-                                            </span>
+                                            <div className="icon-content" style={{
+                                                fontSize: '2.5rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                width: '100%',
+                                                height: '100%',
+                                                transition: 'all 0.3s ease',
+                                            }}>
+                                                {cat.image ? (
+                                                    <img
+                                                        src={getImageUrl(cat.image)}
+                                                        alt={safeString(cat.name)}
+                                                        style={{ width: '60%', height: '60%', objectFit: 'contain', transition: 'all 0.3s ease' }}
+                                                        onError={e => {
+                                                            e.target.style.display = 'none';
+                                                            e.target.nextSibling.style.display = 'flex';
+                                                        }}
+                                                    />
+                                                ) : null}
+                                                <span style={{ display: cat.image ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                                    {cat.icon || '📦'}
+                                                </span>
+                                            </div>
                                         </div>
 
-                                        {/* Name — fixed height, centered, 2 lines max */}
                                         <span style={{
-                                            fontSize: '0.83rem',
+                                            fontSize: '0.95rem',
                                             fontWeight: '700',
                                             color: '#1e293b',
                                             textAlign: 'center',
@@ -142,6 +155,8 @@ const CategoriesPage = () => {
                                             WebkitBoxOrient: 'vertical',
                                             overflow: 'hidden',
                                             maxHeight: '2.6em',
+                                            width: '100%',
+                                            transition: 'color 0.3s ease'
                                         }}>
                                             {safeString(cat.name)}
                                         </span>

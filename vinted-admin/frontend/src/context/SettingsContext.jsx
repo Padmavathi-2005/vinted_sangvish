@@ -43,22 +43,9 @@ export const SettingsProvider = ({ children }) => {
             }
         }
 
-        // Apply Dynamic Fonts
-        if (settings.body_font_url) {
-            let fontLink = document.getElementById('dynamic-google-font');
-            if (!fontLink) {
-                fontLink = document.createElement('link');
-                fontLink.id = 'dynamic-google-font';
-                fontLink.rel = 'stylesheet';
-                document.head.appendChild(fontLink);
-            }
-            fontLink.href = settings.body_font_url;
-        }
+        // Apply Dynamic Fonts - Disabled as per request to use system-ui always
+        document.body.style.fontFamily = `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif`;
 
-        if (settings.body_font_name) {
-            document.documentElement.style.setProperty('--body-font', settings.body_font_name);
-            document.body.style.fontFamily = `var(--body-font), system-ui, -apple-system, sans-serif`;
-        }
 
         if (settings.site_name) {
             document.title = `${safeString(settings.site_name)} Admin`;

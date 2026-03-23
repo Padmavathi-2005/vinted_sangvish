@@ -504,7 +504,7 @@ const DynamicSettings = () => {
     const getFieldsForType = (type) => {
         const fieldMap = {
             general_settings: [
-                'primary_color', 'secondary_color', 'body_font_name', 'body_font_url', 'pagination_limit',
+                'primary_color', 'secondary_color', 'pagination_limit',
                 'maintenance_mode',
                 'support_email', 'timezone', 'admin_commission',
                 'default_language_id', 'default_currency_id'
