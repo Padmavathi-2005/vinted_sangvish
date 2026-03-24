@@ -2,11 +2,11 @@ import axios from 'axios';
 import { clearAdminInfo } from './auth';
 
 const instance = axios.create({
-    baseURL: import.meta.env.VITE_ADMIN_API_BASE_URL || 'http://localhost:5001',
+    baseURL: import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://adminvinted.sangvish.com',
 });
 
 // Separate URL for serving images/media (always main backend port 5000)
-export const imageBaseURL = import.meta.env.VITE_IMAGE_BASE_URL || 'http://localhost:5000';
+export const imageBaseURL = import.meta.env.VITE_IMAGE_BASE_URL || 'https://vinted.sangvish.com';
 
 // Add interceptors to handle authentication tokens
 instance.interceptors.request.use(

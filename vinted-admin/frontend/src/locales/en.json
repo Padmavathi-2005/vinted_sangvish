@@ -68,7 +68,7 @@
         "content": {
             "title": "Content & Operations",
             "pending_withdrawals": "Pending Withdrawals",
-            "pending_items": "Pending Item Approvals",
+            "pending_items": "Pending Items",
             "total_categories": "Total Categories"
         },
         "commission": {
@@ -238,7 +238,7 @@
         "listings": "Listings",
         "orders": "Orders",
         "wallet": {
-            "title": "Wallet",
+            "title": "Withdrawals",
             "withdrawal_requests": "Withdrawal Requests",
             "transactions": "Transactions",
             "payment_methods": "Payment Methods",

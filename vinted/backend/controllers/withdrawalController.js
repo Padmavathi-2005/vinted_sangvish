@@ -7,6 +7,9 @@ import Admin from '../models/Admin.js';
 import Notification from '../models/Notification.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
+import User from '../models/User.js';
+import Setting from '../models/Setting.js';
+import Currency from '../models/Currency.js';
 import { getOrCreateWallet } from './walletController.js';
 
 // @desc    Get my saved payout methods
@@ -62,6 +65,27 @@ const deletePayoutMethod = asyncHandler(async (req, res) => {
     res.json({ message: 'Payout method removed' });
 });
 
+// @desc    Set a payout method as default
+// @route   PUT /api/wallet/payout-methods/:id/default
+// @access  Private
+const setDefaultPayoutMethod = asyncHandler(async (req, res) => {
+    const method = await UserPayoutMethod.findOne({ _id: req.params.id, user_id: req.user._id });
+
+    if (!method) {
+        res.status(404);
+        throw new Error('Payout method not found');
+    }
+
+    // Unset all others
+    await UserPayoutMethod.updateMany({ user_id: req.user._id }, { $set: { is_default: false } });
+
+    // Set this one as default
+    method.is_default = true;
+    await method.save();
+
+    res.json(method);
+});
+
 // @desc    Create a withdrawal request
 // @route   POST /api/wallet/withdraw
 // @access  Private
@@ -87,14 +111,28 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
         throw new Error('Payout method not found or not belonging to you');
     }
 
+    // Determine currency from system default if not provided or to ensure base currency
+    let withdrawalCurrency = currency;
+    if (!withdrawalCurrency) {
+        const settings = await Setting.findOne({ type: 'general_settings' });
+        if (settings && settings.default_currency_id) {
+            const defC = await Currency.findById(settings.default_currency_id);
+            if (defC) withdrawalCurrency = defC.code;
+        }
+    }
+    if (!withdrawalCurrency) withdrawalCurrency = 'INR'; // Fallback
+
     // Deduct from wallet immediately (mark as pending transaction)
     wallet.balance -= amount;
     await wallet.save();
 
+    // KEEP USER BALANCE IN SYNC
+    await User.findByIdAndUpdate(req.user._id, { $set: { balance: wallet.balance } });
+
     const request = await WithdrawalRequest.create({
         user_id: req.user._id,
         amount,
-        currency,
+        currency: withdrawalCurrency,
         payment_method: payoutMethod.payout_type,
         payment_details: payoutMethod.toObject(),
         payout_method_id,
@@ -111,27 +149,11 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
         reference_id: request._id,
         reference_model: 'WithdrawalRequest',
         status: 'pending',
-        description: `Withdrawal request for ${currency || 'INR'} ${amount}`
+        description: `Withdrawal request for ${withdrawalCurrency} ${amount}`
     });
 
     // Notify Admins
     const admins = await Admin.find({ is_active: true });
-    
-    // Detailed message for admin
-    let detailsStr = `New Withdrawal Request from ${req.user.username}\n`;
-    detailsStr += `Amount: ${currency || 'INR'} ${amount}\n`;
-    detailsStr += `Method: ${payoutMethod.payout_type}\n`;
-    
-    if (payoutMethod.payout_type === 'Bank') {
-        detailsStr += `Bank: ${payoutMethod.bank_name}\n`;
-        detailsStr += `Account Holder: ${payoutMethod.account_holder_name}\n`;
-        detailsStr += `Account Number: ${payoutMethod.account_number}\n`;
-        detailsStr += `IFSC: ${payoutMethod.ifsc_code}\n`;
-    } else if (payoutMethod.payout_type === 'UPI') {
-        detailsStr += `UPI ID: ${payoutMethod.upi_id}\n`;
-    } else if (payoutMethod.payout_type === 'PayPal') {
-        detailsStr += `Email: ${payoutMethod.paypal_email}\n`;
-    }
 
     for (const admin of admins) {
         // 1. Send Notification
@@ -139,7 +161,7 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
             user_id: admin._id,
             on_model: 'Admin',
             title: 'Withdrawal Request',
-            message: `User ${req.user.username} requested a withdrawal of ${currency || 'INR'} ${amount}`,
+            message: `User ${req.user.username} requested a withdrawal of ${withdrawalCurrency} ${amount}`,
             type: 'request',
             link: '/wallet/withdrawal-requests'
         });
@@ -147,7 +169,7 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
         // 2. Send Message in a "System" conversation with Admin
         try {
             let conversation = await Conversation.findOne({
-                participants: { 
+                participants: {
                     $all: [
                         { $elemMatch: { user: req.user._id, on_model: 'User' } },
                         { $elemMatch: { user: admin._id, on_model: 'Admin' } }
@@ -174,14 +196,14 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
                 message: `WITHDRAWAL_REQUEST::${JSON.stringify({
                     request_id: request._id,
                     amount,
-                    currency: currency || 'INR',
+                    currency: withdrawalCurrency,
                     method: payoutMethod.payout_type,
                     payout_details: payoutMethod.toObject()
                 })}`,
                 message_type: 'system'
             });
 
-            conversation.last_message = `💰 Withdrawal Request: ${currency || 'INR'} ${amount}`;
+            conversation.last_message = `💰 Withdrawal Request: ${withdrawalCurrency} ${amount}`;
             conversation.last_message_at = Date.now();
             await conversation.save();
         } catch (err) {
@@ -205,5 +227,6 @@ export {
     getMyWithdrawals,
     getMyPayoutMethods,
     createPayoutMethod,
-    deletePayoutMethod
+    deletePayoutMethod,
+    setDefaultPayoutMethod
 };

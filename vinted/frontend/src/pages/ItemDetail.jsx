@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import {
-    FaHeart, FaRegHeart, FaChevronLeft, FaChevronRight,
+    FaHeart, FaRegHeart,
     FaStar, FaShieldAlt, FaTruck, FaUndo,
     FaBoxOpen,
     FaUser, FaCalendarAlt, FaEye, FaMapMarkerAlt,
@@ -10,7 +10,8 @@ import {
     FaShoppingBag, FaTimes, FaClock, FaStarHalfAlt, FaRegStar,
     FaShareAlt, FaSearchPlus, FaShoppingCart, FaEdit, FaEnvelope,
     FaTag, FaRuler, FaPalette, FaBoxes, FaList, FaBolt,
-    FaEyeSlash, FaCheckCircle, FaPercent, FaTrash
+    FaEyeSlash, FaCheckCircle, FaPercent, FaTrash,
+    FaWhatsapp, FaFacebookF, FaTwitter, FaLink, FaCopy
 } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import AuthContext from '../context/AuthContext';
@@ -21,6 +22,7 @@ import ItemCard from '../components/common/ItemCard';
 import Meta from '../components/common/Meta';
 import { usePopup } from '../components/common/Popup';
 import '../styles/ItemDetail.css';
+import CustomSelect from '../components/common/CustomSelect';
 import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 
 const RECENTLY_VIEWED_KEY = 'vinted_recently_viewed';
@@ -77,6 +79,10 @@ const ItemDetail = () => {
     const [offerSending, setOfferSending] = useState(false);
     const [hoveredSide, setHoveredSide] = useState(null);
     const [shareModal, setShareModal] = useState(false);
+    const [reportModal, setReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [reportMsg, setReportMsg] = useState('');
+    const [reportSending, setReportSending] = useState(false);
 
     // Discount state (for own items)
     const [discountInput, setDiscountInput] = useState('');
@@ -92,9 +98,6 @@ const ItemDetail = () => {
     const [loginError, setLoginError] = useState('');
     const [loginLoading, setLoginLoading] = useState(false);
     const [loginAction, setLoginAction] = useState('');
-
-    const similarRef = useRef(null);
-    const recentRef = useRef(null);
 
     // Fetch item
     useEffect(() => {
@@ -277,6 +280,31 @@ const ItemDetail = () => {
         }
     };
 
+    const handleReportSubmit = async () => {
+        if (!user) {
+            setLoginAction('report');
+            setLoginPopup(true);
+            return;
+        }
+
+        try {
+            setReportSending(true);
+            await axios.post('/api/reports', {
+                item_id: id,
+                reason: reportReason,
+                message: reportMsg
+            });
+            showPopup('Success', 'Your report has been submitted to the admin for review.', 'success');
+            setReportModal(false);
+            setReportReason('');
+            setReportMsg('');
+        } catch (err) {
+            showPopup('Error', err.response?.data?.message || 'Failed to submit report. Please try again.', 'error');
+        } finally {
+            setReportSending(false);
+        }
+    };
+
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setLoginLoading(true);
@@ -325,10 +353,6 @@ const ItemDetail = () => {
                 <span>({count || 0} {(count || 0) === 1 ? t('item_detail.review') : t('item_detail.reviews')})</span>
             </div>
         );
-    };
-
-    const scrollRef = (ref, dir) => {
-        if (ref.current) ref.current.scrollBy({ left: dir * 300, behavior: 'smooth' });
     };
 
     const handleImageError = (e) => {
@@ -400,7 +424,7 @@ const ItemDetail = () => {
 
     return (
         <div className="id-page">
-            <Meta 
+            <Meta
                 title={item.title}
                 description={item.description || `Buy ${item.title} on Vinted Marketplace.`}
                 image={getImageSrc(images[0])}
@@ -446,7 +470,7 @@ const ItemDetail = () => {
                                     <button className="id-overlay-btn" onClick={() => setShareModal(true)} title="Share">
                                         <FaShareAlt />
                                     </button>
-                                    <button className="id-overlay-btn" title="Report">
+                                    <button className="id-overlay-btn" title="Report" onClick={() => setReportModal(true)}>
                                         <FaRegFlag />
                                     </button>
                                 </div>
@@ -559,93 +583,93 @@ const ItemDetail = () => {
 
                         {isOwnItem ? (
                             <>
-                            <Link to={`/profile?tab=listings`} className="id-btn-edit-item">
-                                <FaEdit /> {t('item_detail.manage_listing')}
-                            </Link>
+                                <Link to={`/profile?tab=listings`} className="id-btn-edit-item">
+                                    <FaEdit /> {t('item_detail.manage_listing')}
+                                </Link>
 
-                            {/* ── Seller Discount Panel ── */}
-                            {!item.is_sold && item.status !== 'sold' && (
-                                <div style={{
-                                    marginTop: '16px', padding: '16px', borderRadius: '12px',
-                                    border: '1.5px dashed #e2e8f0', background: '#fafafa'
-                                }}>
-                                    <div style={{ fontWeight: '700', fontSize: '0.95rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <FaPercent style={{ color: '#ef4444' }} /> Apply a Discount
-                                    </div>
-
-                                    {/* Current discount status */}
-                                    {item.original_price > 0 && item.original_price > item.price ? (
-                                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '12px', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
-                                            Currently discounted: <strong style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{formatPrice(item.original_price, item.currency_id)}</strong>
-                                            {' → '}<strong style={{ color: '#ef4444' }}>{formatPrice(item.price, item.currency_id)}</strong>
-                                            <span style={{ background: '#ef4444', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', marginLeft: '6px' }}>
-                                                -{Math.round(((item.original_price - item.price) / item.original_price) * 100)}% OFF
-                                            </span>
+                                {/* ── Seller Discount Panel ── */}
+                                {!item.is_sold && item.status !== 'sold' && (
+                                    <div style={{
+                                        marginTop: '16px', padding: '16px', borderRadius: '12px',
+                                        border: '1.5px dashed #e2e8f0', background: '#fafafa'
+                                    }}>
+                                        <div style={{ fontWeight: '700', fontSize: '0.95rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <FaPercent style={{ color: '#ef4444' }} /> Apply a Discount
                                         </div>
-                                    ) : (
-                                        <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '10px' }}>
-                                            Current price: <strong>{formatPrice(item.price, item.currency_id)}</strong> — Enter a lower price below to apply a discount.
-                                        </div>
-                                    )}
 
-                                    {/* Live preview */}
-                                    {discountInput && !isNaN(parseFloat(discountInput)) && parseFloat(discountInput) > 0 && (() => {
-                                        const base = item.original_price > 0 ? item.original_price : item.price;
-                                        const newP = parseFloat(parseFloat(discountInput).toFixed(2));
-                                        if (newP > 0 && newP < base) {
-                                            const pct = Math.round(((base - newP) / base) * 100);
-                                            return (
-                                                <div style={{ fontSize: '0.82rem', marginBottom: '8px', color: '#16a34a', fontWeight: '600' }}>
-                                                    Preview: <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{formatPrice(base, item.currency_id)}</span> → <span style={{ color: '#ef4444' }}>{formatPrice(newP, item.currency_id)}</span> <span style={{ background: '#ef4444', color: 'white', borderRadius: '4px', padding: '1px 5px', fontSize: '0.72rem' }}>-{pct}% OFF</span>
+                                        {/* Current discount status */}
+                                        {item.original_price > 0 && item.original_price > item.price ? (
+                                            <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '12px', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                                                Currently discounted: <strong style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{formatPrice(item.original_price, item.currency_id)}</strong>
+                                                {' → '}<strong style={{ color: '#ef4444' }}>{formatPrice(item.price, item.currency_id)}</strong>
+                                                <span style={{ background: '#ef4444', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', marginLeft: '6px' }}>
+                                                    -{Math.round(((item.original_price - item.price) / item.original_price) * 100)}% OFF
+                                                </span>
                                             </div>
-                                            );
-                                        }
-                                        return null;
-                                    })()}
+                                        ) : (
+                                            <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '10px' }}>
+                                                Current price: <strong>{formatPrice(item.price, item.currency_id)}</strong> — Enter a lower price below to apply a discount.
+                                            </div>
+                                        )}
 
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <input
-                                            type="number"
-                                            min="0.01"
-                                            step="0.01"
-                                            value={discountInput}
-                                            onChange={e => { setDiscountInput(e.target.value); setDiscountError(''); setDiscountSuccess(''); }}
-                                            placeholder={`New selling price (below ${formatPrice(item.original_price > 0 ? item.original_price : item.price, item.currency_id)})`}
-                                            style={{
-                                                border: '1.5px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px',
-                                                fontSize: '0.9rem', flex: 1, minWidth: '180px', outline: 'none'
-                                            }}
-                                        />
-                                        <button
-                                            onClick={handleApplyDiscount}
-                                            disabled={discountApplying || !discountInput}
-                                            style={{
-                                                background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px',
-                                                padding: '8px 16px', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap'
-                                            }}
-                                        >
-                                            {discountApplying ? 'Applying...' : '🏷️ Apply'}
-                                        </button>
-                                        {item.original_price > 0 && item.original_price > item.price && (
-                                            <button
-                                                onClick={handleRemoveDiscount}
-                                                disabled={discountApplying}
+                                        {/* Live preview */}
+                                        {discountInput && !isNaN(parseFloat(discountInput)) && parseFloat(discountInput) > 0 && (() => {
+                                            const base = item.original_price > 0 ? item.original_price : item.price;
+                                            const newP = parseFloat(parseFloat(discountInput).toFixed(2));
+                                            if (newP > 0 && newP < base) {
+                                                const pct = Math.round(((base - newP) / base) * 100);
+                                                return (
+                                                    <div style={{ fontSize: '0.82rem', marginBottom: '8px', color: '#16a34a', fontWeight: '600' }}>
+                                                        Preview: <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{formatPrice(base, item.currency_id)}</span> → <span style={{ color: '#ef4444' }}>{formatPrice(newP, item.currency_id)}</span> <span style={{ background: '#ef4444', color: 'white', borderRadius: '4px', padding: '1px 5px', fontSize: '0.72rem' }}>-{pct}% OFF</span>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <input
+                                                type="number"
+                                                min="0.01"
+                                                step="0.01"
+                                                value={discountInput}
+                                                onChange={e => { setDiscountInput(e.target.value); setDiscountError(''); setDiscountSuccess(''); }}
+                                                placeholder={`New selling price (below ${formatPrice(item.original_price > 0 ? item.original_price : item.price, item.currency_id)})`}
                                                 style={{
-                                                    background: 'white', color: '#64748b', border: '1.5px solid #e2e8f0',
-                                                    borderRadius: '8px', padding: '8px 12px', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem'
+                                                    border: '1.5px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px',
+                                                    fontSize: '0.9rem', flex: 1, minWidth: '180px', outline: 'none'
+                                                }}
+                                            />
+                                            <button
+                                                onClick={handleApplyDiscount}
+                                                disabled={discountApplying || !discountInput}
+                                                style={{
+                                                    background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px',
+                                                    padding: '8px 16px', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap'
                                                 }}
                                             >
-                                                <FaTrash style={{ marginRight: '4px', fontSize: '0.75rem' }} /> Remove
+                                                {discountApplying ? 'Applying...' : '🏷️ Apply'}
                                             </button>
-                                        )}
+                                            {item.original_price > 0 && item.original_price > item.price && (
+                                                <button
+                                                    onClick={handleRemoveDiscount}
+                                                    disabled={discountApplying}
+                                                    style={{
+                                                        background: 'white', color: '#64748b', border: '1.5px solid #e2e8f0',
+                                                        borderRadius: '8px', padding: '8px 12px', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem'
+                                                    }}
+                                                >
+                                                    <FaTrash style={{ marginRight: '4px', fontSize: '0.75rem' }} /> Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                        {discountError && <div style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '8px' }}>{discountError}</div>}
+                                        {discountSuccess && <div style={{ color: '#16a34a', fontSize: '0.82rem', marginTop: '8px' }}>{discountSuccess}</div>}
+                                        <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '8px' }}>
+                                            💡 Buyers who liked this item will get a price-drop notification!
+                                        </div>
                                     </div>
-                                    {discountError && <div style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '8px' }}>{discountError}</div>}
-                                    {discountSuccess && <div style={{ color: '#16a34a', fontSize: '0.82rem', marginTop: '8px' }}>{discountSuccess}</div>}
-                                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '8px' }}>
-                                        💡 Buyers who liked this item will get a price-drop notification!
-                                    </div>
-                                </div>
-                            )}
+                                )}
                             </>
                         ) : (
                             <div className={`id-cta-group${!item.negotiable ? ' no-offer' : ''}`}>
@@ -693,11 +717,11 @@ const ItemDetail = () => {
                                                 {(seller.username || 'U').charAt(0).toUpperCase()}
                                             </div>
                                             {seller.profile_image && (
-                                                <img 
-                                                    src={getImageSrc(seller.profile_image)} 
-                                                    alt={seller.username} 
+                                                <img
+                                                    src={getImageSrc(seller.profile_image)}
+                                                    alt={seller.username}
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
-                                                    onError={handleImageError} 
+                                                    onError={handleImageError}
                                                 />
                                             )}
                                         </div>
@@ -744,16 +768,10 @@ const ItemDetail = () => {
                             <h2 className="id-section-title" style={{ color: 'var(--primary-color, #0ea5e9)' }}>{t('item_detail.similar_products')}</h2>
                             <p className="id-section-sub">{t('item_detail.similar_sub')}</p>
                         </div>
-                        <div className="id-scroll-btns">
-                            <button onClick={() => scrollRef(similarRef, -1)} className="id-scroll-btn"><FaChevronLeft /></button>
-                            <button onClick={() => scrollRef(similarRef, 1)} className="id-scroll-btn"><FaChevronRight /></button>
-                        </div>
                     </div>
-                    <div className="id-horizontal-list" ref={similarRef}>
+                    <div className="vinted-product-grid">
                         {similarItems.map(si => (
-                            <div key={si._id} className="id-horizontal-card">
-                                <ItemCard item={si} />
-                            </div>
+                            <ItemCard key={si._id} item={si} />
                         ))}
                     </div>
                 </div>
@@ -764,19 +782,15 @@ const ItemDetail = () => {
                 <div className="id-section-below">
                     <div className="id-section-header">
                         <div>
-                            <h2 className="id-section-title" style={{ color: 'var(--primary-color, #0ea5e9)' }}><FaClock style={{ marginRight: '8px', fontSize: '1.1rem' }} />{t('item_detail.recently_viewed')}</h2>
+                            <h2 className="id-section-title" style={{ color: 'var(--primary-color, #0ea5e9)' }}>
+                                <FaClock style={{ marginRight: '8px', fontSize: '1.1rem' }} />{t('item_detail.recently_viewed')}
+                            </h2>
                             <p className="id-section-sub">{t('item_detail.recent_sub')}</p>
                         </div>
-                        <div className="id-scroll-btns">
-                            <button onClick={() => scrollRef(recentRef, -1)} className="id-scroll-btn"><FaChevronLeft /></button>
-                            <button onClick={() => scrollRef(recentRef, 1)} className="id-scroll-btn"><FaChevronRight /></button>
-                        </div>
                     </div>
-                    <div className="id-horizontal-list" ref={recentRef}>
+                    <div className="vinted-product-grid">
                         {recentItems.map(ri => (
-                            <div key={ri._id} className="id-horizontal-card">
-                                <ItemCard item={ri} />
-                            </div>
+                            <ItemCard key={ri._id} item={ri} />
                         ))}
                     </div>
                 </div>
@@ -809,7 +823,7 @@ const ItemDetail = () => {
                     {images.length > 1 && (
                         <div className="id-lightbox-thumbs" onClick={e => e.stopPropagation()}>
                             {images.map((img, i) => (
-                                    <button
+                                <button
                                     key={i}
                                     className={`id-lb-thumb ${i === activeImg ? 'active' : ''}`}
                                     onClick={() => { setActiveImg(i); setLightboxZoom(false); }}
@@ -881,23 +895,42 @@ const ItemDetail = () => {
                             <h2>{t('item_detail.share_item')}</h2>
                             <p>{t('item_detail.share_desc')}</p>
                         </div>
-                        <div className="id-share-options">
-                            <button className="id-share-btn id-share-whatsapp" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(window.location.href)}`)}>WhatsApp</button>
-                            <button className="id-share-btn id-share-facebook" onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`)}>Facebook</button>
-                            <button className="id-share-btn id-share-twitter" onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}`)}>Twitter (X)</button>
-                            <button className="id-share-btn id-share-email" onClick={() => window.open(`mailto:?subject=${encodeURIComponent(item.title)}&body=${encodeURIComponent(window.location.href)}`)}>Email</button>
+                        
+                        <div className="id-share-grid">
+                            <div className="id-share-item" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(window.location.href)}`)}>
+                                <div className="id-share-icon whatsapp"><FaWhatsapp /></div>
+                                <span>WhatsApp</span>
+                            </div>
+                            <div className="id-share-item" onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`)}>
+                                <div className="id-share-icon facebook"><FaFacebookF /></div>
+                                <span>Facebook</span>
+                            </div>
+                            <div className="id-share-item" onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}`)}>
+                                <div className="id-share-icon twitter"><FaTwitter /></div>
+                                <span>X / Twitter</span>
+                            </div>
+                            <div className="id-share-item" onClick={() => window.open(`mailto:?subject=${encodeURIComponent(item.title)}&body=${encodeURIComponent(window.location.href)}`)}>
+                                <div className="id-share-icon email"><FaEnvelope /></div>
+                                <span>Email</span>
+                            </div>
                         </div>
-                        <button
-                            className="id-btn-primary"
-                            style={{ width: '100%', marginTop: '20px' }}
-                            onClick={() => {
-                                navigator.clipboard?.writeText(window.location.href);
-                                alert('Link copied!');
-                                setShareModal(false);
-                            }}
-                        >
-                            {t('item_detail.copy_link')}
-                        </button>
+
+                        <div className="id-share-copy-section">
+                            <div className="id-share-copy-label">{t('item_detail.or_copy_link')}</div>
+                            <div className="id-share-copy-bar">
+                                <span className="id-share-url">{window.location.href}</span>
+                                <button
+                                    className="id-share-copy-btn"
+                                    onClick={() => {
+                                        navigator.clipboard?.writeText(window.location.href);
+                                        showPopup('Copied', 'Item link copied to clipboard!', 'success');
+                                        setShareModal(false);
+                                    }}
+                                >
+                                    <FaCopy /> {t('item_detail.copy')}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -965,6 +998,52 @@ const ItemDetail = () => {
                         <div className="id-login-footer">
                             <span>{t('item_detail.no_account')} </span>
                             <Link to="/register" onClick={() => setLoginPopup(false)}>{t('item_detail.sign_up_free')}</Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ─── Report Modal ─── */}
+            {reportModal && (
+                <div className="id-offer-overlay" onClick={() => setReportModal(false)}>
+                    <div className="id-offer-modal" onClick={e => e.stopPropagation()}>
+                        <button className="id-offer-close" onClick={() => setReportModal(false)}><FaTimes /></button>
+                        <div className="id-offer-header">
+                            <div className="id-offer-header-icon" style={{ background: '#fef2f2', color: '#ef4444' }}><FaRegFlag /></div>
+                            <h2>Report Item</h2>
+                            <p>Help us understand what's wrong with this listing.</p>
+                        </div>
+                        <div className="id-offer-form">
+                            <label className="id-offer-label">Reason for reporting</label>
+                            <CustomSelect
+                                options={[
+                                    { value: 'Inappropriate Content', label: 'Inappropriate Content' },
+                                    { value: 'Counterfeit/Fake', label: 'Counterfeit/Fake' },
+                                    { value: 'Scam/Fraud', label: 'Scam/Fraud' },
+                                    { value: 'Prohibited Item', label: 'Prohibited Item' },
+                                    { value: 'Poor Image Quality', label: 'Poor Image Quality' },
+                                    { value: 'Other', label: 'Other' },
+                                ]}
+                                value={reportReason}
+                                onChange={setReportReason}
+                                placeholder="Select a reason"
+                            />
+
+                            <label className="id-offer-label">Additional Details</label>
+                            <textarea
+                                className="id-offer-textarea"
+                                placeholder="Describe the issue in detail..."
+                                value={reportMsg}
+                                onChange={e => setReportMsg(e.target.value)}
+                                rows={4}
+                            />
+                            <button
+                                className="id-offer-submit"
+                                style={{ background: '#ef4444', color: '#fff', border: 'none' }}
+                                onClick={handleReportSubmit}
+                                disabled={!reportReason || !reportMsg || reportSending}
+                            >
+                                {reportSending ? "Sending..." : "Submit Report"}
+                            </button>
                         </div>
                     </div>
                 </div>

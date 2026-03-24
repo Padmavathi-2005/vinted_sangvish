@@ -301,9 +301,51 @@
 
 /* Discount v2 Styling */
 .eim-discount-card-v2 {
-    background: #f8fafc;
-    border: 2px dashed #e2e8f0;
-    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid #e0e7ff;
+    border-radius: 24px;
+    box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.08); /* Indigo-ish shadow */
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.eim-discount-card-v2:hover {
+    box-shadow: 0 15px 40px -10px rgba(79, 70, 229, 0.12);
+    border-color: #c7d2fe;
+}
+
+.eim-discount-card-v2::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.05) 0%, transparent 70%);
+    z-index: 0;
+}
+
+.eim-input-group-premium {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    border: 1.5px solid #e2e8f0 !important;
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.eim-input-group-premium:focus-within {
+    border-color: #0ea5e9 !important;
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1) !important;
+}
+
+.discount-icon-v2 {
+    color: #0ea5e9;
+    background: #f0f9ff;
+    padding: 8px;
+    border-radius: 12px;
+    font-size: 1.8rem;
+    margin-right: 8px;
 }
 
 .eim-discount-title {
@@ -356,11 +398,11 @@
 }
 
 .badge-off {
-    background: #ef4444;
+    background: #0ea5e9; /* Replaced red with Brand Blue */
     color: white;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
     font-weight: 800;
 }
 
@@ -371,19 +413,47 @@
     font-weight: 600;
 }
 
-.btn-apply-discount {
-    background: #ef4444;
-    color: white;
-    border-radius: 12px;
-    padding: 0 24px;
-    font-weight: 700;
-    transition: all 0.2s;
+/* Hide number input spinners (Up/Down arrows) */
+input[type="number"].eim-discount-input::-webkit-inner-spin-button,
+input[type="number"].eim-discount-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"].eim-discount-input {
+    appearance: textfield;
+    -moz-appearance: textfield;
 }
 
-.btn-apply-discount:hover {
-    background: #dc2626;
+/* Dim Placeholder Color */
+.eim-discount-input::placeholder {
+    color: #cbd5e1 !important;
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+.btn-apply-discount {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
     color: white;
-    transform: scale(1.02);
+    border: none;
+    border-radius: 16px;
+    padding: 0 32px;
+    font-weight: 700;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+.btn-apply-discount:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+}
+
+.btn-apply-discount:disabled {
+    background: #cbd5e1;
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
 }
 
 .eim-discount-hint {

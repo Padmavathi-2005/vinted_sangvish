@@ -25,7 +25,8 @@ import {
     FaEnvelope,
     FaBell,
     FaUniversity,
-    FaTruck
+    FaTruck,
+    FaRegFlag
 } from 'react-icons/fa';
 import { getAdminInfo } from '../utils/auth';
 import { useSettings } from '../context/SettingsContext';
@@ -73,6 +74,7 @@ const AdminSidebar = () => {
         { path: '/categories/main', icon: <FaTags />, label: t('sidebar.categories.title') },
         { path: '/newsletter', icon: <FaEnvelope />, label: t('sidebar.newsletter') },
         { path: '/pages', icon: <FaFileAlt />, label: t('sidebar.static_pages') },
+        { path: '/product-reports', icon: <FaRegFlag />, label: 'Product Reports' },
         { path: '/reports', icon: <FaChartBar />, label: t('sidebar.reports') },
         {
             id: 'settings',

@@ -75,12 +75,21 @@ const PayoutMethodsContent = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to remove this payout method?')) return;
+        if (!window.confirm(t('common.confirm_delete', 'Are you sure you want to remove this payout method?'))) return;
         try {
             await axios.delete(`/api/wallet/payout-methods/${id}`);
             fetchMethods();
         } catch (err) {
-            alert('Failed to delete method');
+            alert(t('common.delete_failed', 'Failed to delete method'));
+        }
+    };
+
+    const handleSetDefault = async (id) => {
+        try {
+            await axios.put(`/api/wallet/payout-methods/${id}/default`);
+            fetchMethods();
+        } catch (err) {
+            alert(t('common.set_default_failed', 'Failed to set default method'));
         }
     };
 
@@ -104,17 +113,17 @@ const PayoutMethodsContent = () => {
                             <h3 className="fw-bold m-0" style={{ fontSize: '1.25rem' }}>{t('wallet.add_payout_details', 'Add Payout Details')}</h3>
                             <button className="btn-close" onClick={() => setShowAddForm(false)}></button>
                         </div>
-                        
+
                         <div className="pd-modal-body p-4 pt-2">
                             <form onSubmit={handleSubmit}>
                                 <div className="row g-3">
                                     <div className="col-12 mb-3">
                                         <label className="form-label small fw-bold text-muted mb-2">{t('wallet.payout_method_type', 'Payout method')}*</label>
-                                        
+
                                         {/* Custom Dropdown */}
                                         <div className="custom-payout-dropdown-container" style={{ position: 'relative' }}>
-                                            <div 
-                                                className="form-control border-0 bg-light rounded-3 d-flex justify-content-between align-items-center" 
+                                            <div
+                                                className="form-control border-0 bg-light rounded-3 d-flex justify-content-between align-items-center"
                                                 style={{ cursor: 'pointer', height: '48px', padding: '0 16px' }}
                                                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                                             >
@@ -130,28 +139,28 @@ const PayoutMethodsContent = () => {
                                             </div>
 
                                             {isDropdownOpen && (
-                                                <div 
-                                                    className="shadow-lg border-0 bg-white rounded-4 mt-2 p-2" 
-                                                    style={{ 
-                                                        position: 'absolute', 
-                                                        top: '100%', 
-                                                        left: 0, 
-                                                        right: 0, 
+                                                <div
+                                                    className="shadow-lg border-0 bg-white rounded-4 mt-2 p-2"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        left: 0,
+                                                        right: 0,
                                                         zIndex: 2000,
-                                                        animation: 'fadeIn 0.2s ease' 
+                                                        animation: 'fadeIn 0.2s ease'
                                                     }}
                                                 >
                                                     {[
-                                                        { id: 'Bank', icon: <FaUniversity className="text-primary" />, label: 'Bank Transfer' },
-                                                        { id: 'UPI', icon: <FaMapMarkerAlt className="text-success" />, label: 'UPI / VPA' },
-                                                        { id: 'PayPal', icon: <FaCreditCard className="text-info" />, label: 'PayPal' }
+                                                        { id: 'Bank', icon: <FaUniversity className="text-primary" />, label: t('wallet.bank_transfer', 'Bank Transfer') },
+                                                        { id: 'UPI', icon: <FaMapMarkerAlt className="text-success" />, label: t('wallet.upi_vpa', 'UPI / VPA') },
+                                                        { id: 'PayPal', icon: <FaCreditCard className="text-info" />, label: t('wallet.paypal', 'PayPal') }
                                                     ].map(opt => (
-                                                        <div 
+                                                        <div
                                                             key={opt.id}
                                                             className="dropdown-item-custom p-3 rounded-3 d-flex align-items-center gap-3"
                                                             style={{ cursor: 'pointer', background: formData.payout_type === opt.id ? '#f1f5f9' : 'transparent' }}
                                                             onClick={() => {
-                                                                setFormData({...formData, payout_type: opt.id});
+                                                                setFormData({ ...formData, payout_type: opt.id });
                                                                 setIsDropdownOpen(false);
                                                             }}
                                                         >
@@ -244,9 +253,19 @@ const PayoutMethodsContent = () => {
                                             <div className="text-muted xsmall">{m.payout_type === 'Bank' ? m.bank_name : m.payout_type === 'UPI' ? m.upi_id : m.paypal_email}</div>
                                         </div>
                                     </div>
-                                    <button className="btn btn-link text-danger p-0" onClick={() => handleDelete(m._id)}>
-                                        <FaTrash size={14} />
-                                    </button>
+                                    <div className="d-flex align-items-center gap-2">
+                                        {!m.is_default && (
+                                            <button 
+                                                className="btn btn-link btn-sm text-primary p-0 text-decoration-none me-2 xsmall fw-bold"
+                                                onClick={() => handleSetDefault(m._id)}
+                                            >
+                                                {t('wallet.set_as_default', 'Set Default')}
+                                            </button>
+                                        )}
+                                        <button className="btn btn-link text-danger p-0" onClick={() => handleDelete(m._id)}>
+                                            <FaTrash size={14} />
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="payout-details-mini mt-2 ps-1">
                                     {m.payout_type === 'Bank' && (

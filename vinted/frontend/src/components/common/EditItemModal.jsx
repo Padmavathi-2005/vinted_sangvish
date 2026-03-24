@@ -619,14 +619,14 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
 
                         {/* Discount / Price Drop Section */}
                         <div className="eim-discount-card-v2 p-4 rounded-4 mt-4">
-                            <h4 className="eim-discount-title mb-2">
-                                <span className="discount-icon">%</span> Apply a Discount
+                            <h4 className="eim-discount-title mb-2 text-primary">
+                                <FaPercentage className="discount-icon-v2" /> Boost Your Sales
                             </h4>
                             <p className="eim-discount-subtitle">
-                                Current price: <strong>{formatPrice(price)}</strong> — Enter a lower price below to apply a discount.
+                                Set a percentage discount to grab buyers' attention. Likers will be notified!
                             </p>
 
-                            {hasDiscount ? (
+                             {hasDiscount ? (
                                 <div className="eim-active-discount p-3 d-flex justify-content-between align-items-center">
                                     <div>
                                         <span className="text-danger fw-bold h5 m-0">-{percentOff}% OFF</span>
@@ -638,44 +638,32 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
                                 </div>
                             ) : (
                                 <div className="mt-3">
-                                    <div className="row g-2 align-items-end mb-3">
-                                        <div className="col-md-5">
-                                            <label className="extra-small fw-bold text-muted mb-1 text-uppercase">New Sale Price</label>
-                                            <div className="input-group">
-                                                <span className="input-group-text bg-white border-end-0 text-muted">{currentCurrency?.symbol || '$'}</span>
-                                                <input 
-                                                    type="number" 
-                                                    className="form-control eim-discount-input border-start-0" 
-                                                    placeholder="e.g. 10.00" 
-                                                    value={discountPrice} 
-                                                    onChange={e => handleDiscountPriceChange(e.target.value)} 
-                                                />
+                                    <div className="d-flex align-items-end gap-3 mb-3">
+                                        <div className="flex-grow-1">
+                                            <div className="d-flex justify-content-between align-items-center mb-2 px-1">
+                                                <label className="extra-small fw-bold text-muted text-uppercase m-0">Discount %</label>
+                                                <span className="extra-small text-primary fw-bold">Price: {formatPrice(price)}</span>
                                             </div>
-                                        </div>
-                                        <div className="col-md-1 text-center py-2 text-muted fw-bold">OR</div>
-                                        <div className="col-md-4">
-                                            <label className="extra-small fw-bold text-muted mb-1 text-uppercase">Percentage Off</label>
-                                            <div className="input-group">
+                                            <div className="input-group input-group-lg shadow-sm eim-input-group-premium">
                                                 <input 
                                                     type="number" 
-                                                    className="form-control eim-discount-input" 
+                                                    className="form-control eim-discount-input text-center fw-bold border-0" 
                                                     placeholder="10" 
                                                     min="1"
                                                     max="99"
                                                     value={discountPercent} 
                                                     onChange={e => handleDiscountPercentChange(e.target.value)} 
+                                                    style={{ height: '56px', fontSize: '1.25rem' }}
                                                 />
-                                                <span className="input-group-text bg-white border-start-0 text-muted">%</span>
+                                                <span className="input-group-text bg-white border-0 text-muted fw-bold px-3" style={{ fontSize: '1.1rem' }}>%</span>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="d-flex gap-2">
                                         <button 
                                             type="button" 
-                                            className="btn btn-apply-discount flex-grow-1 py-2 px-4 shadow-sm" 
+                                            className="btn btn-apply-discount py-2 px-5 shadow-sm" 
                                             onClick={handleApplyDiscount} 
-                                            disabled={discountLoading || (!discountPercent && !discountPrice)}
-                                            style={{ height: '48px' }}
+                                            disabled={discountLoading || !discountPercent}
+                                            style={{ height: '56px', whiteSpace: 'nowrap' }}
                                         >
                                             {discountLoading ? '...' : (
                                                 <div className="d-flex align-items-center gap-2">
@@ -683,22 +671,12 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
                                                 </div>
                                             )}
                                         </button>
-                                        {(discountPercent || discountPrice) && (
-                                            <button 
-                                                type="button" 
-                                                className="btn btn-light h-100 py-2 border text-muted"
-                                                onClick={() => { setDiscountPercent(''); setDiscountPrice(''); }}
-                                                style={{ height: '48px', borderRadius: '12px' }}
-                                            >
-                                                Cancel
-                                            </button>
-                                        )}
                                     </div>
 
                                     {discountPercent > 0 && Number(discountPrice) < price && (
                                         <div className="eim-discount-preview animate-zoom-in p-3 rounded-4" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
                                             <div className="d-flex justify-content-between align-items-center mb-2">
-                                                <span className="text-primary fw-bold small">New Offer Preview:</span>
+                                                <span className="text-primary fw-bold small">Preview:</span>
                                                 <span className="badge-off" style={{ background: '#0ea5e9' }}>-{discountPercent}% OFF</span>
                                             </div>
                                             <div className="d-flex align-items-baseline gap-2">
@@ -706,7 +684,6 @@ const EditItemModal = ({ item, onClose, onUpdate }) => {
                                                 <FaChevronRight size={10} className="text-muted" />
                                                 <span className="h4 m-0 fw-bold text-dark">{formatPrice(discountPrice)}</span>
                                             </div>
-                                            <p className="extra-small text-primary m-0 mt-1">Selling for {formatPrice(discountPrice)} after discount</p>
                                         </div>
                                     )}
                                 </div>

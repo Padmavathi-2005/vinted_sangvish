@@ -1,5 +1,5 @@
-export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5003';
-export const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || 'http://localhost:5003';
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://vinted.sangvish.com';
+export const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || 'https://vinted.sangvish.com';
 
 export const getImageUrl = (path) => {
     if (!path) return '';

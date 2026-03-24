@@ -9,6 +9,16 @@ import Notification from '../models/Notification.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
 import Setting from '../models/Setting.js';
+import Item from '../models/Item.js';
+import Favorite from '../models/Favorite.js';
+import Follow from '../models/Follow.js';
+import Review from '../models/Review.js';
+import SearchHistory from '../models/SearchHistory.js';
+import UserPayoutMethod from '../models/UserPayoutMethod.js';
+import Wallet from '../models/Wallet.js';
+import Transaction from '../models/Transaction.js';
+import WithdrawalRequest from '../models/WithdrawalRequest.js';
+import Order from '../models/Order.js';
 import sendEmail from '../utils/sendEmail.js';
 
 const resolveMx = promisify(dns.resolveMx);
@@ -277,25 +287,92 @@ const deleteAccount = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    // Check Balance
+    // 1. Safety Check: Balance
     if (user.balance > 0) {
-        res.status(400).json({
-            message: `You have ${user.wallet_currency || 'EUR'} ${user.balance.toFixed(2)} in your wallet. Please withdraw funds before deleting your account.`,
-            canDelete: false,
-            balance: user.balance
-        });
-        return;
+        res.status(400);
+        throw new Error(`You have a remaining balance of ${user.wallet_currency || 'EUR'} ${user.balance.toFixed(2)}. Please withdraw your funds before deleting your account.`);
     }
 
-    // Soft Delete
-    user.is_deleted = true;
-    user.is_blocked = true; // Block access
-    // user.username = `Deleted User ${user.id}`; // Optional: Anonymize
-    // user.email = `deleted_${user.id}_${user.email}`; // Optional: Anonymize to allow re-registration with same email? Maybe not.
+    // 2. Safety Check: Pending Orders
+    const pendingOrders = await Order.findOne({
+        $or: [{ buyer_id: user._id }, { seller_id: user._id }],
+        status: { $in: ['pending', 'processing', 'shipped'] }
+    });
 
-    await user.save();
+    if (pendingOrders) {
+        res.status(400);
+        throw new Error('You cannot delete your account while you have active or pending orders. Please complete or cancel them first.');
+    }
 
-    res.status(200).json({ message: 'Account deleted successfully', canDelete: true });
+    // 3. Neatly Delete All Related Data
+    const userId = user._id;
+    const userName = user.username;
+
+    // A. Handle Wishlisted Products & Notifications
+    const userItems = await Item.find({ seller_id: userId });
+    const userItemIds = userItems.map(item => item._id);
+
+    // Find all users who Liked these items
+    const favoritesOnMyItems = await Favorite.find({ item_id: { $in: userItemIds } });
+    
+    // Group by user so we don't spam them if they liked multiple items
+    const notifiedLikers = new Set();
+    
+    for (const fav of favoritesOnMyItems) {
+        if (!fav.user_id.equals(userId) && !notifiedLikers.has(fav.user_id.toString())) {
+            const favoritedItem = userItems.find(i => i._id.equals(fav.item_id));
+            
+            await Notification.create({
+                user_id: fav.user_id,
+                on_model: 'User',
+                title: 'Wishlist Update',
+                message: `An item you liked ("${favoritedItem?.title || 'a product'}") is no longer available as the seller's account has been closed.`,
+                type: 'info',
+                link: '/profile?tab=wishlist'
+            });
+            notifiedLikers.add(fav.user_id.toString());
+        }
+    }
+
+    // B. Hard Delete Products (Items)
+    await Item.deleteMany({ seller_id: userId });
+
+    // C. Clean up Social Relations
+    await Favorite.deleteMany({ $or: [{ user_id: userId }, { item_id: { $in: userItemIds } }] });
+    await Follow.deleteMany({ $or: [{ follower_id: userId }, { following_id: userId }] });
+
+    // D. Clean up Notifications
+    await Notification.deleteMany({ user_id: userId });
+
+    // E. Clean up Search & History
+    await SearchHistory.deleteMany({ user_id: userId });
+
+    // F. Clean up Financials
+    await UserPayoutMethod.deleteMany({ user_id: userId });
+    await Wallet.deleteMany({ owner_id: userId, owner_type: 'User' });
+    await Transaction.deleteMany({ user_id: userId, user_type: 'User' });
+    await WithdrawalRequest.deleteMany({ user_id: userId });
+
+    // G. Clean up Reviews
+    await Review.deleteMany({ $or: [{ reviewer_id: userId }, { reviewee_id: userId }] });
+
+    // H. Clean up Chats (Conversation & Messages)
+    // We delete messages first, then conversations
+    await Message.deleteMany({ $or: [{ sender_id: userId }, { receiver_id: userId }] });
+    await Conversation.deleteMany({ 'participants.user': userId });
+
+    // I. Clean up Reports (Reports they made and reports against them)
+    // We need to import the Report model if not already done
+    const Report = mongoose.model('Report');
+    await Report.deleteMany({ $or: [{ reporter_id: userId }, { reported_item_id: { $in: userItemIds } }] });
+
+    // J. Hard Delete User Record
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ 
+        success: true,
+        message: 'Your account, products, chats, and all associated data have been permanently deleted.' 
+    });
 });
 
 // @desc    Get user data

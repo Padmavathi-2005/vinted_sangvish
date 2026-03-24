@@ -17,6 +17,9 @@ import pageRoutes from './routes/pageRoutes.js';
 import frontendContentRoutes from './routes/frontendContentRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import shippingCompanyRoutes from './routes/shippingCompanyRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
+import { adminProtect } from './middleware/authMiddleware.js';
+import { getReportsAdmin, updateReportStatus, handleReportAction } from './controllers/reportController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +51,13 @@ const startServer = async () => {
         app.use('/api/frontend-content', frontendContentRoutes);
         app.use('/api/admin-messages', messageRoutes);
         app.use('/api/shipping-companies', shippingCompanyRoutes);
+        
+        // Direct route registration
+        app.get('/api/moderation-reports', adminProtect, getReportsAdmin);
+        app.put('/api/moderation-reports/:id/status', adminProtect, updateReportStatus);
+        app.post('/api/moderation-reports/:id/action', adminProtect, handleReportAction);
+        
+        app.use('/api/reports', reportRoutes);
 
         // Serve images (fallback for local development)
         const primaryImagesPath = path.join(__dirname, 'images');

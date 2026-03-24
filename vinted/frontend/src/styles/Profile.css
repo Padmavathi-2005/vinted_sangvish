@@ -1,21 +1,40 @@
-/* Profile Dashboard Styling */
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+    box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
 .profile-dashboard {
     background-color: #f8fafc;
     /* min-height: calc(100vh - 72px); */
-    padding: 20px 16px 0px;
-    /* Added extra bottom padding for mobile navbar */
+    padding: 20px 0px 0px;
+    /* Reduced side padding */
     font-family: var(--font-family);
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .pd-container {
-    max-width: 1200px;
+    max-width: 1750px;
+    width: 90%;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 280px 1fr;
     grid-template-rows: auto 1fr;
-    gap: 16px;
+    gap: 20px;
     align-items: flex-start;
-    padding-bottom: 40px;
+    padding: 0 10px 40px;
 }
 
 .pd-header-full {
@@ -27,21 +46,21 @@
     grid-row: 2;
 }
 
-.pd-container.full-width {
-    grid-template-columns: 1fr;
-}
+
 
 /* ─── Top Navigation (Local to Dashboard) ─── */
 .pd-nav {
     grid-column: 1 / -1;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: start;
+    /* Centering the items */
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 4px;
     background: white;
-    padding: 6px 14px;
-    border-radius: 14px;
+    padding: 6px;
+    /* Added side padding to prevent overlap with toggle */
+    border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     border: 1px solid #e8edf2;
     overflow-x: auto;
@@ -56,10 +75,18 @@
 .pd-nav-items {
     display: flex;
     align-items: center;
-    gap: 4px;
-    flex: 1;
-    justify-content: center;
-    flex-wrap: wrap;
+    /* gap: 4px; Restored gap */
+    flex-wrap: nowrap;
+    /* Prevent wrapping on smaller desktops/tablets */
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 0 4px;
+}
+
+.pd-nav-items::-webkit-scrollbar {
+    display: none;
 }
 
 .pd-nav::-webkit-scrollbar {
@@ -68,18 +95,20 @@
 
 /* Toggle Switch Container */
 .pd-mode-toggle-wrapper {
-    position: relative;
+    position: absolute;
+    right: 6px;
     display: flex;
     background-color: #f1f5f9;
     border-radius: 12px;
     padding: 3px;
     cursor: pointer;
     user-select: none;
-    margin-right: 0;
-    margin-left: 8px;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
     flex-shrink: 0;
+    z-index: 105;
 }
+
+
 
 .pd-mode-toggle-slider {
     position: absolute;
@@ -206,56 +235,69 @@
     text-align: center;
 }
 
+.pd-avatar-outer-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 16px;
+}
+
 .pd-avatar-wrapper {
     position: relative;
-    width: 90px;
-    height: 90px;
-    margin: 0 auto 12px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .pd-avatar {
     width: 100%;
     height: 100%;
-    border-radius: 50%;
     object-fit: cover;
-    background-color: #e2e8f0;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .pd-avatar-placeholder {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background-color: var(--primary-color, #0ea5e9);
+    font-size: 3.5rem;
+    font-weight: 800;
     color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    font-weight: 700;
 }
+
 
 .pd-avatar-upload-icon {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    top: auto;
+    bottom: -2px;
+    right: -2px;
     background: white;
     border-radius: 50%;
     padding: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     color: #64748b;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
-    border: 1px solid #e2e8f0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid white;
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    z-index: 10;
 }
 
 .pd-avatar-upload-icon:hover {
     color: var(--primary-color, #0ea5e9);
+    background: #f8fafc;
+    transform: scale(1.1);
 }
 
 .pd-btn-upload {
@@ -743,6 +785,8 @@
         -webkit-overflow-scrolling: touch;
         width: 100%;
         scrollbar-width: none;
+        padding: 6px 14px;
+        /* Reset padding for mobile */
         padding-bottom: 4px;
     }
 
@@ -751,9 +795,23 @@
     }
 
     .pd-main {
-        padding: 10px !important;
+        padding: 0;
+        border-radius: 12px;
         width: 100%;
+        max-width: 100vw;
         overflow-x: hidden;
+    }
+
+    /* Full-width tabs on mobile */
+    .pd-main.pd-main-p0 {
+        padding: 0 !important;
+        background: white;
+    }
+
+    .pd-main.pd-main-p0 .p-0 {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
     }
 
     .pd-mode-toggle-wrapper {
@@ -1066,7 +1124,7 @@
     margin-top: 20px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
     .pd-orders-header {
         flex-direction: column;
         align-items: flex-start;
@@ -1577,7 +1635,7 @@ body.modal-open {
     font-size: 0.7rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
     .order-detail-grid {
         grid-template-columns: 1fr;
     }
@@ -1755,21 +1813,21 @@ body.modal-open {
     display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
 
     /* Show mobile header */
     .pd-mobile-header {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 16px;
+        padding: 14px 16px;
         background: white;
         border-bottom: 1px solid #e8edf2;
-        position: sticky;
-        top: 65px;
-        /* Offset to sit below main header */
+        position: relative;
         z-index: 200;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        width: 100%;
+        margin: 0;
     }
 
     .pd-mobile-hamburger {
@@ -1792,7 +1850,11 @@ body.modal-open {
     }
 
     .pd-mode-toggle-mobile {
+        position: static !important;
+        /* Remove absolute positioning for flex layout */
         transform: scale(0.85);
+        margin-left: auto;
+        /* Push to right in flexbox */
     }
 
     /* Drawer overlay */
@@ -1889,21 +1951,37 @@ body.modal-open {
     }
 
     .pd-container {
-        grid-template-columns: 1fr !important;
+        display: flex;
+        flex-direction: column;
         gap: 0;
         padding-bottom: 20px;
+        min-height: calc(100vh - 100px);
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
     }
 
-    /* Hide sidebar on mobile */
+    /* Hide sidebar on mobile/tablet */
     .pd-sidebar {
-        display: none;
+        display: none !important;
     }
 
-    /* Full-width main content */
+    /* Standard mobile padding for all tabs */
     .pd-main {
+        padding: 16px !important;
         border-radius: 0;
         border: none;
         box-shadow: none;
+        width: 100% !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        grid-column: auto !important;
+        grid-row: auto !important;
+    }
+
+    /* Full-bleed sections (Messages, Notifications) */
+    .pd-main.pd-main-p0 {
+        padding: 0 !important;
     }
 
     /* Cards */
@@ -1964,7 +2042,7 @@ body.modal-open {
 }
 
 /* Messages mobile view */
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
     .nc-container {
         flex-direction: column;
         height: auto;
@@ -2141,7 +2219,7 @@ body.modal-open {
     font-size: 0.85rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
     .pd-discount-grid {
         grid-template-columns: 1fr;
     }
@@ -2165,6 +2243,7 @@ body.modal-open {
     flex-direction: column;
     gap: 24px;
 }
+
 
 .pd-bundle-sidebar {
     display: flex;

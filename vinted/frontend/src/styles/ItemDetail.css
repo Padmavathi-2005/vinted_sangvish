@@ -1,5 +1,3 @@
-
-
 /* ─── Base Page ─── */
 .id-page {
     min-height: 100vh;
@@ -212,10 +210,12 @@
 /* ─── Gallery Column ─── */
 .id-gallery-col {
     position: sticky;
-    top: 70px;
+    top: 110px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    align-self: flex-start;
+    z-index: 10;
 }
 
 /* Gallery Layout: Main image (~80%) + Side strip (~20%) */
@@ -524,6 +524,10 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    position: sticky;
+    top: 110px;
+    align-self: flex-start;
+    z-index: 10;
 }
 
 /* ─── Price Card (FIRST) ─── */
@@ -726,7 +730,9 @@
     grid-column: 1 / -1;
 }
 
-/* When only buy + message (no offer), make message full-width too */
+/* When only buy + message (no offer), make cart and message full-width too */
+.id-cta-group.no-offer .id-btn-cart,
+.id-cta-group.no-offer .id-btn-in-cart,
 .id-cta-group.no-offer .id-btn-message-cta {
     grid-column: 1 / -1;
 }
@@ -1405,6 +1411,113 @@
     margin: 0;
 }
 
+/* ─── Share Modal Improvements ─── */
+.id-share-modal {
+    max-width: 480px !important;
+    padding: 30px !important;
+}
+
+.id-share-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 25px 0;
+}
+
+.id-share-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.id-share-item:hover {
+    transform: translateY(-4px);
+}
+
+.id-share-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    color: white;
+    transition: filter 0.2s;
+}
+
+.id-share-item:hover .id-share-icon {
+    filter: brightness(1.1);
+}
+
+.id-share-icon.whatsapp { background: #25D366; }
+.id-share-icon.facebook { background: #1877F1; }
+.id-share-icon.twitter { background: #000000; }
+.id-share-icon.email { background: #64748b; }
+
+.id-share-item span {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.id-share-copy-section {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.id-share-copy-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.id-share-copy-bar {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 6px 6px 6px 14px;
+    gap: 10px;
+}
+
+.id-share-url {
+    flex: 1;
+    font-size: 0.85rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: monospace;
+}
+
+.id-share-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.id-share-copy-btn:hover {
+    background: #0284c7;
+}
+
 .id-offer-current-price {
     display: flex;
     justify-content: space-between;
@@ -1548,59 +1661,10 @@
     margin: 4px 0 0;
 }
 
-.id-scroll-btns {
-    display: flex;
-    gap: 8px;
-}
-
-.id-scroll-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1px solid #e2e8f0;
-    background: white;
-    color: #64748b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
-}
-
-.id-scroll-btn:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #1e293b;
-}
-
-.id-horizontal-list {
-    display: flex;
-    gap: 16px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    padding-bottom: 8px;
-    -webkit-overflow-scrolling: touch;
-}
-
-.id-horizontal-list::-webkit-scrollbar {
-    height: 6px;
-}
-
-.id-horizontal-list::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 3px;
-}
-
-.id-horizontal-list::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.id-horizontal-card {
-    flex-shrink: 0;
-    width: 185px;
-    scroll-snap-align: start;
+/* The sections at the bottom now use the global .vinted-product-grid from index.css */
+/* No specific grid styles needed here as they are inherited, but you can add section specific spacing if desired */
+.id-section-below .vinted-product-grid {
+    margin-top: 24px;
 }
 
 /* ─── Responsive ─── */

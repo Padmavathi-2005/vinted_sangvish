@@ -414,10 +414,11 @@
 @media (max-width: 768px) {
     .nc-container {
         flex-direction: column;
-        height: calc(100vh - 120px);
+        height: calc(100vh - 175px) !important; /* Adjusted for top sticky header AND bottom mobile navbar */
         border: none;
         border-radius: 0;
         position: relative;
+        overflow: hidden;
     }
 
     .nc-sidebar {
@@ -442,6 +443,7 @@
 
     .nc-detail.mobile-visible {
         display: flex !important;
+        flex-direction: column;
     }
 
     .nc-mobile-back-btn {

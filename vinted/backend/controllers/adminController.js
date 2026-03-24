@@ -15,6 +15,8 @@ import Transaction from '../models/Transaction.js';
 import WithdrawalRequest from '../models/WithdrawalRequest.js';
 import Notification from '../models/Notification.js';
 import ShippingCompany from '../models/ShippingCompany.js';
+import Wallet from '../models/Wallet.js';
+import { getOrCreateWallet } from './walletController.js';
 
 
 // @desc    Get all categories
@@ -757,6 +759,12 @@ const createUser = asyncHandler(async (req, res) => {
     });
 
     if (user) {
+        // Correcting balance on Wallet as well if initial balance provided
+        if (balance) {
+            const wallet = await getOrCreateWallet(user._id, 'User');
+            wallet.balance = balance;
+            await wallet.save();
+        }
         res.status(201).json(user);
     } else {
         res.status(400);
@@ -810,6 +818,23 @@ const updateUser = asyncHandler(async (req, res) => {
     }
 
     const updatedUser = await user.save();
+    
+    // Sync Wallet Balance if balance was specifically updated
+    if (balance !== undefined) {
+        const wallet = await Wallet.findOne({ owner_id: updatedUser._id, owner_type: 'User' });
+        if (wallet) {
+            wallet.balance = Number(balance);
+            await wallet.save();
+        } else {
+            // Create wallet if didn't exist (though should exist normally)
+            await Wallet.create({
+                owner_id: updatedUser._id,
+                owner_type: 'User',
+                balance: Number(balance)
+            });
+        }
+    }
+
     res.json(updatedUser);
 });
 
@@ -1229,6 +1254,27 @@ const updateWithdrawalRequest = asyncHandler(async (req, res) => {
             
             // Also update User model balance if redundant
             await User.findByIdAndUpdate(request.user_id, { $inc: { balance: request.amount } });
+        }
+    }
+
+    // 3. Notify User
+    if (request.status !== oldStatus) {
+        let msg = '';
+        if (request.status === 'completed' || request.status === 'approved') {
+            msg = `Your withdrawal request for ${request.currency} ${request.amount} has been approved.`;
+        } else if (request.status === 'rejected') {
+            msg = `Your withdrawal request for ${request.currency} ${request.amount} was rejected. Funds have been returned to your wallet.`;
+        }
+
+        if (msg) {
+            await Notification.create({
+                user_id: request.user_id,
+                on_model: 'User',
+                title: 'Withdrawal Update',
+                message: msg,
+                type: 'info',
+                link: '/profile?tab=wallet'
+            });
         }
     }
 

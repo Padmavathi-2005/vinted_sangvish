@@ -21,10 +21,20 @@ const getOrCreateWallet = async (ownerId, ownerType) => {
 
     let wallet = await Wallet.findOne({ owner_id: finalOwnerId, owner_type: ownerType });
     if (!wallet) {
+        // Fetch default currency from settings
+        let defCurrency = 'INR';
+        const settings = await Setting.findOne({ type: 'general_settings' });
+        if (settings && settings.default_currency_id) {
+            const CurrencyModel = mongoose.model('Currency');
+            const defC = await CurrencyModel.findById(settings.default_currency_id);
+            if (defC) defCurrency = defC.code;
+        }
+
         wallet = await Wallet.create({
             owner_id: finalOwnerId,
             owner_type: ownerType,
-            balance: 0
+            balance: 0,
+            currency: defCurrency
         });
     }
     return wallet;

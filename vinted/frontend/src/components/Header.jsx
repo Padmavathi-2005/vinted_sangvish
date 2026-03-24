@@ -118,6 +118,29 @@ const Header = () => {
         fetchData();
     }, []);
 
+    const [recommendedSuggestions, setRecommendedSuggestions] = useState([]);
+
+    // Logic for Random Recommended Searches
+    useEffect(() => {
+        if (!loading && categories && categories.length > 0) {
+            // Flatten all subcategories with their parent category slugs
+            const allSubObjects = categories.reduce((acc, cat) => {
+                const subs = cat.subcategories?.map(sub => ({
+                    name: sub.name,
+                    catSlug: cat.slug,
+                    subSlug: sub.slug
+                })) || [];
+                return [...acc, ...subs];
+            }, []);
+
+            // Pick 5 unique random ones
+            if (allSubObjects.length > 0) {
+                const shuffled = allSubObjects.sort(() => 0.5 - Math.random());
+                setRecommendedSuggestions(shuffled.slice(0, 5));
+            }
+        }
+    }, [loading, categories]);
+
     const handleCategoryEnter = (category) => {
         if (!category) return;
         setActiveCategory(category);
@@ -271,9 +294,15 @@ const Header = () => {
             }
         } catch (error) {
             console.error("Image search failed:", error);
-            const errMsg = error.response?.data?.message || "Visual search failed. Please try again with a clearer image.";
+            let errMsg = error.response?.data?.message || "Visual search failed. Please try again with a clearer image.";
+
+            // Handle Quota Exceeded (429) specifically
+            if (error.response?.status === 429 || errMsg.toLowerCase().includes('quota exceeded') || errMsg.toLowerCase().includes('429')) {
+                errMsg = "Visual Search is temporarily unavailable due to high usage (Quota Exceeded). Please try again in 1 minute!";
+            }
+
             setImageSearchMessage(errMsg);
-            setTimeout(() => setImageSearchMessage(null), 4000);
+            setTimeout(() => setImageSearchMessage(null), 5000);
         } finally {
             setIsImageSearching(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -309,10 +338,19 @@ const Header = () => {
             setAiMessages(prev => [...prev, aiResponse]);
         } catch (error) {
             console.error("AI Error:", error);
+
+            let errorMessage = error.response?.data?.message || "I'm having a little trouble connecting to the server. Please check if the backend is running.";
+
+            // Handle Quota Exceeded (429) specifically
+            if (error.response?.status === 429 || errorMessage.toLowerCase().includes('quota exceeded') || errorMessage.toLowerCase().includes('429')) {
+                errorMessage = "Our AI assistant is temporarily unavailable due to high usage (Quota Exceeded). Please try again in about a minute!";
+            }
+
             const errorMsg = {
                 id: Date.now() + 1,
-                text: error.response?.data?.message || "I'm having a little trouble connecting to the server. Please check if the backend is running and restart it if you just added the API key!",
-                isAi: true
+                text: errorMessage,
+                isAi: true,
+                isError: true
             };
             setAiMessages(prev => [...prev, errorMsg]);
         } finally {
@@ -332,9 +370,9 @@ const Header = () => {
                 <div className="logo-section">
                     <Link to="/" className="site-logo" style={{ color: settings.primary_color }} onClick={handleCategoryBarLeave}>
                         {settings.site_logo ? (
-                            <img 
-                                src={getImageUrl(settings.site_logo)} 
-                                alt={safeString(settings.site_name, 'Vinted')} 
+                            <img
+                                src={getImageUrl(settings.site_logo)}
+                                alt={safeString(settings.site_name, 'Vinted')}
                                 style={{ height: '32px', objectFit: 'contain' }}
                                 onError={handleImageError}
                             />
@@ -585,8 +623,8 @@ const Header = () => {
                                     gap: '8px'
                                 }}>
                                     {(searchHistory.length > 0
-                                        ? searchHistory
-                                        : categories.reduce((acc, c) => acc.concat(c.subcategories || []), []).slice(0, 10)
+                                        ? searchHistory.slice(0, 10) // Show up to 10 recent searches
+                                        : categories.reduce((acc, c) => acc.concat(c.subcategories || []), []).slice(0, 8)
                                     ).map((item, idx) => {
                                         const query = (typeof item === 'string') ? item : (item.name || item.query);
                                         const id = item._id || `cat-${idx}`;
@@ -601,6 +639,57 @@ const Header = () => {
                                         );
                                     })}
                                 </div>
+
+                                {/* Recommended Searches Section */}
+                                <div style={{
+                                    padding: '8px 16px 8px 16px',
+                                    borderTop: '1px solid #f1f3f5',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '800',
+                                    color: '#adb5bd',
+                                    letterSpacing: '0.05em',
+                                }}>
+                                    RECOMMENDED FOR YOU
+                                </div>
+                                <div style={{
+                                    padding: '0 16px 16px 16px',
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '8px'
+                                }}>
+                                    {recommendedSuggestions.length > 0 ? (
+                                        recommendedSuggestions.map((item, idx) => (
+                                            <div
+                                                key={`rec-${idx}`}
+                                                onClick={() => {
+                                                    navigate(`/products?category=${item.catSlug}&subcategory=${item.subSlug}`);
+                                                    closeAllDropdowns();
+                                                    setSearchTerm(item.name);
+                                                }}
+                                                className="search-trending-tag"
+                                                style={{
+                                                    borderColor: `${settings.primary_color}40`,
+                                                    color: settings.primary_color
+                                                }}
+                                            >
+                                                <HiSparkles style={{ fontSize: '0.75rem', marginRight: '4px', opacity: 0.8 }} />
+                                                {item.name}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        // Fallback if no categories yet
+                                        ['Vintage Jeans', 'Leather Jackets', 'White Sneakers', 'Summer Hats', 'Designer Bags'].map((name, idx) => (
+                                            <div
+                                                key={`fback-${idx}`}
+                                                onClick={() => handleSearchSubmit(name)}
+                                                className="search-trending-tag"
+                                                style={{ borderColor: `${settings.primary_color}30`, color: '#64748b' }}
+                                            >
+                                                {name}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -611,149 +700,140 @@ const Header = () => {
                         <FaPlus /> {t('header.sell_button')}
                     </Link>
                     <div className="icon-group">
-                        {user && (
-                            <>
-                                {/* Combined Language & Currency Selector */}
-                                <div
-                                    className="icon-wrapper settings-wrapper"
-                                    onMouseEnter={() => {
-                                        closeAllDropdowns();
-                                        setIsSettingsDropdownOpen(true);
-                                    }}
-                                    onMouseLeave={() => { setIsSettingsDropdownOpen(false); setLanguageSearchTerm(''); setCurrencySearchTerm(''); }}
-                                    style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', background: '#f8f9fa', border: '1px solid #e9ecef', transition: 'all 0.3s ease' }}
-                                    title={t('header.settings')}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.82rem', fontWeight: '700', color: '#495057' }}>
-                                        <FiGlobe style={{ color: settings.primary_color }} />
-                                        <span>{currentLanguage?.code?.toUpperCase() || 'EN'}</span>
-                                        <span style={{ color: '#cbd5e1', fontWeight: 'normal' }}>/</span>
-                                        <span>{currentCurrency?.symbol || '$'}</span>
-                                        <FiChevronDown style={{ fontSize: '0.9rem', opacity: 0.6, marginLeft: '2px' }} />
-                                    </div>
+                        {/* Combined Language & Currency Selector (Visible to everyone) */}
+                        <div
+                            className="icon-wrapper settings-wrapper"
+                            onMouseEnter={() => {
+                                closeAllDropdowns();
+                                setIsSettingsDropdownOpen(true);
+                            }}
+                            onMouseLeave={() => { setIsSettingsDropdownOpen(false); setLanguageSearchTerm(''); setCurrencySearchTerm(''); }}
+                            style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', background: '#f8f9fa', border: '1px solid #e9ecef', transition: 'all 0.3s ease' }}
+                            title={t('header.settings')}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.82rem', fontWeight: '700', color: '#495057' }}>
+                                <FiGlobe style={{ color: settings.primary_color }} />
+                                <span>{currentLanguage?.code?.toUpperCase() || 'EN'}</span>
+                                <span style={{ color: '#cbd5e1', fontWeight: 'normal' }}>/</span>
+                                <span>{currentCurrency?.symbol || '$'}</span>
+                                <FiChevronDown style={{ fontSize: '0.9rem', opacity: 0.6, marginLeft: '2px' }} />
+                            </div>
 
-                                    {isSettingsDropdownOpen && (
-                                        <div className="user-dropdown-wrapper" style={{
-                                            position: 'absolute',
-                                            top: '100%',
-                                            right: '0',
-                                            paddingTop: '15px',
-                                            zIndex: 1100,
-                                            width: '280px',
-                                            animation: 'fadeIn 0.2s ease',
-                                        }}>
-                                            <div className="user-dropdown-box" style={{
-                                                background: 'white',
-                                                border: '1px solid #e9ecef',
-                                                borderRadius: '16px',
-                                                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                                                padding: '0',
-                                                textAlign: 'left',
-                                                position: 'relative',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                overflow: 'hidden'
-                                            }}>
-                                                <div style={{ position: "absolute", top: "-6px", right: "20px", width: "12px", height: "12px", background: 'white', transform: "rotate(45deg)", borderLeft: "1px solid #e9ecef", borderTop: "1px solid #e9ecef" }} />
+                            {isSettingsDropdownOpen && (
+                                <div className="user-dropdown-wrapper" style={{
+                                    position: 'absolute', top: '100%', right: '0',
+                                    paddingTop: '15px', zIndex: 1100, width: '280px',
+                                    animation: 'fadeIn 0.2s ease',
+                                }}>
+                                    <div className="user-dropdown-box" style={{
+                                        background: 'white', border: '1px solid #e9ecef',
+                                        borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                                        padding: '0', textAlign: 'left', position: 'relative',
+                                        display: 'flex', flexDirection: 'column', overflow: 'hidden'
+                                    }}>
+                                        <div style={{ position: "absolute", top: "-6px", right: "20px", width: "12px", height: "12px", background: 'white', transform: "rotate(45deg)", borderLeft: "1px solid #e9ecef", borderTop: "1px solid #e9ecef" }} />
 
-                                                {/* Tab Headers */}
-                                                <div style={{ display: 'flex', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', padding: '4px' }}>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setSettingsTab('language'); }}
-                                                        style={{
-                                                            flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
-                                                            background: settingsTab === 'language' ? 'white' : 'transparent',
-                                                            color: settingsTab === 'language' ? settings.primary_color : '#64748b',
-                                                            boxShadow: settingsTab === 'language' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                                                            cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.02em'
-                                                        }}
-                                                    >
-                                                        {t('header.language')}
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setSettingsTab('currency'); }}
-                                                        style={{
-                                                            flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
-                                                            background: settingsTab === 'currency' ? 'white' : 'transparent',
-                                                            color: settingsTab === 'currency' ? settings.primary_color : '#64748b',
-                                                            boxShadow: settingsTab === 'currency' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                                                            cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.02em'
-                                                        }}
-                                                    >
-                                                        {t('header.currency')}
-                                                    </button>
-                                                </div>
-
-                                                <div style={{ padding: '16px' }}>
-                                                    {settingsTab === 'language' ? (
-                                                        /* Language Section */
-                                                        <div>
-                                                            <div style={{ position: 'relative', marginBottom: '8px' }}>
-                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: settings.primary_color, fontSize: '0.75rem' }} />
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder={t('header.search_languages')}
-                                                                    value={languageSearchTerm}
-                                                                    onChange={(e) => setLanguageSearchTerm(e.target.value)}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    style={{
-                                                                        width: '100%', padding: '7px 10px 7px 30px', border: `1px solid ${settings.primary_color}`, borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#ffffff', boxShadow: `0 2px 8px ${settings.primary_color}15`
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }} className="custom-scrollbar">
-                                                                {languages && languages.filter(l => l.name.toLowerCase().includes(languageSearchTerm.toLowerCase()) || l.native_name.toLowerCase().includes(languageSearchTerm.toLowerCase())).map(language => (
-                                                                    <button
-                                                                        key={language._id}
-                                                                        onClick={() => { setLanguage(language); setLanguageSearchTerm(''); }}
-                                                                        style={{
-                                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: '8px', border: 'none', background: currentLanguage?._id === language._id ? `${settings.primary_color}10` : 'transparent', cursor: 'pointer', transition: 'all 0.2s'
-                                                                        }}
-                                                                    >
-                                                                        <span style={{ fontSize: '0.8rem', color: currentLanguage?._id === language._id ? settings.primary_color : '#475569', fontWeight: currentLanguage?._id === language._id ? '700' : '500' }}>{language.native_name}</span>
-                                                                        {currentLanguage?._id === language._id && <FaCheck style={{ color: settings.primary_color, fontSize: '0.7rem' }} />}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        /* Currency Section */
-                                                        <div>
-                                                            <div style={{ position: 'relative', marginBottom: '8px' }}>
-                                                                <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: settings.primary_color, fontSize: '0.75rem' }} />
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder={t('header.search_currencies')}
-                                                                    value={currencySearchTerm}
-                                                                    onChange={(e) => setCurrencySearchTerm(e.target.value)}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    style={{
-                                                                        width: '100%', padding: '7px 10px 7px 30px', border: `1px solid ${settings.primary_color}`, borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#ffffff', boxShadow: `0 2px 8px ${settings.primary_color}15`
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }} className="custom-scrollbar">
-                                                                {currencies && currencies.filter(c => c.name.toLowerCase().includes(currencySearchTerm.toLowerCase()) || c.code.toLowerCase().includes(currencySearchTerm.toLowerCase())).map(currency => (
-                                                                    <button
-                                                                        key={currency._id}
-                                                                        onClick={() => { setCurrency(currency); setCurrencySearchTerm(''); }}
-                                                                        style={{
-                                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: '8px', border: 'none', background: currentCurrency?._id === currency._id ? `${settings.primary_color}10` : 'transparent', cursor: 'pointer', transition: 'all 0.2s'
-                                                                        }}
-                                                                    >
-                                                                        <span style={{ fontSize: '0.8rem', color: currentCurrency?._id === currency._id ? settings.primary_color : '#475569', fontWeight: currentCurrency?._id === currency._id ? '700' : '500' }}>{currency.code} - {currency.name}</span>
-                                                                        {currentCurrency?._id === currency._id && <FaCheck style={{ color: settings.primary_color, fontSize: '0.7rem' }} />}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                        {/* Tab Headers */}
+                                        <div style={{ display: 'flex', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', padding: '4px' }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setSettingsTab('language'); }}
+                                                style={{
+                                                    flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
+                                                    background: settingsTab === 'language' ? 'white' : 'transparent',
+                                                    color: settingsTab === 'language' ? settings.primary_color : '#64748b',
+                                                    boxShadow: settingsTab === 'language' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                                                    cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.02em'
+                                                }}
+                                            >
+                                                {t('header.language')}
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setSettingsTab('currency'); }}
+                                                style={{
+                                                    flex: 1, padding: '10px', border: 'none', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
+                                                    background: settingsTab === 'currency' ? 'white' : 'transparent',
+                                                    color: settingsTab === 'currency' ? settings.primary_color : '#64748b',
+                                                    boxShadow: settingsTab === 'currency' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                                                    cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.02em'
+                                                }}
+                                            >
+                                                {t('header.currency')}
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
 
+                                        <div style={{ padding: '16px' }}>
+                                            {settingsTab === 'language' ? (
+                                                /* Language Section */
+                                                <div>
+                                                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                                                        <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: settings.primary_color, fontSize: '0.75rem' }} />
+                                                        <input
+                                                            type="text"
+                                                            placeholder={t('header.search_languages')}
+                                                            value={languageSearchTerm}
+                                                            onChange={(e) => setLanguageSearchTerm(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            style={{
+                                                                width: '100%', padding: '7px 10px 7px 30px', border: `1px solid ${settings.primary_color}`, borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#ffffff', boxShadow: `0 2px 8px ${settings.primary_color}15`
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }} className="custom-scrollbar">
+                                                        {languages && languages.filter(l => l.name.toLowerCase().includes(languageSearchTerm.toLowerCase()) || l.native_name.toLowerCase().includes(languageSearchTerm.toLowerCase())).map(language => (
+                                                            <button
+                                                                key={language._id}
+                                                                onClick={() => { setLanguage(language); setLanguageSearchTerm(''); }}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: '8px', border: 'none', background: currentLanguage?._id === language._id ? `${settings.primary_color}10` : 'transparent', cursor: 'pointer', transition: 'all 0.2s'
+                                                                }}
+                                                            >
+                                                                <span style={{ fontSize: '0.8rem', color: currentLanguage?._id === language._id ? settings.primary_color : '#475569', fontWeight: currentLanguage?._id === language._id ? '700' : '500' }}>{language.native_name}</span>
+                                                                {currentLanguage?._id === language._id && <FaCheck style={{ color: settings.primary_color, fontSize: '0.7rem' }} />}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                /* Currency Section */
+                                                <div>
+                                                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                                                        <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: settings.primary_color, fontSize: '0.75rem' }} />
+                                                        <input
+                                                            type="text"
+                                                            placeholder={t('header.search_currencies')}
+                                                            value={currencySearchTerm}
+                                                            onChange={(e) => setCurrencySearchTerm(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            style={{
+                                                                width: '100%', padding: '7px 10px 7px 30px', border: `1px solid ${settings.primary_color}`, borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#ffffff', boxShadow: `0 2px 8px ${settings.primary_color}15`
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }} className="custom-scrollbar">
+                                                        {currencies && currencies.filter(c => c.name.toLowerCase().includes(currencySearchTerm.toLowerCase()) || c.code.toLowerCase().includes(currencySearchTerm.toLowerCase())).map(currency => (
+                                                            <button
+                                                                key={currency._id}
+                                                                onClick={() => { setCurrency(currency); setCurrencySearchTerm(''); }}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: '8px', border: 'none', background: currentCurrency?._id === currency._id ? `${settings.primary_color}10` : 'transparent', cursor: 'pointer', transition: 'all 0.2s'
+                                                                }}
+                                                            >
+                                                                <span style={{ fontSize: '0.8rem', color: currentCurrency?._id === currency._id ? settings.primary_color : '#475569', fontWeight: currentCurrency?._id === currency._id ? '700' : '500' }}>{currency.code} - {currency.name}</span>
+                                                                {currentCurrency?._id === currency._id && <FaCheck style={{ color: settings.primary_color, fontSize: '0.7rem' }} />}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {user ? (
+                            <>
+                                {/* Logged-in icons: Favorites, Notifications, Cart */}
                                 <Link
                                     to="/profile?tab=favorites"
                                     className="icon-wrapper heart-link"
@@ -949,146 +1029,146 @@ const Header = () => {
                                     )}
                                 </Link>
 
-                            </>
-                        )}
-                        {user ? (
-                            <div
-                                className="icon-wrapper user-wrapper"
-                                onMouseEnter={() => {
-                                    closeAllDropdowns();
-                                    setIsUserDropdownOpen(true);
-                                }}
-                                onMouseLeave={() => setIsUserDropdownOpen(false)}
-                                style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-                            >
-                                <div className="user-avatar" style={{
-                                    background: `${settings.primary_color}15`,
-                                    color: settings.primary_color,
-                                    border: `2px solid ${settings.primary_color}30`,
-                                    overflow: 'hidden',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    position: 'relative'
-                                }}>
-                                    <span style={{ fontSize: '1rem', fontWeight: '800' }}>
-                                        {(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
-                                    </span>
-                                    {user.profile_image && (
-                                        <img
-                                            src={getImageUrl(user.profile_image)}
-                                            alt="Profile"
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
-                                            onError={handleImageError}
-                                        />
+                                {/* User Profile Dropdown */}
+                                <div
+                                    className="icon-wrapper user-wrapper"
+                                    onMouseEnter={() => {
+                                        closeAllDropdowns();
+                                        setIsUserDropdownOpen(true);
+                                    }}
+                                    onMouseLeave={() => setIsUserDropdownOpen(false)}
+                                    style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                                >
+                                    <div className="user-avatar" style={{
+                                        background: `${settings.primary_color}15`,
+                                        color: settings.primary_color,
+                                        border: `2px solid ${settings.primary_color}30`,
+                                        overflow: 'hidden',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        position: 'relative'
+                                    }}>
+                                        <span style={{ fontSize: '1rem', fontWeight: '800' }}>
+                                            {(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
+                                        </span>
+                                        {user.profile_image && (
+                                            <img
+                                                src={getImageUrl(user.profile_image)}
+                                                alt="Profile"
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+                                                onError={handleImageError}
+                                            />
+                                        )}
+                                    </div>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#495057' }}>{safeString(user.username || user.name) || user.email?.split('@')[0]}</span>
+
+                                    {isUserDropdownOpen && (
+                                        <div className="user-dropdown-wrapper" style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            right: 0,
+                                            paddingTop: '20px', // Bridge the gap between avatar and dropdown
+                                            zIndex: 1100,
+                                            width: '240px',
+                                            animation: 'fadeIn 0.2s ease',
+                                        }}>
+                                            <div className="user-dropdown-box" style={{
+                                                background: 'white',
+                                                border: '1px solid #e9ecef',
+                                                borderRadius: '12px',
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                                padding: '8px 0',
+                                                textAlign: 'left',
+                                                position: 'relative' // Ensure z-index works if needed
+                                            }}>
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '-6px',
+                                                    right: '16px',
+                                                    width: '12px',
+                                                    height: '12px',
+                                                    background: 'white',
+                                                    transform: 'rotate(45deg)',
+                                                    borderLeft: '1px solid #e9ecef',
+                                                    borderTop: '1px solid #e9ecef'
+                                                }}></div>
+
+                                                <div style={{ padding: '8px 16px', fontWeight: 'bold', borderBottom: '1px solid #f1f3f5', color: '#868e96', fontSize: '0.8rem', textTransform: 'uppercase' }}>
+                                                    {mode === 'buyer' ? t('user_menu.buyer_mode', 'Buyer Mode') : t('user_menu.seller_mode', 'Seller Mode')}
+                                                </div>
+
+                                                <Link to={`/profile?tab=dashboard&mode=${mode}`} className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaUser style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                    {t('profile.dashboard', 'Dashboard')}
+                                                </Link>
+                                                <Link to={`/profile?tab=profile_settings&mode=${mode}`} className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaUser style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                    {t('user_menu.my_profile', 'My Profile')}
+                                                </Link>
+
+                                                {mode === 'buyer' ? (
+                                                    <>
+                                                        <Link to="/profile?tab=orders&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaShoppingCart style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                            {t('user_menu.my_orders', 'My Orders')}
+                                                        </Link>
+                                                        <Link to="/profile?tab=favorites&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaHeart style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                            {t('profile.favorites', 'Favorites')}
+                                                        </Link>
+                                                        <Link to="/profile?tab=messages&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaBell style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                            {t('user_menu.messages', 'Messages')}
+                                                        </Link>
+                                                        <div style={{ borderTop: '1px solid #f1f3f5', margin: '4px 0' }}></div>
+                                                        <button
+                                                            onClick={() => { toggleMode(); setIsUserDropdownOpen(false); }}
+                                                            className="dropdown-item-custom"
+                                                            style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', color: settings.primary_color, display: 'flex', alignItems: 'center', gap: '12px' }}
+                                                        >
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaExchangeAlt style={{ fontSize: '1rem' }} /></div>
+                                                            <span style={{ fontWeight: '600' }}>{t('user_menu.switch_to_selling', 'Switch to Selling')}</span>
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Link to="/profile?tab=listings&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaCheck style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                            {t('user_menu.manage_listings', 'Manage Listings')}
+                                                        </Link>
+                                                        <Link to="/profile?tab=payments&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaCoins style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                            {t('user_menu.payments', 'Payments')}
+                                                        </Link>
+                                                        <Link to="/profile?tab=messages&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaBell style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
+                                                            {t('user_menu.messages', 'Messages')}
+                                                        </Link>
+                                                        <div style={{ borderTop: '1px solid #f1f3f5', margin: '4px 0' }}></div>
+                                                        <button
+                                                            onClick={() => { toggleMode(); setIsUserDropdownOpen(false); }}
+                                                            className="dropdown-item-custom"
+                                                            style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', color: settings.primary_color, display: 'flex', alignItems: 'center', gap: '12px' }}
+                                                        >
+                                                            <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaExchangeAlt style={{ fontSize: '1rem' }} /></div>
+                                                            <span style={{ fontWeight: '600' }}>{t('user_menu.switch_to_buying', 'Switch to Buying')}</span>
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                <div style={{ borderTop: '1px solid #f1f3f5', margin: '4px 0' }}></div>
+                                                <button onClick={handleLogout} className="dropdown-item-custom" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaSignOutAlt style={{ color: '#ef4444', fontSize: '1rem' }} /></div>
+                                                    <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{t('user_menu.logout', 'Logout')}</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
-                                <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#495057' }}>{safeString(user.username || user.name) || user.email?.split('@')[0]}</span>
-
-                                {isUserDropdownOpen && (
-                                    <div className="user-dropdown-wrapper" style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        right: 0,
-                                        paddingTop: '20px', // Bridge the gap between avatar and dropdown
-                                        zIndex: 1100,
-                                        width: '240px',
-                                        animation: 'fadeIn 0.2s ease',
-                                    }}>
-                                        <div className="user-dropdown-box" style={{
-                                            background: 'white',
-                                            border: '1px solid #e9ecef',
-                                            borderRadius: '12px',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                            padding: '8px 0',
-                                            textAlign: 'left',
-                                            position: 'relative' // Ensure z-index works if needed
-                                        }}>
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: '-6px',
-                                                right: '16px',
-                                                width: '12px',
-                                                height: '12px',
-                                                background: 'white',
-                                                transform: 'rotate(45deg)',
-                                                borderLeft: '1px solid #e9ecef',
-                                                borderTop: '1px solid #e9ecef'
-                                            }}></div>
-
-                                            <div style={{ padding: '8px 16px', fontWeight: 'bold', borderBottom: '1px solid #f1f3f5', color: '#868e96', fontSize: '0.8rem', textTransform: 'uppercase' }}>
-                                                {mode === 'buyer' ? t('user_menu.buyer_mode', 'Buyer Mode') : t('user_menu.seller_mode', 'Seller Mode')}
-                                            </div>
-
-                                            <Link to={`/profile?tab=dashboard&mode=${mode}`} className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaUser style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                {t('profile.dashboard', 'Dashboard')}
-                                            </Link>
-                                            <Link to={`/profile?tab=profile_settings&mode=${mode}`} className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaUser style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                {t('user_menu.my_profile', 'My Profile')}
-                                            </Link>
-
-                                            {mode === 'buyer' ? (
-                                                <>
-                                                    <Link to="/profile?tab=orders&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaShoppingCart style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                        {t('user_menu.my_orders', 'My Orders')}
-                                                    </Link>
-                                                    <Link to="/profile?tab=favorites&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaHeart style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                        {t('profile.favorites', 'Favorites')}
-                                                    </Link>
-                                                    <Link to="/profile?tab=messages&mode=buyer" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaBell style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                        {t('user_menu.messages', 'Messages')}
-                                                    </Link>
-                                                    <div style={{ borderTop: '1px solid #f1f3f5', margin: '4px 0' }}></div>
-                                                    <button
-                                                        onClick={() => { toggleMode(); setIsUserDropdownOpen(false); }}
-                                                        className="dropdown-item-custom"
-                                                        style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', color: settings.primary_color, display: 'flex', alignItems: 'center', gap: '12px' }}
-                                                    >
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaExchangeAlt style={{ fontSize: '1rem' }} /></div>
-                                                        <span style={{ fontWeight: '600' }}>{t('user_menu.switch_to_selling', 'Switch to Selling')}</span>
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Link to="/profile?tab=listings&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaCheck style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                        {t('user_menu.manage_listings', 'Manage Listings')}
-                                                    </Link>
-                                                    <Link to="/profile?tab=payments&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaCoins style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                        {t('user_menu.payments', 'Payments')}
-                                                    </Link>
-                                                    <Link to="/profile?tab=messages&mode=seller" className="dropdown-item-custom" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaBell style={{ color: '#adb5bd', fontSize: '1rem' }} /></div>
-                                                        {t('user_menu.messages', 'Messages')}
-                                                    </Link>
-                                                    <div style={{ borderTop: '1px solid #f1f3f5', margin: '4px 0' }}></div>
-                                                    <button
-                                                        onClick={() => { toggleMode(); setIsUserDropdownOpen(false); }}
-                                                        className="dropdown-item-custom"
-                                                        style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', color: settings.primary_color, display: 'flex', alignItems: 'center', gap: '12px' }}
-                                                    >
-                                                        <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaExchangeAlt style={{ fontSize: '1rem' }} /></div>
-                                                        <span style={{ fontWeight: '600' }}>{t('user_menu.switch_to_buying', 'Switch to Buying')}</span>
-                                                    </button>
-                                                </>
-                                            )}
-
-                                            <div style={{ borderTop: '1px solid #f1f3f5', margin: '4px 0' }}></div>
-                                            <button onClick={handleLogout} className="dropdown-item-custom" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><FaSignOutAlt style={{ color: '#ef4444', fontSize: '1rem' }} /></div>
-                                                <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{t('user_menu.logout', 'Logout')}</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                            </>
                         ) : (
+                            /* Logged-out links */
                             <div className="auth-split-button" style={{ border: 'none' }}>
                                 <Link to="/login" className="auth-split-link">{t('header.login', 'Login')}</Link>
                                 <span className="auth-split-divider">|</span>
@@ -1243,7 +1323,7 @@ const Header = () => {
                 activeCategory && showCategoryBar && (
                     <div className="mega-menu-container"
                         style={{
-                            top: 'calc(100% + 54px)', // Gap 1 (8px) + Bar Height (~46px) = 54px
+                            top: 'calc(100% + 51px)', // Gap 1 (8px) + Bar Height (~46px) = 54px
                             paddingTop: '20px', // Increased Gap 2 for visual space
                             animation: 'slideDown 0.3s ease'
                         }}
@@ -1490,12 +1570,13 @@ const Header = () => {
                                             <div style={{
                                                 padding: '10px 14px',
                                                 borderRadius: msg.isAi ? '14px 14px 14px 4px' : '14px 14px 4px 14px',
-                                                background: msg.isAi ? 'white' : settings.primary_color,
-                                                color: msg.isAi ? '#333' : 'white',
+                                                background: msg.isError ? '#fff5f5' : (msg.isAi ? 'white' : settings.primary_color),
+                                                color: msg.isError ? '#e03131' : (msg.isAi ? '#333' : 'white'),
                                                 boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
                                                 fontSize: '0.88rem',
                                                 lineHeight: '1.4',
                                                 wordBreak: 'break-word',
+                                                border: msg.isError ? `1px solid #ffa8a8` : 'none'
                                             }}>
                                                 {msg.isAi ? (
                                                     <div className="ai-markdown-content">

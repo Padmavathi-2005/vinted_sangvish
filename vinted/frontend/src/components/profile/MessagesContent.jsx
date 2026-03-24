@@ -432,10 +432,10 @@ const MessagesContent = () => {
                                                 {safeString(u.username)?.charAt(0).toUpperCase()}
                                             </div>
                                             {u.profile_image && (
-                                                <img 
-                                                    src={getImageUrl(u.profile_image)} 
-                                                    alt={u.username} 
-                                                    className="pd-msg-user-avatar" 
+                                                <img
+                                                    src={getImageUrl(u.profile_image)}
+                                                    alt={u.username}
+                                                    className="pd-msg-user-avatar"
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
                                                     onError={handleImageError}
                                                 />
@@ -515,10 +515,10 @@ const MessagesContent = () => {
                                                 {safeString(other?.username || other?.name)?.charAt(0).toUpperCase()}
                                             </div>
                                             {other?.profile_image && (
-                                                <img 
-                                                    src={getImageUrl(other.profile_image)} 
-                                                    alt="" 
-                                                    className="pd-msg-user-avatar" 
+                                                <img
+                                                    src={getImageUrl(other.profile_image)}
+                                                    alt=""
+                                                    className="pd-msg-user-avatar"
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
                                                     onError={handleImageError}
                                                 />
@@ -544,7 +544,7 @@ const MessagesContent = () => {
                         const otherData = getOtherParticipant(conv);
                         const other = otherData?.user;
                         const lm = conv.last_message || '';
-                        const isSystemConv = lm.startsWith('🛒') || lm.startsWith('✅') || lm.startsWith('ORDER') || lm.includes('Order placed') || lm.includes('Order delivered') || lm.includes('ORDER_NOTIFICATION');
+                        const isSystemConv = otherData?.on_model === 'Admin' || (!other && lm.includes('ORDER_NOTIFICATION'));
                         const marketplaceName = getMarketplaceName(settings?.site_name);
                         const displayName = otherData?.on_model === 'Admin' ? marketplaceName : (safeString(other?.username) || marketplaceName);
                         const siteLogo = settings?.site_favicon || settings?.site_logo;
@@ -556,7 +556,7 @@ const MessagesContent = () => {
                                 onClick={() => { setActiveConv(conv); setMobileChatOpen(true); }}
                             >
                                 <div className="pd-avatar-wrapper-mini" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: '50%', overflow: 'hidden', width: '36px', height: '36px' }}>
-                                    {otherData?.on_model === 'Admin' || isSystemConv ? (
+                                    {isSystemConv ? (
                                         siteLogo ? (
                                             <img src={getImageUrl(siteLogo)} alt={displayName} className="pd-msg-user-avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
@@ -568,10 +568,10 @@ const MessagesContent = () => {
                                                 {safeString(other?.username)?.charAt(0).toUpperCase()}
                                             </div>
                                             {other?.profile_image && (
-                                                <img 
-                                                    src={getImageUrl(other.profile_image)} 
-                                                    alt={other.username} 
-                                                    className="pd-msg-user-avatar" 
+                                                <img
+                                                    src={getImageUrl(other.profile_image)}
+                                                    alt={other.username}
+                                                    className="pd-msg-user-avatar"
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
                                                     onError={handleImageError}
                                                 />
@@ -584,7 +584,24 @@ const MessagesContent = () => {
                                         <span className="pd-msg-user-name">{displayName}</span>
                                         <span className="pd-msg-last-time">{conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : ''}</span>
                                     </div>
-                                    <div className="pd-msg-last-text">{safeString(conv.last_message)}</div>
+                                    <div className="pd-msg-last-text">
+                                        {(() => {
+                                            const lm = conv.last_message || '';
+                                            if (lm.startsWith('WITHDRAWAL_REQUEST::')) {
+                                                try {
+                                                    const data = JSON.parse(lm.replace('WITHDRAWAL_REQUEST::', ''));
+                                                    return `Withdrawal Request: ${data.amount}`;
+                                                } catch (e) { return 'Withdrawal Request'; }
+                                            }
+                                            if (lm.startsWith('ORDER_NOTIFICATION::')) {
+                                                try {
+                                                    const data = JSON.parse(lm.replace('ORDER_NOTIFICATION::', ''));
+                                                    return data.type === 'order_delivered' ? `Delivered: ${data.item_title}` : `New Order: ${data.item_title}`;
+                                                } catch (e) { return 'Order Notification'; }
+                                            }
+                                            return safeString(lm);
+                                        })()}
+                                    </div>
                                     {conv.status !== 'accepted' && (
                                         <span className={`pd-msg-status ${conv.status}`}>{conv.status.toUpperCase()}</span>
                                     )}
@@ -615,7 +632,7 @@ const MessagesContent = () => {
                             const headerOtherData = getOtherParticipant(activeConv);
                             const headerOther = headerOtherData?.user;
                             const headerOtherOnModel = headerOtherData?.on_model;
-                            const isMarketplace = headerOtherOnModel === 'Admin' || hasSystemMsgs;
+                            const isMarketplace = headerOtherOnModel === 'Admin' || (!headerOther && hasSystemMsgs);
                             const headerSiteInitial = headerSiteName.charAt(0).toUpperCase();
 
                             return (
@@ -638,10 +655,10 @@ const MessagesContent = () => {
                                                     {safeString(headerOther?.username)?.charAt(0).toUpperCase()}
                                                 </div>
                                                 {headerOther?.profile_image && (
-                                                    <img 
-                                                        src={getImageUrl(headerOther.profile_image)} 
-                                                        alt="" 
-                                                        className="pd-msg-user-avatar" 
+                                                    <img
+                                                        src={getImageUrl(headerOther.profile_image)}
+                                                        alt=""
+                                                        className="pd-msg-user-avatar"
                                                         style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
                                                         onError={handleImageError}
                                                     />
@@ -661,7 +678,7 @@ const MessagesContent = () => {
                                     </div>
                                     <div className={`pd-msg-status ${activeConv.status} ms-3`}>
                                         {hasSystemMsgs
-                                            ? `via ${headerSiteName}`
+                                            ? (headerOtherOnModel === 'Admin' ? 'OFFICIAL SUPPORT' : 'ORDER UPDATES')
                                             : activeConv.status === 'accepted' ? 'DIRECT MESSAGE' : `REQUEST: ${activeConv.status.toUpperCase()}`}
                                     </div>
 
@@ -793,6 +810,33 @@ const MessagesContent = () => {
                                                                 }}
                                                             >
                                                                 View Order →
+                                                            </button>
+                                                        </>
+                                                    );
+                                                } catch (e) { /* fall through */ }
+                                            }
+
+                                            // Withdrawal Request parsing
+                                            const isWithdrawal = msg.message.startsWith('WITHDRAWAL_REQUEST::');
+                                            if (isWithdrawal && !msgContent) {
+                                                try {
+                                                    const jsonStr = msg.message.replace('WITHDRAWAL_REQUEST::', '');
+                                                    const data = JSON.parse(jsonStr);
+                                                    msgContent = (
+                                                        <>
+                                                            <div className="pd-sys-msg-line"><strong>💰 Withdrawal Request</strong></div>
+                                                            <div className="pd-sys-msg-line">Amount: <strong>{formatPrice(data.amount, data.currency_id || data.currency)}</strong></div>
+                                                            {data.payout_type && <div className="pd-sys-msg-line">Method: <span className="text-capitalize">{data.payout_type.replace('_', ' ')}</span></div>}
+                                                            <div className="pd-sys-msg-line">Request ID: <span className="pd-sys-msg-code">{data.request_id || data._id}</span></div>
+                                                            <div className="pd-sys-msg-line mt-2 text-muted small">Your request is being processed.</div>
+                                                            <button
+                                                                className="pd-sys-msg-link"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    navigate('/profile?tab=wallet');
+                                                                }}
+                                                            >
+                                                                View Wallet →
                                                             </button>
                                                         </>
                                                     );

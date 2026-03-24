@@ -37,8 +37,9 @@ import aiRoutes from './routes/aiRoutes.js';
 import adminMessageRoutes from './routes/adminMessageRoutes.js';
 import shippingRoutes from './routes/shippingRoutes.js';
 import shippingCompanyRoutes from './routes/shippingCompanyRoutes.js';
-import { applyDiscount, removeDiscount } from './controllers/itemController.js';
-import { protect } from './middleware/authMiddleware.js';
+import reportRoutes from './routes/reportRoutes.js';
+import { protect, adminProtect } from './middleware/authMiddleware.js';
+import { getReportsAdmin, updateReportStatus, handleReportAction } from './controllers/reportController.js';
 import startDiscountReminderJob from './jobs/discountReminderJob.js';
 
 
@@ -132,6 +133,14 @@ const startServer = async () => {
         app.use('/api/ai', aiRoutes);
         app.use('/api/shipping', shippingRoutes);
         app.use('/api/shipping-companies', shippingCompanyRoutes);
+        
+        // UNIQUE ROOT-LEVEL MODERATION ROUTE
+        app.get('/api/moderation-reports', adminProtect, getReportsAdmin);
+        app.put('/api/moderation-reports/:id/status', adminProtect, updateReportStatus);
+        app.post('/api/moderation-reports/:id/action', adminProtect, handleReportAction);
+        
+        // Legacy/User report submission
+        app.use('/api/reports', reportRoutes);
 
         // Start scheduled jobs
         startDiscountReminderJob();

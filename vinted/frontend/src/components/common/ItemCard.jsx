@@ -78,7 +78,7 @@ const ItemCard = ({ item, onEdit }) => {
 
         // Guard: Prevent liking own items if logged in
         if (user && item.seller_id && String(user._id) === String(item.seller_id._id || item.seller_id)) {
-            // Optional: show a message that you can't like your own items
+            alert("It's your product! You cannot add it to your wishlist.");
             return;
         }
 

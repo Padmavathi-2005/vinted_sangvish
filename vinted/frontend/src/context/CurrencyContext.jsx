@@ -27,7 +27,7 @@ export const CurrencyProvider = ({ children }) => {
 
                 if (Array.isArray(currenciesRes.data)) {
                     setCurrencies(currenciesRes.data);
-                    
+
                     if (defCurrency) {
                         const foundDefault = currenciesRes.data.find(c => c._id === defCurrency);
                         if (foundDefault) setDefaultCurrency(foundDefault);
@@ -78,8 +78,8 @@ export const CurrencyProvider = ({ children }) => {
 
         if (itemCurrency) {
             const itemCurrencyId = typeof itemCurrency === 'object' ? itemCurrency._id : itemCurrency;
-            const found = currencies.find(c => 
-                c._id === itemCurrencyId || 
+            const found = currencies.find(c =>
+                c._id === itemCurrencyId ||
                 c.code?.toLowerCase() === (itemCurrencyId || '').toString().toLowerCase()
             );
             if (found) {

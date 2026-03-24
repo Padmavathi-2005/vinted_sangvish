@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import axios from '../../utils/axios';
 import {
     FaWallet, FaArrowDown, FaArrowUp, FaClock, FaCheckCircle,
-    FaExclamationCircle, FaExchangeAlt, FaMoneyBillWave, FaUniversity
+    FaExclamationCircle, FaExchangeAlt, FaMoneyBillWave, FaUniversity, FaPlus
 } from 'react-icons/fa';
 import CurrencyContext from '../../context/CurrencyContext';
 import { useTranslation } from 'react-i18next';
@@ -11,19 +11,19 @@ import PayoutMethodsContent from './PayoutMethodsContent';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/WalletContent.css';
 
-/* ── sub-tab config ──────────────────────────────────────── */
-const SUB_TABS = [
-    { key: 'wallet',         icon: <FaWallet />,         label: 'Wallet'       },
-    { key: 'transactions',   icon: <FaExchangeAlt />,    label: 'Transactions' },
-    { key: 'withdrawals',    icon: <FaMoneyBillWave />,  label: 'Withdrawals'  },
-    { key: 'payout-methods', icon: <FaUniversity />,     label: 'Payout'       },
-];
-
 /* ── Component ───────────────────────────────────────────── */
 const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
     const { t } = useTranslation();
+
+    /* ── sub-tab config ──────────────────────────────────────── */
+    const SUB_TABS = [
+        { key: 'wallet', icon: <FaWallet />, label: t('wallet.wallet', 'Wallet') },
+        { key: 'transactions', icon: <FaExchangeAlt />, label: t('wallet.transactions', 'Transactions') },
+        { key: 'withdrawals', icon: <FaMoneyBillWave />, label: t('wallet.withdraw', 'Withdraw') },
+        { key: 'payout-methods', icon: <FaUniversity />, label: t('wallet.payout', 'Payout') },
+    ];
     const navigate = useNavigate();
-    const { formatPrice, currentCurrency } = useContext(CurrencyContext);
+    const { formatPrice, currentCurrency, defaultCurrency } = useContext(CurrencyContext);
 
     /* internal sub-tab state — kept in sync with sidebar prop */
     const [activeSubTab, setActiveSubTab] = useState(propSubTab);
@@ -32,14 +32,14 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
         setActiveSubTab(propSubTab);
     }, [propSubTab]);
 
-    const [loading, setLoading]                   = useState(true);
-    const [walletData, setWalletData]             = useState(null);
-    const [withdrawHistory, setWithdrawHistory]   = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [walletData, setWalletData] = useState(null);
+    const [withdrawHistory, setWithdrawHistory] = useState([]);
     const [userPayoutMethods, setUserPayoutMethods] = useState([]);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-    const [withdrawForm, setWithdrawForm]         = useState({ amount: '', payout_method_id: '' });
-    const [submitting, setSubmitting]             = useState(false);
-    const [message, setMessage]                   = useState(null);
+    const [withdrawForm, setWithdrawForm] = useState({ amount: '', payout_method_id: '' });
+    const [submitting, setSubmitting] = useState(false);
+    const [message, setMessage] = useState(null);
     const [isPayoutDropdownOpen, setIsPayoutDropdownOpen] = useState(false);
 
     const fetchData = async () => {
@@ -76,18 +76,15 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
             await axios.post('/api/wallet/withdraw', {
                 amount: parseFloat(withdrawForm.amount),
                 payout_method_id: withdrawForm.payout_method_id,
-                currency: currentCurrency?.code || 'INR'
+                currency: defaultCurrency?.code || currentCurrency?.code || 'INR'
             });
-            setMessage({ type: 'success', text: 'Withdrawal request submitted successfully!' });
+            alert('Withdrawal request submitted successfully!');
             const def = userPayoutMethods.find(m => m.is_default) || userPayoutMethods[0];
             setWithdrawForm({ amount: '', payout_method_id: def?._id || '' });
-            setTimeout(() => {
-                setShowWithdrawModal(false);
-                setMessage(null);
-                fetchData();
-            }, 2000);
+            setShowWithdrawModal(false);
+            fetchData();
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Withdrawal failed.' });
+            alert(err.response?.data?.message || 'Withdrawal failed.');
         } finally {
             setSubmitting(false);
         }
@@ -106,7 +103,14 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                 <div className="wc-hero-icon"><FaWallet /></div>
                 <div className="wc-hero-text">
                     <div className="wc-hero-label">{t('wallet.total_balance', 'Total Balance')}</div>
-                    <div className="wc-hero-amount">{formatPrice(walletData?.wallet?.balance || 0)}</div>
+                    <div className="wc-hero-amount">
+                        {formatPrice(walletData?.wallet?.balance || 0, null, defaultCurrency)}
+                    </div>
+                    {currentCurrency?.code !== defaultCurrency?.code && (
+                        <div className="wc-hero-converted" style={{ fontSize: '0.8rem', opacity: 0.7, fontWeight: '500' }}>
+                            ≈ {formatPrice(walletData?.wallet?.balance || 0)} <span style={{ fontSize: '0.75rem', fontWeight: '400', opacity: 0.8 }}>({t('common.in', 'in')} {currentCurrency?.code})</span>
+                        </div>
+                    )}
                 </div>
                 {withdrawHistory?.some(r => r.status === 'pending') ? (
                     <button className="wc-withdraw-btn pending" disabled style={{ opacity: 0.7, cursor: 'not-allowed' }}>
@@ -154,7 +158,7 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                             </div>
                             <div className="wc-tx-info">
                                 <div className="wc-tx-desc">
-                                    {tx.description ? safeString(tx.description) : (tx.type === 'credit' ? 'Credit' : 'Debit')}
+                                    {tx.description ? safeString(tx.description) : (tx.type === 'credit' ? t('wallet.credit', 'Credit') : t('wallet.debit', 'Debit'))}
                                 </div>
                                 <div className="wc-tx-meta">
                                     <span>{new Date(tx.created_at).toLocaleDateString()}</span>
@@ -163,12 +167,17 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                             </div>
                             <div className="wc-tx-right">
                                 <span className={`wc-tx-amount ${tx.type === 'credit' ? 'credit' : 'debit'}`}>
-                                    {tx.type === 'credit' ? '+' : '−'}{formatPrice(tx.amount)}
+                                    {tx.type === 'credit' ? '+' : '−'}{formatPrice(tx.amount, null, defaultCurrency)}
                                 </span>
+                                {currentCurrency?.code !== defaultCurrency?.code && (
+                                    <span className="wc-tx-converted" style={{ fontSize: '0.72rem', opacity: 0.6, marginTop: '-2px' }}>
+                                        {tx.type === 'credit' ? '+' : '−'}{formatPrice(tx.amount)} <span style={{ fontSize: '0.65rem' }}>({currentCurrency?.code})</span>
+                                    </span>
+                                )}
                                 <span className={`wc-tx-status ${tx.status}`}>
-                                    {tx.status === 'completed' ? <><FaCheckCircle size={9} /> Done</> :
-                                     tx.status === 'failed'    ? <><FaExclamationCircle size={9} /> Failed</> :
-                                                                 <><FaClock size={9} /> Pending</>}
+                                    {tx.status === 'completed' ? <><FaCheckCircle size={9} /> {t('wallet.completed', 'Completed')}</> :
+                                        tx.status === 'failed' ? <><FaExclamationCircle size={9} /> {t('wallet.failed', 'Failed')}</> :
+                                            <><FaClock size={9} /> {t('wallet.pending', 'Pending')}</>}
                                 </span>
                             </div>
                         </div>
@@ -212,11 +221,16 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                             )}
                         </div>
                         <div className="wc-tx-right">
-                            <span className="wc-tx-amount debit">{formatPrice(req.amount)}</span>
+                            <span className="wc-tx-amount debit">{formatPrice(req.amount, null, defaultCurrency)}</span>
+                            {currentCurrency?.code !== defaultCurrency?.code && (
+                                <span className="wc-tx-converted" style={{ fontSize: '0.72rem', opacity: 0.6, marginTop: '-2px' }}>
+                                    - {formatPrice(req.amount)} <span style={{ fontSize: '0.65rem' }}>({currentCurrency?.code})</span>
+                                </span>
+                            )}
                             <span className={`wc-tx-status ${req.status === 'completed' ? 'completed' : req.status === 'pending' ? 'pending' : 'failed'}`}>
-                                {req.status === 'completed' ? <><FaCheckCircle size={9}/> Done</> :
-                                 req.status === 'pending'   ? <><FaClock size={9}/> Pending</> :
-                                                              <><FaExclamationCircle size={9}/> {req.status}</>}
+                                {req.status === 'completed' ? <><FaCheckCircle size={9} /> Done</> :
+                                    req.status === 'pending' ? <><FaClock size={9} /> Pending</> :
+                                        <><FaExclamationCircle size={9} /> {req.status}</>}
                             </span>
                         </div>
                     </div>
@@ -239,7 +253,12 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                     <div>
                         <h3 className="wc-modal-title">{t('wallet.request_withdrawal', 'Request Withdrawal')}</h3>
                         <p className="wc-modal-sub">
-                            {t('wallet.available', 'Available')}: <strong>{formatPrice(walletData?.wallet?.balance || 0)}</strong>
+                            {t('wallet.available', 'Available')}: <strong>{formatPrice(walletData?.wallet?.balance || 0, null, defaultCurrency)}</strong>
+                            {currentCurrency?.code !== defaultCurrency?.code && (
+                                <span className="ms-2 opacity-75" style={{ fontSize: '0.85em' }}>
+                                    (≈ {formatPrice(walletData?.wallet?.balance || 0)} {t('common.in', 'in')} {currentCurrency?.code})
+                                </span>
+                            )}
                         </p>
                     </div>
                     <button className="btn-close" onClick={() => setShowWithdrawModal(false)} />
@@ -261,7 +280,7 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                                 {t('wallet.amount_to_withdraw', 'Amount to withdraw')}
                             </label>
                             <div className="wc-input-row">
-                                <span className="wc-currency-sym">{currentCurrency?.symbol || '₹'}</span>
+                                <span className="wc-currency-sym">{defaultCurrency?.symbol || currentCurrency?.symbol || '₹'}</span>
                                 <input
                                     type="number"
                                     className="wc-input"
@@ -306,11 +325,36 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                                             {m.is_default && <span className="wc-payout-default">Default</span>}
                                         </div>
                                     ))}
+                                    <button
+                                        type="button"
+                                        className="wc-add-method-inline"
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            marginTop: '10px',
+                                            background: '#f8fafc',
+                                            border: '1px dashed #cbd5e1',
+                                            borderRadius: '12px',
+                                            color: '#64748b',
+                                            fontSize: '0.85rem',
+                                            fontWeight: '600',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px'
+                                        }}
+                                        onClick={() => {
+                                            setShowWithdrawModal(false);
+                                            setActiveSubTab('payout-methods');
+                                        }}
+                                    >
+                                        <FaPlus size={10} /> {t('wallet.add_payout_method', 'Add Payout Method')}
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="wc-no-payout">
                                     <FaUniversity className="wc-no-payout-icon" />
-                                    <p>No payout methods saved yet.</p>
+                                    <p>{t('wallet.no_payout_methods', 'No payout methods saved yet.')}</p>
                                     <button
                                         type="button"
                                         className="wc-add-payout-btn"
@@ -319,7 +363,7 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                                             setActiveSubTab('payout-methods');
                                         }}
                                     >
-                                        + Add Payout Method
+                                        <FaPlus size={10} /> {t('wallet.add_payout_method', 'Add Payout Method')}
                                     </button>
                                 </div>
                             )}
@@ -365,8 +409,8 @@ const WalletContent = ({ activeSubTab: propSubTab = 'wallet' }) => {
                         <div className="mt-3">{renderTransactions(3)}</div>
                     </>
                 )}
-                {activeSubTab === 'transactions'   && renderTransactions()}
-                {activeSubTab === 'withdrawals'    && renderWithdrawals()}
+                {activeSubTab === 'transactions' && renderTransactions()}
+                {activeSubTab === 'withdrawals' && renderWithdrawals()}
                 {activeSubTab === 'payout-methods' && <PayoutMethodsContent />}
             </div>
 

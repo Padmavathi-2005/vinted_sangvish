@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from '../../utils/axios';
-import { FaTimes, FaUser, FaLock, FaPen, FaCamera } from 'react-icons/fa';
+import { FaTimes, FaUser, FaLock, FaPen, FaCamera, FaMapMarkerAlt, FaCity, FaGlobe, FaMapPin } from 'react-icons/fa';
 import '../../styles/EditProfileModal.css';
 import { getImageUrl } from '../../utils/constants';
 import { useTranslation } from 'react-i18next';
@@ -257,7 +257,7 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
                         />
                     </div>
                     <small className="text-muted" style={{ fontSize: '10px', marginTop: '4px', display: 'block' }}>
-                        Display name must be unique and will be shown across the platform.
+                        {t('profile.display_name_hint', 'Display name must be unique and will be shown across the platform.')}
                     </small>
                 </div>
 
@@ -275,82 +275,94 @@ const EditProfileModal = ({ user, onClose, onUpdate, inline }) => {
                     </div>
                 </div>
 
-                <div className="form-section-title">Shipping Address (For Orders)</div>
+                <div className="form-section-title">{t('profile.shipping_address_orders', 'Shipping Address (For Orders)')}</div>
                 
                 <div className="form-group">
-                    <label>Full Name on Address</label>
-                    <input
-                        type="text"
-                        name="address.full_name"
-                        className="form-control-custom"
-                        value={formData.address.full_name}
-                        onChange={handleChange}
-                        placeholder="e.g. John Doe"
-                    />
+                    <label>{t('profile.full_name_on_address', 'Full Name on Address')}</label>
+                    <div className="input-with-icon">
+                        <FaUser className="input-icon" />
+                        <input
+                            type="text"
+                            name="address.full_name"
+                            value={formData.address.full_name}
+                            onChange={handleChange}
+                            placeholder="e.g. John Doe"
+                        />
+                    </div>
                 </div>
 
                 <div className="form-group">
-                    <label>Street Address</label>
-                    <input
-                        type="text"
-                        name="address.address_line"
-                        className="form-control-custom"
-                        value={formData.address.address_line}
-                        onChange={handleChange}
-                        placeholder="House No, Street, Landmark"
-                    />
-                </div>
-
-                <div className="row">
-                    <div className="col-md-6">
-                        <div className="form-group">
-                            <label>City</label>
-                            <input
-                                type="text"
-                                name="address.city"
-                                className="form-control-custom"
-                                value={formData.address.city}
-                                onChange={handleChange}
-                            />
-                        </div>
-                    </div>
-                    <div className="col-md-6">
-                        <div className="form-group">
-                            <label>State / Province</label>
-                            <input
-                                type="text"
-                                name="address.state"
-                                className="form-control-custom"
-                                value={formData.address.state}
-                                onChange={handleChange}
-                            />
-                        </div>
+                    <label>{t('profile.street_address', 'Street Address')}</label>
+                    <div className="input-with-icon">
+                        <FaMapMarkerAlt className="input-icon" />
+                        <input
+                            type="text"
+                            name="address.address_line"
+                            value={formData.address.address_line}
+                            onChange={handleChange}
+                            placeholder="House No, Street, Landmark"
+                        />
                     </div>
                 </div>
 
                 <div className="row">
                     <div className="col-md-6">
                         <div className="form-group">
-                            <label>Country</label>
-                            <input
-                                type="text"
-                                name="address.country"
-                                className="form-control-custom"
-                                value={formData.address.country}
-                                onChange={handleChange}
-                            />
+                            <label>{t('profile.city', 'City')}</label>
+                            <div className="input-with-icon">
+                                <FaCity className="input-icon" />
+                                <input
+                                    type="text"
+                                    name="address.city"
+                                    value={formData.address.city}
+                                    onChange={handleChange}
+                                />
+                            </div>
                         </div>
                     </div>
                     <div className="col-md-6">
                         <div className="form-group">
-                            <label>Pincode / Zip Code</label>
-                            <input
-                                type="text"
-                                name="address.pincode"
-                                className="form-control-custom"
-                                value={formData.address.pincode}
-                                onChange={handleChange}
-                            />
+                            <label>{t('profile.state', 'State / Province')}</label>
+                            <div className="input-with-icon">
+                                <FaGlobe className="input-icon" />
+                                <input
+                                    type="text"
+                                    name="address.state"
+                                    value={formData.address.state}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="row">
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>{t('profile.country', 'Country')}</label>
+                            <div className="input-with-icon">
+                                <FaGlobe className="input-icon" />
+                                <input
+                                    type="text"
+                                    name="address.country"
+                                    value={formData.address.country}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-6">
+                        <div className="form-group">
+                            <label>{t('profile.pincode', 'Pincode / Zip Code')}</label>
+                            <div className="input-with-icon">
+                                <FaMapPin className="input-icon" />
+                                <input
+                                    type="text"
+                                    name="address.pincode"
+                                    value={formData.address.pincode}
+                                    onChange={handleChange}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

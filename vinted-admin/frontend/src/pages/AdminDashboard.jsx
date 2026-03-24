@@ -156,7 +156,7 @@ const AdminDashboard = () => {
                                 <Link to="/wallet/withdrawal-requests?filter=pending" className="more-info text-decoration-none d-flex align-items-center gap-1">{t('dashboard.commission.wallet')} <FaArrowRight size={12} /></Link>
                             </div>
                             <Row className="g-3">
-                                <Col sm={6}>
+                                <Col sm={12}>
                                     <Link to="/wallet/withdrawal-requests?filter=pending" className="stat-card-link">
                                         <div className="stat-card" style={{ background: 'linear-gradient(135deg, #f59e0b, #b45309)' }}>
                                             <div className="stat-content">
@@ -167,28 +167,7 @@ const AdminDashboard = () => {
                                         </div>
                                     </Link>
                                 </Col>
-                                <Col sm={6}>
-                                    <Link to="/listings?filter=pending" className="stat-card-link">
-                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
-                                            <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.content?.pendingItems)}</div>
-                                                <div className="stat-label">{t('dashboard.content.pending_items')}</div>
-                                            </div>
-                                            <div className="stat-icon"><FaCheckCircle /></div>
-                                        </div>
-                                    </Link>
-                                </Col>
-                                <Col sm={12}>
-                                    <Link to="/categories" className="stat-card-link">
-                                        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
-                                            <div className="stat-content">
-                                                <div className="stat-number">{loading ? '...' : formatTotal(stats.content?.categories)}</div>
-                                                <div className="stat-label">{t('dashboard.content.total_categories')}</div>
-                                            </div>
-                                            <div className="stat-icon"><FaThLarge /></div>
-                                        </div>
-                                    </Link>
-                                </Col>
+
                             </Row>
                         </Col>
 

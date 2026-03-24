@@ -21,6 +21,7 @@ import Subscribers from './pages/Subscribers';
 import Notifications from './pages/Notifications';
 import Messages from './pages/Messages';
 import ShippingCompanies from './pages/ShippingCompanies';
+import ProductReports from './pages/ProductReports';
 import NotFound from './pages/NotFound';
 
 import { getAdminInfo } from './utils/auth';
@@ -39,6 +40,7 @@ function App() {
                     <Route path="/users" element={<Users />} />
                     <Route path="/listings" element={<Listings />} />
                     <Route path="/orders" element={<Orders />} />
+                    <Route path="/product-reports" element={<ProductReports />} />
                     <Route path="/shipping-companies" element={<ShippingCompanies />} />
                     <Route path="/wallet/transactions" element={<Transactions />} />
                     <Route path="/wallet/transactions" element={<Transactions />} />

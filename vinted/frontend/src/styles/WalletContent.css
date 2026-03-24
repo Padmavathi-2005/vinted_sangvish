@@ -16,7 +16,9 @@
     margin-bottom: 0;
 }
 
-.wc-tab-bar::-webkit-scrollbar { display: none; }
+.wc-tab-bar::-webkit-scrollbar {
+    display: none;
+}
 
 .wc-tab {
     display: flex;
@@ -35,8 +37,10 @@
     white-space: nowrap;
     transition: all 0.2s;
     position: relative;
-    flex: 1; /* Stretch across space proportionally */
-    min-width: 80px; /* Prevent squashing below readable width */
+    flex: 1;
+    /* Stretch across space proportionally */
+    min-width: 80px;
+    /* Prevent squashing below readable width */
 }
 
 .wc-tab:hover {
@@ -133,12 +137,12 @@
     transition: all 0.2s;
     white-space: nowrap;
     flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .wc-withdraw-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
 /* ── Section ─────────────────────────────────────────────── */
@@ -184,7 +188,9 @@
     transition: background 0.2s;
 }
 
-.wc-link-btn:hover { background: #f0f9ff; }
+.wc-link-btn:hover {
+    background: #f0f9ff;
+}
 
 /* ── Transaction rows ─────────────────────────────────────── */
 .wc-tx-list {
@@ -202,7 +208,9 @@
     transition: background 0.15s;
 }
 
-.wc-tx-row:hover { background: #f8fafc; }
+.wc-tx-row:hover {
+    background: #f8fafc;
+}
 
 .wc-tx-icon {
     width: 36px;
@@ -281,8 +289,13 @@
     font-weight: 700;
 }
 
-.wc-tx-amount.credit { color: #16a34a; }
-.wc-tx-amount.debit  { color: #dc2626; }
+.wc-tx-amount.credit {
+    color: #16a34a;
+}
+
+.wc-tx-amount.debit {
+    color: #dc2626;
+}
 
 .wc-tx-status {
     display: flex;
@@ -294,9 +307,20 @@
     padding: 2px 7px;
 }
 
-.wc-tx-status.completed { background: #dcfce7; color: #15803d; }
-.wc-tx-status.pending   { background: #fef9c3; color: #854d0e; }
-.wc-tx-status.failed    { background: #fee2e2; color: #b91c1c; }
+.wc-tx-status.completed {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.wc-tx-status.pending {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.wc-tx-status.failed {
+    background: #fee2e2;
+    color: #b91c1c;
+}
 
 /* ── Empty ────────────────────────────────────────────────── */
 .wc-empty {
@@ -322,8 +346,8 @@
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
     z-index: 1050;
     display: flex;
     align-items: flex-end;
@@ -332,7 +356,15 @@
     animation: wc-fade-in 0.2s ease;
 }
 
-@keyframes wc-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wc-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
 
 .wc-modal-card {
     background: white;
@@ -346,11 +378,20 @@
 }
 
 @keyframes wc-slide-up {
-    from { transform: translateY(60px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
+    from {
+        transform: translateY(60px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
-.wc-modal-card::-webkit-scrollbar { display: none; }
+.wc-modal-card::-webkit-scrollbar {
+    display: none;
+}
 
 .wc-modal-header {
     display: flex;
@@ -394,8 +435,15 @@
     margin-bottom: 16px;
 }
 
-.wc-alert-success { background: #dcfce7; color: #15803d; }
-.wc-alert-error   { background: #fee2e2; color: #b91c1c; }
+.wc-alert-success {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.wc-alert-error {
+    background: #fee2e2;
+    color: #b91c1c;
+}
 
 /* ── Form ─────────────────────────────────────────────────── */
 .wc-form-group {
@@ -422,7 +470,9 @@
     transition: border-color 0.2s;
 }
 
-.wc-input-row:focus-within { border-color: var(--primary-color, #0ea5e9); }
+.wc-input-row:focus-within {
+    border-color: var(--primary-color, #0ea5e9);
+}
 
 .wc-currency-sym {
     padding: 0 14px;
@@ -446,7 +496,10 @@
     outline: none;
 }
 
-.wc-input::placeholder { color: #cbd5e1; font-weight: 400; }
+.wc-input::placeholder {
+    color: #cbd5e1;
+    font-weight: 400;
+}
 
 /* ── Payout method list ───────────────────────────────────── */
 .wc-payout-list {
@@ -578,7 +631,10 @@
     transition: all 0.2s;
 }
 
-.wc-add-payout-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.wc-add-payout-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
 
 /* ── Submit button ────────────────────────────────────────── */
 .wc-submit-btn {
@@ -616,7 +672,7 @@
         overflow-x: hidden;
     }
 
-    .wc-tab-bar { 
+    .wc-tab-bar {
         padding: 0;
         gap: 0;
         border-radius: 0;
@@ -635,44 +691,49 @@
         font-size: 0.65rem;
     }
 
-    .wc-hero { 
-        padding: 20px 16px; 
+    .wc-hero {
+        padding: 20px 16px;
         margin: 0 0 12px 0;
         border-radius: 12px;
         width: 100%;
     }
 
-    .wc-hero-inner { 
+    .wc-hero-inner {
         flex-direction: column;
         align-items: center;
         text-align: center;
         gap: 12px;
     }
 
-    .wc-hero-amount { font-size: 1.8rem; }
+    .wc-hero-amount {
+        font-size: 1.8rem;
+    }
 
-    .wc-withdraw-btn { 
+    .wc-withdraw-btn {
         width: 100%;
         padding: 12px;
     }
 
-    .wc-section { 
-        padding: 14px 12px; 
+    .wc-section {
+        padding: 14px 12px;
         margin: 0 0 12px 0;
         border-radius: 12px;
         width: 100%;
     }
 
-    .wc-tx-row { 
+    .wc-tx-row {
         padding: 10px 0;
         border-bottom: 1px solid #f1f5f9;
         margin: 0;
     }
 
-    .wc-tx-row:last-child { border-bottom: none; }
+    .wc-tx-row:last-child {
+        border-bottom: none;
+    }
 }
 
 @media (min-width: 601px) {
+
     /* On tablet+ show the tab bar but render under sidebar */
     .wc-modal-overlay {
         align-items: center;

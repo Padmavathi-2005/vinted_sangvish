@@ -53,6 +53,11 @@ import {
     seedShippingCompanies
 } from '../controllers/adminController.js';
 import {
+    getReportsAdmin,
+    updateReportStatus,
+    handleReportAction
+} from '../controllers/reportController.js';
+import {
     getSubscribers,
     updateSubscriber,
     deleteSubscriber,
@@ -136,5 +141,10 @@ router.put('/notifications/:id/read', markNotificationAsRead);
 router.get('/newsletter', getSubscribers);
 router.patch('/newsletter/:id', updateSubscriber);
 router.delete('/newsletter/:id', deleteSubscriber);
+
+// Product Reports
+router.get('/product-reports', getReportsAdmin);
+router.put('/product-reports/:id/status', updateReportStatus);
+router.post('/product-reports/:id/action', handleReportAction);
 
 export default router;

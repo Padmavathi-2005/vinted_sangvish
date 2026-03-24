@@ -18,7 +18,7 @@ const withdrawalRequestSchema = mongoose.Schema(
         },
         currency: {
             type: String,
-            default: 'INR',
+            required: true,
         },
         payment_method: {
             type: String, // Bank, UPI, PayPal, etc.

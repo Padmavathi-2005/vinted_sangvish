@@ -15,6 +15,7 @@ import NotificationsContent from '../components/profile/NotificationsContent';
 import WalletContent from '../components/profile/WalletContent';
 import { useTranslation } from 'react-i18next';
 import Meta from '../components/common/Meta';
+import CustomSelect from '../components/common/CustomSelect';
 import { getImageUrl, getItemImageUrl, safeString } from '../utils/constants';
 
 const Profile = () => {
@@ -680,6 +681,38 @@ const Profile = () => {
         }
     };
 
+    const handleDeleteAccount = () => {
+        if (user.balance > 0) {
+            setActionModal({
+                show: true,
+                type: 'error',
+                title: t('profile.cannot_delete_account', 'Account Deletion Blocked'),
+                message: t('profile.balance_remaining_error', 'You have a remaining balance of {{balance}} in your wallet. Please withdraw all funds before deleting your account.', { balance: formatPrice(user.balance) }),
+                confirmLabel: t('common.ok', 'OK')
+            });
+            return;
+        }
+
+        setActionModal({
+            show: true,
+            type: 'cancel',
+            title: t('profile.delete_account', 'Delete Account'),
+            message: t('profile.delete_account_confirm', 'Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data, listings, and wallet balance will be lost.'),
+            confirmLabel: t('profile.delete_my_account', 'Delete My Account'),
+            onConfirm: async (reason) => {
+                if (!reason.trim()) return alert('Please tell us why you are leaving (reason is required)');
+                try {
+                    await axios.delete('/api/users/profile', { data: { reason } });
+                    alert('Your account has been deleted successfully.');
+                    logout();
+                    navigate('/');
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Failed to delete account');
+                }
+            }
+        });
+    };
+
     return (
         <div className="profile-dashboard">
             <Meta title={`${getTabLabel(activeTab)} | My Account`} description="Manage your profile, orders, and listings on Vinted Marketplace." />
@@ -765,29 +798,32 @@ const Profile = () => {
                 {/* ─── Sidebar ─── */}
                 <div className="pd-sidebar">
                     <div className="pd-card pd-profile-card">
-                        <div className="pd-avatar-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-color)', borderRadius: '50%', overflow: 'hidden' }}>
-                            <div className="pd-avatar-placeholder" style={{ fontSize: '2rem', fontWeight: '800', color: 'white' }}>
-                                {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
+                        <div className="pd-avatar-outer-container">
+                            <div className="pd-avatar-wrapper">
+                                <div className="pd-avatar-placeholder">
+                                    {safeString(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                {user.profile_image && (
+                                    <img
+                                        src={getImageUrl(user.profile_image)}
+                                        alt="Profile"
+                                        className="pd-avatar"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                        }}
+                                    />
+                                )}
                             </div>
-                            {user.profile_image && (
-                                <img
-                                    src={getImageUrl(user.profile_image)}
-                                    alt="Profile"
-                                    className="pd-avatar"
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
-                                    onError={(e) => {
-                                        e.target.style.display = 'none';
-                                    }}
-                                />
-                            )}
-                            <div className="pd-avatar-upload-icon" onClick={() => handleTabChange('profile_settings')}><FaUserEdit /></div>
+                            <div className="pd-avatar-upload-icon" onClick={() => handleTabChange('profile_settings')}>
+                                <FaUserEdit />
+                            </div>
                         </div>
                         <div className="d-grid gap-2 mt-3">
                             <button className="btn btn-outline-danger btn-sm rounded-pill py-2" onClick={logout}>{t('user_menu.logout', 'Logout')}</button>
                         </div>
                         <div className="mt-3 pt-3 border-top">
                             <p className="text-muted extra-small mb-2 fw-bold text-uppercase" style={{ letterSpacing: '0.05em' }}>{t('profile.account_security', 'Account & Privacy')}</p>
-                            <button className="btn btn-link text-danger btn-sm text-decoration-none fw-bold p-0" style={{ fontSize: '0.8rem' }}>{t('profile.delete_account', 'Delete Account')}</button>
+                            <button className="btn btn-link text-danger btn-sm text-decoration-none fw-bold p-0" style={{ fontSize: '0.8rem' }} onClick={handleDeleteAccount}>{t('profile.delete_account', 'Delete Account')}</button>
                         </div>
 
                         {/* Sub-menu Items (Now inside Profile Card for a cleaner look) */}
@@ -872,7 +908,7 @@ const Profile = () => {
                 </div>
 
                 {/* ─── Main Content ─── */}
-                <div className="pd-main">
+                <div className={`pd-main ${['messages', 'notifications'].includes(activeTab) ? 'pd-main-p0' : ''}`}>
                     {activeTab === 'dashboard' && (
                         <>
                             <div className="pd-stats-row">
@@ -1018,13 +1054,13 @@ const Profile = () => {
                                                 onClick={async () => {
                                                     try {
                                                         await axios.put('/api/users/profile', { bundle_discounts: user.bundle_discounts });
-                                                        alert('Settings updated successfully!');
+                                                        alert(t('profile.settings_updated', 'Settings updated successfully!'));
                                                     } catch (err) {
-                                                        alert('Failed to save settings');
+                                                        alert(t('profile.settings_failed', 'Failed to save settings'));
                                                     }
                                                 }}
                                             >
-                                                Update closet settings
+                                                {t('profile.update_closet_settings', 'Update closet settings')}
                                             </button>
                                         </div>
                                     </div>
@@ -1040,10 +1076,10 @@ const Profile = () => {
                                 <div className="d-flex gap-2 align-items-center">
                                     <div className={`pd-pagination-toggle-wrapper ${paginationMode === 'number' ? 'page-active' : ''}`}>
                                         <div className="pd-pagination-toggle-slider" />
-                                        <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('scroll')}>Scroll</div>
-                                        <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('number')}>Page</div>
+                                        <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('scroll')}>{t('profile.scroll', 'Scroll')}</div>
+                                        <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('number')}>{t('profile.page', 'Page')}</div>
                                     </div>
-                                    <Link to="/sell" className="btn btn-primary btn-sm px-3">Add New Item</Link>
+                                    <Link to="/sell" className="btn btn-primary btn-sm px-3">{t('profile.add_new_item', 'Add New Item')}</Link>
                                 </div>
                             </div>
 
@@ -1061,8 +1097,8 @@ const Profile = () => {
                                 ) : !listingsLoading && (
                                     <div className="w-100 text-center py-5 bg-white rounded-4 border border-dashed" style={{ gridColumn: '1 / -1' }}>
                                         <FaBoxOpen size={48} className="text-muted mb-3 opacity-25" />
-                                        <p className="text-muted">You haven't listed anything yet.</p>
-                                        <Link to="/sell" className="btn btn-link text-primary p-0">Start Selling Now</Link>
+                                        <p className="text-muted">{t('profile.no_listings_yet', "You haven't listed anything yet.")}</p>
+                                        <Link to="/sell" className="btn btn-link text-primary p-0">{t('profile.start_selling_now', 'Start Selling Now')}</Link>
                                     </div>
                                 )}
                             </div>
@@ -1070,7 +1106,7 @@ const Profile = () => {
                             {paginationMode === 'scroll' && listingsPage < listingsTotalPages && (
                                 <div className="text-center mt-5">
                                     <button className="btn btn-light btn-sm px-4 rounded-pill border" onClick={() => setListingsPage(p => p + 1)} disabled={listingsLoading}>
-                                        {listingsLoading ? 'Loading...' : 'Load More'}
+                                        {listingsLoading ? t('profile.loading', 'Loading...') : t('profile.load_more', 'Load More')}
                                     </button>
                                 </div>
                             )}
@@ -1091,8 +1127,8 @@ const Profile = () => {
                                 <h2 className="fw-bold m-0" style={{ fontSize: '1.2rem' }}>{t('profile.favorites')} ({favoritesTotalCount || 0})</h2>
                                 <div className={`pd-pagination-toggle-wrapper ${paginationMode === 'number' ? 'page-active' : ''}`}>
                                     <div className="pd-pagination-toggle-slider" />
-                                    <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('scroll')}>Scroll</div>
-                                    <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('number')}>Page</div>
+                                    <div className={`pd-pagination-option ${paginationMode === 'scroll' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('scroll')}>{t('profile.scroll', 'Scroll')}</div>
+                                    <div className={`pd-pagination-option ${paginationMode === 'number' ? 'active' : ''}`} onClick={() => handlePaginationModeChange('number')}>{t('profile.page', 'Page')}</div>
                                 </div>
                             </div>
 
@@ -1610,16 +1646,12 @@ const Profile = () => {
                                                                     <div className="mt-1 p-3 bg-light rounded-3 border">
                                                                         <p className="extra-small fw-bold text-primary mb-2 text-uppercase">1. Set Tracking Details</p>
                                                                         <label className="form-label mb-1 extra-small text-muted">{t('profile.courier_company', 'Courier Company')}</label>
-                                                                        <select
-                                                                            className="form-select form-select-sm mb-2"
+                                                                        <CustomSelect
+                                                                            options={shippingCompanies.map(comp => ({ value: comp._id, label: comp.company_name }))}
                                                                             value={dispatchForm.shipping_company_id}
-                                                                            onChange={(e) => setDispatchForm({ ...dispatchForm, shipping_company_id: e.target.value })}
-                                                                        >
-                                                                            <option value="">{t('profile.select_courier', '-- Select Courier --')}</option>
-                                                                            {shippingCompanies.map(comp => (
-                                                                                <option key={comp._id} value={comp._id}>{comp.company_name}</option>
-                                                                            ))}
-                                                                        </select>
+                                                                            onChange={(val) => setDispatchForm({ ...dispatchForm, shipping_company_id: val })}
+                                                                            placeholder={t('profile.select_courier', '-- Select Courier --')}
+                                                                        />
 
                                                                         <label className="form-label mb-1 extra-small text-muted">{t('profile.tracking_id', 'Tracking ID')}</label>
                                                                         <input

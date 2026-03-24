@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL === '/' ? '' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5003'),
+    baseURL: import.meta.env.VITE_API_BASE_URL === '/' ? '' : (import.meta.env.VITE_API_BASE_URL || 'https://vinted.sangvish.com'),
 });
 
 // Add interceptors to handle authentication tokens
