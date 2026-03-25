@@ -581,8 +581,8 @@ const MessagesContent = () => {
                                 </div>
                                 <div className="pd-msg-user-info">
                                     <div className="pd-msg-user-top">
-                                        <span className="pd-msg-user-name">{displayName}</span>
-                                        <span className="pd-msg-last-time">{conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : ''}</span>
+                                        <span className="pd-msg-user-name" style={{ fontWeight: conv.unread_count > 0 ? '800' : '700' }}>{displayName}</span>
+                                        <span className="pd-msg-last-time" style={{ color: conv.unread_count > 0 ? 'var(--primary-color, #3b82f6)' : '#94a3b8' }}>{conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : ''}</span>
                                     </div>
                                     <div className="pd-msg-last-text">
                                         {(() => {
@@ -602,9 +602,12 @@ const MessagesContent = () => {
                                             return safeString(lm);
                                         })()}
                                     </div>
-                                    {conv.status !== 'accepted' && (
-                                        <span className={`pd-msg-status ${conv.status}`}>{conv.status.toUpperCase()}</span>
-                                    )}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        {conv.status !== 'accepted' && (
+                                            <span className={`pd-msg-status ${conv.status}`}>{conv.status.toUpperCase()}</span>
+                                        )}
+                                        {conv.unread_count > 0 && <div className="pd-msg-unread-dot" />}
+                                    </div>
                                 </div>
                             </div>
                         );

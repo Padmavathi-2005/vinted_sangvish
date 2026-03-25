@@ -112,6 +112,16 @@ const AdminHeader = ({ toggleSidebar }) => {
         return link;
     };
 
+    const handleMarkAllRead = async () => {
+        try {
+            await axios.put('/api/admin/notifications/read-all');
+            setNotificationCount(0);
+            setLatestNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+        }
+    };
+
     const handleNotificationClick = async (notif) => {
         try {
             if (!notif.is_read) {
@@ -284,7 +294,14 @@ const AdminHeader = ({ toggleSidebar }) => {
                         <div className="notification-dropdown-menu">
                             <div className="dropdown-header d-flex justify-content-between align-items-center">
                                 <span>{t('header.recent_notifications')}</span>
-                                <span className="view-all-link" onClick={() => navigate('/notifications')}>{t('header.view_all')}</span>
+                                <div className="d-flex gap-2">
+                                    {notificationCount > 0 && (
+                                        <span className="view-all-link text-primary" onClick={(e) => { e.stopPropagation(); handleMarkAllRead(); }}>
+                                            {t('header.mark_all_read', 'All Read')}
+                                        </span>
+                                    )}
+                                    <span className="view-all-link" onClick={() => navigate('/notifications')}>{t('header.view_all')}</span>
+                                </div>
                             </div>
                             <div className="dropdown-list scroll-area">
                                 {Array.isArray(latestNotifications) && latestNotifications.length > 0 ? (

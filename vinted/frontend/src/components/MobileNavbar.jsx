@@ -5,7 +5,7 @@ import AuthContext from '../context/AuthContext';
 import '../styles/MobileNavbar.css';
 
 const MobileNavbar = () => {
-    const { user } = useContext(AuthContext);
+    const { user, mode } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -39,9 +39,9 @@ const MobileNavbar = () => {
                 </div>
             </div>
 
-            <Link to={user?.role === 'seller' ? '/profile?tab=my_listings' : '/profile?tab=orders'} className={`nav-item ${location.pathname.startsWith('/profile') && (currentTab === 'my_listings' || currentTab === 'orders') ? 'active' : ''}`}>
+            <Link to={mode === 'seller' ? '/profile?tab=listings' : '/profile?tab=orders'} className={`nav-item ${location.pathname.startsWith('/profile') && (currentTab === 'listings' || currentTab === 'orders') ? 'active' : ''}`}>
                 <FaShoppingBag className="nav-icon" />
-                <span>My ads</span>
+                <span>{mode === 'seller' ? 'Manage listings' : 'My orders'}</span>
             </Link>
 
             <Link to="/profile?tab=profile_settings" className={`nav-item ${location.pathname.startsWith('/profile') && currentTab === 'profile_settings' ? 'active' : ''}`}>

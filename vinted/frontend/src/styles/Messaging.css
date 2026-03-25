@@ -170,6 +170,15 @@
     margin-top: 2px;
 }
 
+.pd-msg-unread-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--primary-color, #3b82f6);
+    border-radius: 50%;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
 /* Chat Window (Right) */
 .pd-msg-chat-window {
     flex: 1;

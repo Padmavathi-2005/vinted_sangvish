@@ -16,9 +16,12 @@ export const SettingsProvider = ({ children }) => {
     });
     const [loading, setLoading] = useState(true);
 
+    const adminInfo = getAdminInfo();
+    const adminId = adminInfo?._id;
+
     useEffect(() => {
         initializeSettings();
-    }, []);
+    }, [adminId]);
 
     const applyTheme = (settings) => {
         if (!settings) return;
@@ -51,8 +54,8 @@ export const SettingsProvider = ({ children }) => {
             document.title = `${safeString(settings.site_name)} Admin`;
         }
 
-        if (settings.favicon) {
-            const faviconString = safeString(settings.favicon);
+        if (settings.site_favicon || settings.favicon) {
+            const faviconString = safeString(settings.site_favicon || settings.favicon);
             let link = document.querySelector("link[rel~='icon']");
             if (!link) {
                 link = document.createElement('link');
@@ -95,6 +98,7 @@ export const SettingsProvider = ({ children }) => {
                     paginationMode: combinedDefaults.pagination_mode || globalSettings.paginationMode,
                     siteName: combinedDefaults.site_name || globalSettings.siteName,
                     siteLogo: combinedDefaults.site_logo || globalSettings.siteLogo,
+                    siteFavicon: combinedDefaults.site_favicon || globalSettings.siteFavicon,
                     defaultTheme: combinedDefaults.default_theme || globalSettings.defaultTheme,
                     imageNotFound: combinedDefaults.image_not_found || globalSettings.imageNotFound,
                     emptyTableImage: combinedDefaults.empty_table_image || globalSettings.emptyTableImage
@@ -141,6 +145,7 @@ export const SettingsProvider = ({ children }) => {
                     paginationMode: data.pagination_mode || prev.paginationMode,
                     siteName: data.site_name || prev.siteName,
                     siteLogo: data.site_logo || prev.siteLogo,
+                    siteFavicon: data.site_favicon || prev.siteFavicon,
                     defaultTheme: data.default_theme || prev.defaultTheme,
                     imageNotFound: data.image_not_found || prev.imageNotFound,
                     emptyTableImage: data.empty_table_image || prev.emptyTableImage

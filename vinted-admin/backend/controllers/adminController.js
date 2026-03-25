@@ -1274,43 +1274,7 @@ const getNotifications = asyncHandler(async (req, res) => {
         notifications.push(obj);
     });
 
-    // 2. Add Pending Withdrawal Requests
-    const pendingWithdrawals = await WithdrawalRequest.find({ status: 'pending' })
-        .sort({ created_at: -1 })
-        .limit(10)
-        .populate('user_id', 'username');
-
-    pendingWithdrawals.forEach(req => {
-        notifications.push({
-            _id: `withdrawal_${req._id}`,
-            title: 'New Withdrawal Request',
-            message: `${req.user_id?.username || 'User'} requested a withdrawal of ${req.amount}`,
-            created_at: req.created_at,
-            is_read: false,
-            link: '/wallet/withdrawal-requests',
-            type: 'request'
-        });
-    });
-
-    // 3. Add New Users (last 24h)
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const newUsers = await User.find({ created_at: { $gte: twentyFourHoursAgo } })
-        .sort({ created_at: -1 })
-        .limit(10);
-
-    newUsers.forEach(user => {
-        notifications.push({
-            _id: `user_${user._id}`,
-            title: 'New User Registration',
-            message: `${user.username} has just joined the platform.`,
-            created_at: user.created_at,
-            is_read: false,
-            link: '/users',
-            type: 'info'
-        });
-    });
-
-    // Sort combined list by date
+    // Sort list by date
     notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     res.json(notifications.slice(0, Number(limit)));
@@ -1325,11 +1289,8 @@ const getNotificationCount = asyncHandler(async (req, res) => {
         on_model: 'Admin',
         is_read: false 
     });
-    const withdrawalCount = await WithdrawalRequest.countDocuments({ status: 'pending' });
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const userCount = await User.countDocuments({ created_at: { $gte: twentyFourHoursAgo } });
-
-    res.json({ count: dbCount + withdrawalCount + userCount });
+    console.log(`[Admin Notif Check] Unread count for ${req.user._id}: ${dbCount}`);
+    res.json({ count: dbCount });
 });
     
 // @desc    Get all user payout methods
@@ -1345,21 +1306,40 @@ const getPayoutMethods = asyncHandler(async (req, res) => {
 // @access  Private (Admin)
 const markNotificationAsRead = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    console.log(`[Admin Notif Action] Marking as read individual ID: ${id}`);
 
-    // Handle dynamic (synthesized) notifications
-    if (String(id).startsWith('withdrawal_') || String(id).startsWith('user_')) {
-        return res.json({ message: 'Dynamic notification acknowledged' });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        console.warn(`[Admin Notif Action] SKIPPED: ${id} is not a valid ObjectId (likely mock data).`);
+        return res.json({ message: 'Mock notification acknowledged' });
     }
 
-    const notification = await Notification.findById(id);
+    const notification = await Notification.findByIdAndUpdate(
+        id,
+        { is_read: true },
+        { new: true }
+    );
+
     if (notification) {
-        notification.is_read = true;
-        await notification.save();
+        console.log(`[Admin Notif Action] SUCCESS: Notification ${id} is now read.`);
         res.json({ message: 'Notification marked as read' });
     } else {
+        console.warn(`[Admin Notif Action] FAILED: Notification ${id} not found.`);
         res.status(404);
         throw new Error('Notification not found');
     }
+});
+
+// @desc    Mark all admin notifications as read
+// @route   PUT /api/admin/notifications/read-all
+// @access  Private (Admin)
+const markAllAdminNotificationsAsRead = asyncHandler(async (req, res) => {
+    console.log(`[Admin Notif Action] Marking ALL read for admin: ${req.user._id}`);
+    const result = await Notification.updateMany(
+        { is_read: false },
+        { is_read: true }
+    );
+    console.log(`[Admin Notif Action] SUCCESS: Modified ${result.modifiedCount} notifications.`);
+    res.json({ message: 'All notifications marked as read' });
 });
 
 const seedShippingCompanies = asyncHandler(async (req, res) => {
@@ -1444,6 +1424,7 @@ export {
     getNotifications,
     getNotificationCount,
     markNotificationAsRead,
+    markAllAdminNotificationsAsRead,
     getPayoutMethods,
     seedShippingCompanies
 };

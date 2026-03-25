@@ -7,6 +7,7 @@
         "recent_messages": "Recent Messages",
         "recent_notifications": "Recent Notifications",
         "view_all": "View All",
+        "mark_all_read": "All Read",
         "no_messages": "No messages yet",
         "no_notifications": "No notifications yet"
     },

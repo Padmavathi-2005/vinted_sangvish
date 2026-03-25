@@ -22,7 +22,7 @@ const Header = () => {
     const { wishlist } = useContext(WishlistContext);
     const { currencies, currentCurrency, setCurrency } = useContext(CurrencyContext);
     const { languages, currentLanguage, setLanguage } = useContext(LanguageContext);
-    const { unreadCount, notifications: notifState } = useContext(NotificationContext);
+    const { unreadCount, notifications: notifState, markAsRead } = useContext(NotificationContext);
     const { cartCount } = useContext(CartContext);
     const { settings } = useSettings();
     const { t } = useTranslation();
@@ -935,6 +935,7 @@ const Header = () => {
                                                             <div
                                                                 key={n._id}
                                                                 onClick={() => {
+                                                                    if (!n.is_read) markAsRead(n._id);
                                                                     if (n.link) navigate(n.link);
                                                                     else navigate('/profile?tab=notifications');
                                                                     setIsNotifDropdownOpen(false);
@@ -1441,8 +1442,9 @@ const Header = () => {
                                         <Link to="/profile" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <FaUser size={16} /> My Profile
                                         </Link>
-                                        <Link to="/profile?tab=orders" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <FaShoppingCart size={16} /> My Orders
+                                        <Link to={mode === 'seller' ? "/profile?tab=listings" : "/profile?tab=orders"} className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            {mode === 'seller' ? <FaListAlt size={16} /> : <FaShoppingCart size={16} />}
+                                            {mode === 'seller' ? (mode === 'seller' ? 'Manage listings' : 'My orders') : 'My orders'}
                                         </Link>
                                         <Link to="/profile?tab=favorites" className="mobile-link" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <FaRegHeart size={16} /> Favorites

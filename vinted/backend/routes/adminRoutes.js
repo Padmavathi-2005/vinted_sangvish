@@ -48,6 +48,7 @@ import {
     getAdminNotifications,
     getAdminNotificationCount,
     markNotificationAsRead,
+    markAllAdminNotificationsAsRead,
     seedShippingCompanies
 } from '../controllers/adminController.js';
 import {
@@ -142,6 +143,7 @@ router.post('/product-reports/:id/action', handleReportAction);
 // Notifications
 router.get('/notifications', getAdminNotifications);
 router.get('/notifications/count', getAdminNotificationCount);
+router.put('/notifications/read-all', markAllAdminNotificationsAsRead);
 router.put('/notifications/:id/read', markNotificationAsRead);
 
 export default router;

@@ -44,7 +44,6 @@ const AdminSidebar = () => {
     });
     const isMobile = window.innerWidth < 992;
 
-    const [isHovered, setIsHovered] = useState(false);
     const { settingTypes, siteName, siteLogo } = useSettings();
 
     // State for expanded submenus
@@ -145,7 +144,7 @@ const AdminSidebar = () => {
     };
 
     const toggleSubMenu = (menuId) => {
-        if (isCollapsed && !isHovered) return; // Don't toggle in fully collapsed mode
+        if (isCollapsed) return; // Don't toggle in fully collapsed mode
         setExpandedMenus(prev => {
             if (prev[menuId]) {
                 return {}; // Close if it's already open
@@ -154,7 +153,7 @@ const AdminSidebar = () => {
         });
     };
 
-    const trulyCollapsed = isCollapsed && !isHovered;
+    const trulyCollapsed = isCollapsed;
 
     return (
         <>
@@ -163,12 +162,12 @@ const AdminSidebar = () => {
             )}
 
             <aside
-                className={`admin-sidebar ${trulyCollapsed ? 'collapsed' : ''} ${isHovered ? 'hover-expanded' : ''}`}
-                onMouseEnter={() => { if (isCollapsed && !isMobile) setIsHovered(true); }}
-                onMouseLeave={() => { setIsHovered(false); }}
+                className={`admin-sidebar ${isCollapsed ? 'collapsed' : ''}`}
+                onClick={() => { if (isCollapsed) toggleSidebar(); }}
+                style={{ cursor: isCollapsed ? 'pointer' : 'default' }}
             >
                 <div className="sidebar-header">
-                    {!trulyCollapsed && (
+                    {!isCollapsed && (
                         <div className="sidebar-logo">
                             {siteLogo ? (
                                 <img src={getImageUrl(siteLogo)} alt="Site Logo" className="logo-img" />
@@ -180,8 +179,12 @@ const AdminSidebar = () => {
                             )}
                         </div>
                     )}
-                    <button className={`collapse-btn ${trulyCollapsed ? 'is-collapsed' : ''}`} onClick={toggleSidebar} title={trulyCollapsed ? "Expand" : "Collapse"}>
-                        {trulyCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+                    <button 
+                        className={`collapse-btn ${isCollapsed ? 'is-collapsed' : ''}`} 
+                        onClick={(e) => { e.stopPropagation(); toggleSidebar(); }} 
+                        title={isCollapsed ? "Expand" : "Collapse"}
+                    >
+                        {isCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
                     </button>
                 </div>
 

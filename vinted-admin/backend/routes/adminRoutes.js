@@ -49,6 +49,7 @@ import {
     getNotifications,
     getNotificationCount,
     markNotificationAsRead,
+    markAllAdminNotificationsAsRead,
     getPayoutMethods,
     seedShippingCompanies
 } from '../controllers/adminController.js';
@@ -135,6 +136,7 @@ router.get('/payout-methods', getPayoutMethods);
 // Notification Management
 router.get('/notifications', getNotifications);
 router.get('/notifications/count', getNotificationCount);
+router.put('/notifications/read-all', markAllAdminNotificationsAsRead);
 router.put('/notifications/:id/read', markNotificationAsRead);
 
 // Newsletter Management

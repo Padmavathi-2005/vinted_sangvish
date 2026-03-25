@@ -119,8 +119,8 @@ const Profile = () => {
         const labels = {
             dashboard: t('profile.dashboard'),
             profile_settings: t('user_menu.my_profile'),
-            orders: mode === 'seller' ? t('profile.orders_received', 'Orders Received') : t('user_menu.my_orders', 'My Orders'),
-            listings: t('user_menu.manage_listings', 'Manage Listings'),
+            orders: mode === 'seller' ? t('profile.orders_received', 'Orders Received') : t('user_menu.my_orders', 'My orders'),
+            listings: t('user_menu.manage_listings', 'Manage listings'),
             favorites: t('profile.favorites'),
             messages: t('user_menu.messages', 'Messages'),
             notifications: t('notifications.title', 'Notifications'),
@@ -765,14 +765,14 @@ const Profile = () => {
 
                             {mode === 'buyer' && (
                                 <>
-                                    <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('user_menu.my_orders', 'My Orders')}</div>
+                                    <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('user_menu.my_orders', 'My orders')}</div>
                                     <div className={`pd-nav-item ${activeTab === 'favorites' ? 'active' : ''}`} onClick={() => handleTabChange('favorites')}>{t('profile.favorites')}</div>
                                 </>
                             )}
 
                             {mode === 'seller' && (
                                 <>
-                                    <div className={`pd-nav-item ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => handleTabChange('listings')}>{t('user_menu.manage_listings', 'Manage Listings')}</div>
+                                    <div className={`pd-nav-item ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => handleTabChange('listings')}>{t('user_menu.manage_listings', 'Manage listings')}</div>
                                     <div className={`pd-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => handleTabChange('orders')}>{t('profile.orders_received', 'Orders Received')}</div>
                                     <div className={`pd-nav-item ${activeTab === 'bundle_settings' ? 'active' : ''}`} onClick={() => handleTabChange('bundle_settings')}>Bundle Discounts</div>
                                 </>
@@ -1072,7 +1072,7 @@ const Profile = () => {
                     {activeTab === 'listings' && mode === 'seller' && (
                         <div className="pd-listings-container">
                             <div className="d-flex justify-content-between align-items-center mb-3">
-                                <h2 className="fw-bold m-0" style={{ fontSize: '1.2rem' }}>{t('user_menu.manage_listings', 'Manage Listings')} ({listingsTotalCount || 0})</h2>
+                                <h2 className="fw-bold m-0" style={{ fontSize: '1.2rem' }}>{t('user_menu.manage_listings', 'Manage listings')} ({listingsTotalCount || 0})</h2>
                                 <div className="d-flex gap-2 align-items-center">
                                     <div className={`pd-pagination-toggle-wrapper ${paginationMode === 'number' ? 'page-active' : ''}`}>
                                         <div className="pd-pagination-toggle-slider" />
@@ -1180,7 +1180,7 @@ const Profile = () => {
                             <div className="pd-orders-header mb-4">
                                 <div className="pd-orders-header-title">
                                     <h2 className="m-0">
-                                        {mode === 'buyer' ? t('user_menu.my_orders', 'My Orders') : t('profile.orders_received', 'Orders Received')}
+                                        {mode === 'buyer' ? t('user_menu.my_orders', 'My orders') : t('profile.orders_received', 'Orders Received')}
                                         <span className="pd-badge-count">{filteredOrders.length}</span>
                                     </h2>
                                     <p className="text-muted small m-0">{mode === 'buyer' ? 'Track and manage your purchases' : 'Manage your sales and shipments'}</p>

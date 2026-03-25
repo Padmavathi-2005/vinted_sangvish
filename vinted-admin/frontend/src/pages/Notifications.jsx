@@ -25,9 +25,9 @@ const Notifications = () => {
         } catch (error) {
             console.error('Error fetching notifications:', error);
             const mockData = [
-                { _id: '1', title: 'Order Cancelled', message: 'Order #ORD-1771929831080-472 has been cancelled by the buyer.', created_at: new Date().toISOString(), is_read: false, type: 'info' },
-                { _id: '2', title: 'New Message', message: 'You have a new message from sangili_raja', created_at: new Date(Date.now() - 3600000).toISOString(), is_read: true, type: 'message' },
-                { _id: '3', title: 'Withdrawal Request', message: 'User requested a withdrawal of $50.', created_at: new Date(Date.now() - 86400000).toISOString(), is_read: false, type: 'request' },
+                { _id: '67c25e4d7b69e05f5d3869f1', title: 'Order Cancelled', message: 'Order #ORD-1771929831080-472 has been cancelled by the buyer.', created_at: new Date().toISOString(), is_read: false, type: 'info' },
+                { _id: '67c25e4d7b69e05f5d3869f2', title: 'New Message', message: 'You have a new message from sangili_raja', created_at: new Date(Date.now() - 3600000).toISOString(), is_read: true, type: 'message' },
+                { _id: '67c25e4d7b69e05f5d3869f3', title: 'Withdrawal Request', message: 'User requested a withdrawal of $50.', created_at: new Date(Date.now() - 86400000).toISOString(), is_read: false, type: 'request' },
             ];
             setNotifications(mockData);
             if (mockData.length > 0) setSelectedId(mockData[0]._id);

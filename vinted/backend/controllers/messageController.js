@@ -49,7 +49,20 @@ const getConversations = asyncHandler(async (req, res) => {
         conv.participants && conv.participants.length >= 1
     );
 
-    res.status(200).json(safe);
+    // Add unread count for each conversation
+    const conversationsWithUnread = await Promise.all(safe.map(async (conv) => {
+        const unreadCount = await Message.countDocuments({
+            conversation_id: conv._id,
+            receiver_id: req.user._id,
+            is_read: false
+        });
+        return {
+            ...conv.toObject(),
+            unread_count: unreadCount
+        };
+    }));
+
+    res.status(200).json(conversationsWithUnread);
 });
 
 // @desc    Get total message count for admin
@@ -94,8 +107,18 @@ const getMessages = asyncHandler(async (req, res) => {
         .populate('sender_id', 'name username profile_image')
         .sort({ created_at: 1 });
 
+    // Mark messages as read for the receiver
+    await Message.updateMany(
+        { 
+            conversation_id: req.params.id, 
+            receiver_id: req.user._id, 
+            is_read: false 
+        },
+        { is_read: true }
+    );
+
     res.status(200).json({
-        conversation,
+        conversation: { ...conversation.toObject(), unread_count: 0 },
         messages
     });
 });

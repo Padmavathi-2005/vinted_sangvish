@@ -7,8 +7,7 @@ import Notification from '../models/Notification.js';
 const getNotifications = asyncHandler(async (req, res) => {
     try {
         const notifications = await Notification.find({ 
-            user_id: req.user.id,
-            on_model: 'User'
+            user_id: req.user._id
         })
             .sort({ created_at: -1 });
 
@@ -32,7 +31,7 @@ const markAsRead = asyncHandler(async (req, res) => {
     }
 
     // Check if notification belongs to user
-    if (notification.user_id.toString() !== req.user.id || notification.on_model !== 'User') {
+    if (notification.user_id.toString() !== req.user._id.toString()) {
         res.status(401);
         throw new Error('User not authorized');
     }
@@ -48,7 +47,7 @@ const markAsRead = asyncHandler(async (req, res) => {
 // @access  Private
 const markAllAsRead = asyncHandler(async (req, res) => {
     await Notification.updateMany(
-        { user_id: req.user.id, on_model: 'User', is_read: false },
+        { user_id: req.user._id, is_read: false },
         { is_read: true }
     );
 
